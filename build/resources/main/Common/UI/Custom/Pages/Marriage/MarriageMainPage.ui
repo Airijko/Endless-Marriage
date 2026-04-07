@@ -266,7 +266,6 @@ $C.@PageOverlay {
                                         Anchor: (Height: 26);
                                         Padding: (Horizontal: 8);
                                         Style: @CustomStyle;
-                                        Enabled: false;
                                     }
 
                                     Group { Anchor: (Height: 4); }
