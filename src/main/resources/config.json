@@ -1,4 +1,6 @@
 {
+  "config_version": 1,
+
   "require_priest_for_marriage": true,
   "require_magistrate_for_divorce": true,
   "proximity_range": 25.0,

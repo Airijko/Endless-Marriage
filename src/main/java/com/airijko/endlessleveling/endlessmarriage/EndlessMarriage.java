@@ -84,6 +84,26 @@ public class EndlessMarriage extends JavaPlugin {
         return debugNpcService;
     }
 
+    /**
+     * Re-reads {@code config.json} from disk (running the migrator first so any
+     * new keys from a freshly-deployed jar are merged in) and re-applies the
+     * values to live state. Services hold a reference to {@link MarriageConfig}
+     * rather than snapshotting its values, so calling {@code load()} on the
+     * existing instance is enough for them to pick up the new numbers.
+     * <p>
+     * The tiered ring catalog is rebuilt explicitly because it copies values
+     * out of the config at initialize-time into a static cache.
+     */
+    public void reloadConfig() {
+        if (filesManager == null || marriageConfig == null) {
+            LOGGER.atWarning().log("reloadConfig() called before initialization; ignoring.");
+            return;
+        }
+        marriageConfig.load(filesManager.getConfigFile());
+        TieredRingCatalog.initialize(marriageConfig);
+        LOGGER.atInfo().log("EndlessMarriage config reloaded from disk.");
+    }
+
     public EndlessMarriage(@Nonnull JavaPluginInit init) {
         super(init);
         INSTANCE = this;

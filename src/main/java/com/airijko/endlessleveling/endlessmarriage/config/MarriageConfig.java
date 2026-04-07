@@ -139,6 +139,10 @@ public class MarriageConfig {
             return;
         }
 
+        // Forward-migrate older user files: adds any new keys from the bundled
+        // defaults and bumps config_version. Preserves all existing user values.
+        MarriageConfigMigrator.migrate(configFile);
+
         try {
             String json = Files.readString(configFile.toPath(), StandardCharsets.UTF_8);
             JsonObject root = GSON.fromJson(json, JsonObject.class);

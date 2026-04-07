@@ -9,7 +9,10 @@
 
 package com.airijko.endlessleveling.endlessmarriage.commands;
 
+import com.airijko.endlessleveling.endlessmarriage.commands.subcommands.KissCommand;
+import com.airijko.endlessleveling.endlessmarriage.commands.subcommands.PiggybackCommand;
 import com.hypixel.hytale.logger.HytaleLogger;
+import com.hypixel.hytale.server.core.command.system.CommandRegistry;
 
 public final class MarriageCommandRegistrar {
 
@@ -18,49 +21,15 @@ public final class MarriageCommandRegistrar {
     private MarriageCommandRegistrar() {
     }
 
-    public static void registerCommands(Object commandRegistry) {
-        MarriageCommand marryCommand = new MarriageCommand();
-        registerCommand(commandRegistry, marryCommand);
-        LOGGER.atInfo().log("Registered /marry command.");
-    }
-
-    private static void registerCommand(Object commandRegistry, Object command) {
-        if (commandRegistry == null || command == null) {
+    public static void registerCommands(CommandRegistry commandRegistry) {
+        if (commandRegistry == null) {
+            LOGGER.atWarning().log("CommandRegistry unavailable; marriage commands will not be registered.");
             return;
         }
-
-        // Try exact type match first
-        try {
-            var method = commandRegistry.getClass().getMethod("registerCommand", command.getClass());
-            method.setAccessible(true);
-            method.invoke(commandRegistry, command);
-            return;
-        } catch (NoSuchMethodException ignored) {
-        } catch (Exception ex) {
-            LOGGER.atWarning().withCause(ex).log("Failed to register command via exact type.");
-        }
-
-        // Fallback to Object parameter
-        try {
-            var method = commandRegistry.getClass().getMethod("registerCommand", Object.class);
-            method.setAccessible(true);
-            method.invoke(commandRegistry, command);
-        } catch (Exception ex) {
-            LOGGER.atWarning().withCause(ex).log("Failed to register command via Object fallback.");
-        }
-
-        // Fallback to CommandManager singleton
-        try {
-            Class<?> managerClass = Class.forName("com.hypixel.hytale.server.core.command.system.CommandManager");
-            Object manager = managerClass.getMethod("get").invoke(null);
-            if (manager != null) {
-                Class<?> abstractCommandClass = Class.forName(
-                        "com.hypixel.hytale.server.core.command.system.AbstractCommand");
-                var registerMethod = managerClass.getMethod("register", abstractCommandClass);
-                registerMethod.invoke(manager, command);
-            }
-        } catch (Exception ex) {
-            LOGGER.atWarning().withCause(ex).log("Failed to register command via CommandManager fallback.");
-        }
+        commandRegistry.registerCommand(new MarriageCommand());
+        // Top-level shortcuts: previously /marry piggyback and /marry kiss.
+        commandRegistry.registerCommand(new PiggybackCommand());
+        commandRegistry.registerCommand(new KissCommand());
+        LOGGER.atInfo().log("Registered /marry, /piggyback, /kiss commands.");
     }
 }
