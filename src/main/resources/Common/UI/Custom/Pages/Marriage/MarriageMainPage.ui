@@ -1,0 +1,503 @@
+$C = "../../Common.ui";
+
+@CustomStyle = TextButtonStyle(
+    Default: (Background: $C.@DefaultSquareButtonDefaultBackground, LabelStyle: $C.@DefaultButtonLabelStyle),
+    Hovered: (Background: $C.@DefaultSquareButtonHoveredBackground, LabelStyle: $C.@DefaultButtonLabelStyle),
+    Pressed: (Background: $C.@DefaultSquareButtonPressedBackground, LabelStyle: $C.@DefaultButtonLabelStyle),
+    Disabled: (Background: $C.@DefaultSquareButtonDisabledBackground, LabelStyle: $C.@DefaultButtonDisabledLabelStyle),
+    Sounds: $C.@ButtonSounds,
+);
+
+$C.@PageOverlay {
+    Group {
+        LayoutMode: Middle;
+
+        Group {
+            Anchor: (Width: 720, Height: 580);
+            Background: (TexturePath: "Images/ObjectivePanelContainer.png", Border: 15);
+            LayoutMode: Top;
+            Padding: (Full: 16);
+
+            // ---- Title ----
+            Label {
+                Text: "ENDLESS MARRIAGE";
+                Anchor: (Height: 26);
+                Style: (FontSize: 16, TextColor: #f0c040, RenderBold: true, RenderUppercase: true, LetterSpacing: 2, HorizontalAlignment: Center, VerticalAlignment: Center);
+            }
+
+            Group { Anchor: (Height: 1); Background: #7a5a10; }
+            Group { Anchor: (Height: 4); }
+
+            Label {
+                Text: "Bonds forged in adventure, sealed by fate.";
+                Anchor: (Height: 16);
+                Style: (FontSize: 11, TextColor: #e8e8b0, HorizontalAlignment: Center, VerticalAlignment: Center);
+            }
+
+            Group { Anchor: (Height: 8); }
+
+            // ---- Scrollable Content ----
+            Group {
+                FlexWeight: 1;
+                LayoutMode: TopScrolling;
+                ScrollbarStyle: $C.@DefaultScrollbarStyle;
+
+                // ===== MARRIED PANEL =====
+                Group #MarriedPanel {
+                    LayoutMode: Top;
+                    Visible: false;
+
+                    // ---- Spouse Info Card ----
+                    Group {
+                        LayoutMode: Top;
+                        Background: #0b141f(0.88);
+                        Padding: (Full: 16);
+
+                        Group {
+                            Anchor: (Width: 3, Top: 0, Left: 0, Bottom: 0);
+                            Background: #f2a2e8;
+                        }
+
+                        Group {
+                            LayoutMode: Top;
+                            Padding: (Left: 12);
+
+                            Group {
+                                LayoutMode: Left;
+                                Anchor: (Height: 14);
+                                Padding: (Bottom: 6);
+
+                                Label {
+                                    Text: "SPOUSE";
+                                    Style: (FontSize: 10, TextColor: #f2a2e8, RenderBold: true, LetterSpacing: 2, VerticalAlignment: Center);
+                                }
+                            }
+
+                            Group { Anchor: (Height: 1); Background: #ffffff(0.07); }
+                            Group { Anchor: (Height: 8); }
+
+                            Group {
+                                LayoutMode: Left;
+                                Anchor: (Height: 28);
+
+                                Label #SpouseNameLabel {
+                                    Text: "Unknown";
+                                    Style: (FontSize: 20, TextColor: #ffffff, RenderBold: true, VerticalAlignment: Center);
+                                    FlexWeight: 1;
+                                }
+
+                                Label #SpouseOnlineLabel {
+                                    Text: "OFFLINE";
+                                    Style: (FontSize: 11, TextColor: #ff6666, RenderBold: true, RenderUppercase: true, VerticalAlignment: Center, HorizontalAlignment: End);
+                                    Anchor: (Width: 80);
+                                }
+                            }
+
+                            Group { Anchor: (Height: 4); }
+
+                            Label #MarriageDateLabel {
+                                Text: "Since: ---";
+                                Style: (FontSize: 12, TextColor: #7a9abf);
+                                Anchor: (Height: 16);
+                            }
+
+                            Label #OfficiantLabel {
+                                Text: "";
+                                Style: (FontSize: 12, TextColor: #7a9abf);
+                                Anchor: (Height: 16);
+                                Visible: false;
+                            }
+                        }
+                    }
+
+                    Group { Anchor: (Height: 8); }
+
+                    // ---- Bonus & Home Cards ----
+                    Group {
+                        LayoutMode: Left;
+                        Anchor: (Height: 80);
+
+                        Group {
+                            FlexWeight: 1;
+                            LayoutMode: Top;
+                            Background: #0b141f(0.88);
+                            Padding: (Full: 14);
+
+                            Group {
+                                Anchor: (Width: 3, Top: 0, Left: 0, Bottom: 0);
+                                Background: #9ad4ff;
+                            }
+
+                            Group {
+                                LayoutMode: Top;
+                                Padding: (Left: 12);
+
+                                Label {
+                                    Text: "XP BONUS";
+                                    Style: (FontSize: 10, TextColor: #9ad4ff, RenderBold: true, LetterSpacing: 2);
+                                    Anchor: (Height: 14);
+                                }
+
+                                Group { Anchor: (Height: 1); Background: #ffffff(0.07); }
+                                Group { Anchor: (Height: 6); }
+
+                                Label #XpBonusLabel {
+                                    Text: "+25% Discipline XP";
+                                    Style: (FontSize: 14, TextColor: #ffffff, RenderBold: true);
+                                    Anchor: (Height: 20);
+                                }
+                            }
+                        }
+
+                        Group { Anchor: (Width: 8); }
+
+                        Group {
+                            FlexWeight: 1;
+                            LayoutMode: Top;
+                            Background: #0b141f(0.88);
+                            Padding: (Full: 14);
+
+                            Group {
+                                Anchor: (Width: 3, Top: 0, Left: 0, Bottom: 0);
+                                Background: #8be0b2;
+                            }
+
+                            Group {
+                                LayoutMode: Top;
+                                Padding: (Left: 12);
+
+                                Label {
+                                    Text: "HOME";
+                                    Style: (FontSize: 10, TextColor: #8be0b2, RenderBold: true, LetterSpacing: 2);
+                                    Anchor: (Height: 14);
+                                }
+
+                                Group { Anchor: (Height: 1); Background: #ffffff(0.07); }
+                                Group { Anchor: (Height: 6); }
+
+                                Label #HomeInfoLabel {
+                                    Text: "No home set";
+                                    Style: (FontSize: 13, TextColor: #c0cee5);
+                                    Anchor: (Height: 20);
+                                }
+                            }
+                        }
+                    }
+
+                    Group { Anchor: (Height: 12); }
+
+                    // ---- Action Buttons ----
+                    Group {
+                        LayoutMode: Left;
+                        Anchor: (Height: 40);
+
+                        $C.@TextButton #TpPartnerButton {
+                            Text: "TP TO SPOUSE";
+                            Anchor: (Height: 36);
+                            Padding: (Horizontal: 12);
+                            FlexWeight: 1;
+                            Style: @CustomStyle;
+                        }
+
+                        Group { Anchor: (Width: 6); }
+
+                        $C.@TextButton #HomeButton {
+                            Text: "GO HOME";
+                            Anchor: (Height: 36);
+                            Padding: (Horizontal: 12);
+                            FlexWeight: 1;
+                            Style: @CustomStyle;
+                        }
+
+                        Group { Anchor: (Width: 6); }
+
+                        $C.@TextButton #SetHomeButton {
+                            Text: "SET HOME";
+                            Anchor: (Height: 36);
+                            Padding: (Horizontal: 12);
+                            FlexWeight: 1;
+                            Style: @CustomStyle;
+                        }
+                    }
+
+                    Group { Anchor: (Height: 6); }
+
+                    Group {
+                        LayoutMode: Left;
+                        Anchor: (Height: 40);
+
+                        $C.@TextButton #InventoryButton {
+                            Text: "SPOUSE INVENTORY";
+                            Anchor: (Height: 36);
+                            Padding: (Horizontal: 12);
+                            FlexWeight: 1;
+                            Style: @CustomStyle;
+                        }
+
+                        Group { Anchor: (Width: 6); }
+
+                        $C.@TextButton #StatusButton {
+                            Text: "STATUS";
+                            Anchor: (Height: 36);
+                            Padding: (Horizontal: 12);
+                            FlexWeight: 1;
+                            Style: @CustomStyle;
+                        }
+                    }
+
+                    Group { Anchor: (Height: 12); }
+
+                    Group {
+                        LayoutMode: Left;
+                        Anchor: (Height: 40);
+
+                        $C.@CancelTextButton #DivorceButton {
+                            Text: "REQUEST DIVORCE";
+                            Anchor: (Height: 36, Width: 220);
+                            Padding: (Horizontal: 12);
+                        }
+                    }
+
+                    // ---- Role Section ----
+                    Group #RoleSection {
+                        LayoutMode: Top;
+                        Visible: false;
+
+                        Group { Anchor: (Height: 12); }
+
+                        Group {
+                            LayoutMode: Top;
+                            Background: #0b141f(0.88);
+                            Padding: (Full: 14);
+
+                            Group {
+                                Anchor: (Width: 3, Top: 0, Left: 0, Bottom: 0);
+                                Background: #e5c68a;
+                            }
+
+                            Group {
+                                LayoutMode: Top;
+                                Padding: (Left: 12);
+
+                                Label {
+                                    Text: "PRIEST / MAGISTRATE";
+                                    Style: (FontSize: 10, TextColor: #e5c68a, RenderBold: true, LetterSpacing: 2);
+                                    Anchor: (Height: 14);
+                                }
+
+                                Group { Anchor: (Height: 1); Background: #ffffff(0.07); }
+                                Group { Anchor: (Height: 8); }
+
+                                Group {
+                                    LayoutMode: Left;
+                                    Anchor: (Height: 36);
+
+                                    $C.@TextButton #RecordsButton {
+                                        Text: "RECORDS";
+                                        Anchor: (Height: 32, Width: 140);
+                                        Padding: (Horizontal: 8);
+                                        Style: @CustomStyle;
+                                    }
+
+                                    Group { Anchor: (Width: 8); }
+
+                                    $C.@TextButton #OfficiateFromMarriedButton {
+                                        Text: "OFFICIATE PANEL";
+                                        Anchor: (Height: 32, Width: 180);
+                                        Padding: (Horizontal: 8);
+                                        Style: @CustomStyle;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ===== UNMARRIED PANEL =====
+                Group #UnmarriedPanel {
+                    LayoutMode: Top;
+                    Visible: false;
+
+                    Group {
+                        LayoutMode: Top;
+                        Background: #0b141f(0.88);
+                        Padding: (Full: 16);
+
+                        Label {
+                            Text: "You are not married.";
+                            Style: (FontSize: 18, TextColor: #c0cee5, RenderBold: true);
+                            Anchor: (Height: 24);
+                        }
+
+                        Group { Anchor: (Height: 4); }
+
+                        Label {
+                            Text: "Propose to another player to begin your journey together.";
+                            Style: (FontSize: 13, TextColor: #7a9abf, Wrap: true);
+                            Anchor: (Height: 18);
+                        }
+                    }
+
+                    Group { Anchor: (Height: 8); }
+
+                    Group {
+                        LayoutMode: Top;
+                        Background: #0b141f(0.88);
+                        Padding: (Full: 16);
+
+                        Group {
+                            Anchor: (Width: 3, Top: 0, Left: 0, Bottom: 0);
+                            Background: #ffb347;
+                        }
+
+                        Group {
+                            LayoutMode: Top;
+                            Padding: (Left: 12);
+
+                            Label {
+                                Text: "PROPOSALS";
+                                Style: (FontSize: 10, TextColor: #ffb347, RenderBold: true, LetterSpacing: 2);
+                                Anchor: (Height: 14);
+                            }
+
+                            Group { Anchor: (Height: 1); Background: #ffffff(0.07); }
+                            Group { Anchor: (Height: 6); }
+
+                            Label #PendingProposalLabel {
+                                Text: "";
+                                Style: (FontSize: 15, TextColor: #ffb347, RenderBold: true);
+                                Anchor: (Height: 22);
+                                Visible: false;
+                            }
+
+                            Group { Anchor: (Height: 4); }
+
+                            Group {
+                                LayoutMode: Left;
+                                Anchor: (Height: 40);
+
+                                $C.@TextButton #AcceptButton {
+                                    Text: "ACCEPT";
+                                    Anchor: (Width: 140, Height: 36);
+                                    Padding: (Horizontal: 8);
+                                    Style: @CustomStyle;
+                                    Visible: false;
+                                }
+
+                                Group { Anchor: (Width: 8); }
+
+                                $C.@CancelTextButton #DenyButton {
+                                    Text: "DENY";
+                                    Anchor: (Width: 140, Height: 36);
+                                    Padding: (Horizontal: 8);
+                                    Visible: false;
+                                }
+                            }
+
+                            Group { Anchor: (Height: 4); }
+
+                            Label #OutgoingProposalLabel {
+                                Text: "";
+                                Style: (FontSize: 13, TextColor: #7ec8f5);
+                                Anchor: (Height: 18);
+                                Visible: false;
+                            }
+
+                            Group { Anchor: (Height: 4); }
+
+                            Label #PendingMarriageLabel {
+                                Text: "";
+                                Style: (FontSize: 13, TextColor: #8be0b2);
+                                Anchor: (Height: 18);
+                                Visible: false;
+                            }
+
+                            Group { Anchor: (Height: 4); }
+
+                            Group {
+                                LayoutMode: Left;
+                                Anchor: (Height: 40);
+
+                                $C.@TextButton #FindPriestButton {
+                                    Text: "FIND PRIEST";
+                                    Anchor: (Width: 170, Height: 36);
+                                    Padding: (Horizontal: 8);
+                                    Style: @CustomStyle;
+                                    Visible: false;
+                                }
+                            }
+                        }
+                    }
+
+                    Group { Anchor: (Height: 12); }
+
+                    Group {
+                        LayoutMode: Left;
+                        Anchor: (Height: 44);
+
+                        $C.@TextButton #ProposeButton {
+                            Text: "PROPOSE TO PLAYER";
+                            Anchor: (Height: 40);
+                            Padding: (Horizontal: 16);
+                            FlexWeight: 1;
+                            Style: @CustomStyle;
+                        }
+                    }
+
+                    Group #OfficiateSection {
+                        LayoutMode: Top;
+                        Visible: false;
+
+                        Group { Anchor: (Height: 12); }
+
+                        Group {
+                            LayoutMode: Top;
+                            Background: #0b141f(0.88);
+                            Padding: (Full: 14);
+
+                            Group {
+                                Anchor: (Width: 3, Top: 0, Left: 0, Bottom: 0);
+                                Background: #e5c68a;
+                            }
+
+                            Group {
+                                LayoutMode: Top;
+                                Padding: (Left: 12);
+
+                                Label {
+                                    Text: "PRIEST / MAGISTRATE";
+                                    Style: (FontSize: 10, TextColor: #e5c68a, RenderBold: true, LetterSpacing: 2);
+                                    Anchor: (Height: 14);
+                                }
+
+                                Group { Anchor: (Height: 1); Background: #ffffff(0.07); }
+                                Group { Anchor: (Height: 8); }
+
+                                Group {
+                                    LayoutMode: Left;
+                                    Anchor: (Height: 36);
+
+                                    $C.@TextButton #RecordsUnmarriedButton {
+                                        Text: "RECORDS";
+                                        Anchor: (Height: 32, Width: 140);
+                                        Padding: (Horizontal: 8);
+                                        Style: @CustomStyle;
+                                    }
+
+                                    Group { Anchor: (Width: 8); }
+
+                                    $C.@TextButton #OfficiateButton {
+                                        Text: "OFFICIATE PANEL";
+                                        Anchor: (Height: 32, Width: 180);
+                                        Padding: (Horizontal: 8);
+                                        Style: @CustomStyle;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

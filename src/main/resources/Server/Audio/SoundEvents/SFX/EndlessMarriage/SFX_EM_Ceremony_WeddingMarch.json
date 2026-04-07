@@ -1,0 +1,10 @@
+{
+  "Layers": [
+    {
+      "Files": [
+        "Sounds/Ceremonies/wedding-march.ogg"
+      ]
+    }
+  ],
+  "Parent": "SFX_Attn_Loud"
+}

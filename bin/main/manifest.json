@@ -1,0 +1,20 @@
+{
+  "Group": "com.airijko",
+  "Name": "EndlessMarriage",
+  "Version": "1.0.0",
+  "Description": "Endless Marriage by Airijko",
+  "Authors": [
+    {
+      "Name": "Airijko",
+      "Website": ""
+    }
+  ],
+  "ServerVersion": "2026.03.26-89796e57b",
+  "Dependencies": {
+    "com.airijko:EndlessLeveling": "7.0.0"
+  },
+  "OptionalDependencies": {},
+  "DisabledByDefault": false,
+  "IncludesAssetPack": true,
+  "Main": "com.airijko.endlessleveling.endlessmarriage.EndlessMarriage"
+}

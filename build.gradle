@@ -1,0 +1,134 @@
+plugins {
+    id 'java'
+    id 'com.gradleup.shadow' version '8.3.0'
+}
+
+def configuredJavaVersion = project.findProperty('javaVersion')?.toString() ?: '25'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(Integer.parseInt(configuredJavaVersion))
+    }
+}
+
+def resolveHytaleServerJar() {
+    def configuredInstallPath = project.findProperty('hytaleInstallPath')?.toString()
+    def candidates = []
+
+    if (configuredInstallPath != null && !configuredInstallPath.isBlank()) {
+        candidates.add("${configuredInstallPath}/Server/HytaleServer.jar")
+    }
+
+    def appData = System.getenv('APPDATA')
+    if (appData != null && !appData.isBlank()) {
+        candidates.add("${appData}/Hytale/install/release/package/game/latest/Server/HytaleServer.jar")
+    }
+
+    candidates.add("${project.rootDir}/libs/HytaleServer.jar")
+
+    def existing = candidates.collect { file(it) }.find { it.exists() && it.isFile() }
+    if (existing != null) {
+        return existing
+    }
+
+    throw new GradleException(
+            "Could not locate HytaleServer.jar. Set -PhytaleInstallPath to your Hytale install root, or place HytaleServer.jar in ${project.rootDir}/libs. Tried: ${candidates}"
+    )
+}
+
+repositories {
+    mavenCentral()
+    // Official Hytale Maven repository
+    maven {
+        name = 'hytale-release'
+        url = 'https://maven.hytale.com/release'
+    }
+    maven {
+        name = 'hytale-pre-release'
+        url = 'https://maven.hytale.com/pre-release'
+    }
+}
+
+def resolveEndlessLevelingJar() {
+    def candidates = [
+        "${project.rootDir}/../endlessleveling/build/libs/EndlessLeveling.jar",
+        "${project.rootDir}/../EndlessLeveling/build/libs/EndlessLeveling.jar",
+        "${project.rootDir}/libs/EndlessLeveling.jar"
+    ]
+    // Also search for versioned JARs (e.g. EndlessLeveling-7.3.4.jar)
+    def dirs = [
+        file("${project.rootDir}/../endlessleveling/build/libs"),
+        file("${project.rootDir}/../EndlessLeveling/build/libs"),
+        file("${project.rootDir}/libs")
+    ]
+    for (dir in dirs) {
+        if (dir.exists() && dir.isDirectory()) {
+            def match = dir.listFiles()?.find { it.name.startsWith("EndlessLeveling") && it.name.endsWith(".jar") }
+            if (match != null) {
+                return match
+            }
+        }
+    }
+    def existing = candidates.collect { file(it) }.find { it.exists() && it.isFile() }
+    if (existing != null) {
+        return existing
+    }
+    throw new GradleException(
+        "Could not locate EndlessLeveling.jar. Build EndlessLeveling first or place EndlessLeveling.jar in ${project.rootDir}/libs. Tried: ${candidates}"
+    )
+}
+
+dependencies {
+    compileOnly files(resolveHytaleServerJar())
+    compileOnly files(resolveEndlessLevelingJar())
+    compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
+    // Gson is bundled with HytaleServer; shade our own copy as a fallback.
+    implementation 'com.google.code.gson:gson:2.10.1'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = Integer.parseInt(configuredJavaVersion)
+    options.encoding = 'UTF-8'
+}
+
+shadowJar {
+    archiveClassifier.set('')
+    // Exclude server classes from the final JAR
+    dependencies {
+        exclude(dependency { it.moduleGroup == 'com.hypixel' })
+    }
+}
+
+// Disable the default jar task to avoid conflicts with shadowJar
+tasks.named('jar') {
+    enabled = false
+}
+
+tasks.named('build') {
+    dependsOn shadowJar
+}
+
+// Maven-style compatibility alias so `gradlew package` builds the distributable jar.
+tasks.register('package') {
+    group = 'build'
+    description = 'Builds the shaded distributable jar (alias for shadowJar).'
+    dependsOn tasks.named('shadowJar')
+}
+
+// Deploy plugin JAR to server mods folder
+tasks.register('deployToServer', Copy) {
+    // Using 'from shadowJar' automatically adds task dependency and proper input tracking
+    from shadowJar
+    into 'server/mods'
+    doLast {
+        println "Deployed to server/mods/"
+    }
+}
+
+// Watch for changes and auto-rebuild (useful during development)
+tasks.register('watch') {
+    doLast {
+        println "Watching for changes... Press Ctrl+C to stop."
+        println "Run 'gradle build --continuous' for auto-rebuild on file changes."
+    }
+}

@@ -1,0 +1,127 @@
+$C = "../../Common.ui";
+
+$C.@PageOverlay {
+    Group {
+        LayoutMode: Middle;
+
+        Group {
+            Anchor: (Width: 680, Height: 560);
+            Background: (TexturePath: "Images/ObjectivePanelContainer.png", Border: 15);
+            LayoutMode: Top;
+            Padding: (Full: 16);
+
+            // ---- Title ----
+            Label {
+                Text: "OFFICIATE";
+                Anchor: (Height: 24);
+                Style: (FontSize: 16, TextColor: #f0c040, RenderBold: true, RenderUppercase: true, LetterSpacing: 2, HorizontalAlignment: Center, VerticalAlignment: Center);
+            }
+
+            Group { Anchor: (Height: 1); Background: #7a5a10; }
+            Group { Anchor: (Height: 8); }
+
+            Label #NoRoleLabel {
+                Text: "You need the Priest or Magistrate class to officiate.";
+                Style: (FontSize: 14, TextColor: #ffb347, RenderBold: true, Wrap: true);
+                Anchor: (Height: 36);
+                Visible: false;
+            }
+
+            // ---- Pending Marriages ----
+            Group #MarriageSection {
+                LayoutMode: Top;
+
+                Group {
+                    LayoutMode: Top;
+                    Background: #0b141f(0.88);
+                    Padding: (Full: 14);
+
+                    Group {
+                        Anchor: (Width: 3, Top: 0, Left: 0, Bottom: 0);
+                        Background: #8be0b2;
+                    }
+
+                    Group {
+                        LayoutMode: Left;
+                        Padding: (Left: 12);
+
+                        Label {
+                            Text: "PENDING MARRIAGES";
+                            Style: (FontSize: 10, TextColor: #8be0b2, RenderBold: true, LetterSpacing: 2, VerticalAlignment: Center);
+                        }
+
+                        Group { FlexWeight: 1; }
+
+                        Label #MarriageCountLabel {
+                            Text: "0 pending";
+                            Style: (FontSize: 10, TextColor: #7a9abf, VerticalAlignment: Center);
+                        }
+                    }
+                }
+
+                Group { Anchor: (Height: 4); }
+
+                Group #MarriageListScroll {
+                    LayoutMode: TopScrolling;
+                    ScrollbarStyle: $C.@DefaultScrollbarStyle;
+                    Background: #040c17(0.90);
+                    Padding: (Full: 6);
+                    Anchor: (Height: 160);
+
+                    Group #MarriageRows {
+                        LayoutMode: Top;
+                    }
+                }
+            }
+
+            Group { Anchor: (Height: 10); }
+
+            // ---- Pending Divorces ----
+            Group #DivorceSection {
+                LayoutMode: Top;
+
+                Group {
+                    LayoutMode: Top;
+                    Background: #0b141f(0.88);
+                    Padding: (Full: 14);
+
+                    Group {
+                        Anchor: (Width: 3, Top: 0, Left: 0, Bottom: 0);
+                        Background: #ff7b7b;
+                    }
+
+                    Group {
+                        LayoutMode: Left;
+                        Padding: (Left: 12);
+
+                        Label {
+                            Text: "PENDING DIVORCES";
+                            Style: (FontSize: 10, TextColor: #ff7b7b, RenderBold: true, LetterSpacing: 2, VerticalAlignment: Center);
+                        }
+
+                        Group { FlexWeight: 1; }
+
+                        Label #DivorceCountLabel {
+                            Text: "0 pending";
+                            Style: (FontSize: 10, TextColor: #7a9abf, VerticalAlignment: Center);
+                        }
+                    }
+                }
+
+                Group { Anchor: (Height: 4); }
+
+                Group #DivorceListScroll {
+                    LayoutMode: TopScrolling;
+                    ScrollbarStyle: $C.@DefaultScrollbarStyle;
+                    Background: #040c17(0.90);
+                    Padding: (Full: 6);
+                    Anchor: (Height: 160);
+
+                    Group #DivorceRows {
+                        LayoutMode: Top;
+                    }
+                }
+            }
+        }
+    }
+}

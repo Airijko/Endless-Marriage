@@ -1,0 +1,86 @@
+$C = "../../Common.ui";
+
+$C.@PageOverlay {
+    Group {
+        LayoutMode: Middle;
+
+        Group {
+            Anchor: (Width: 580, Height: 480);
+            Background: (TexturePath: "Images/ObjectivePanelContainer.png", Border: 15);
+            LayoutMode: Top;
+            Padding: (Full: 16);
+
+            // ---- Title ----
+            Label {
+                Text: "FIND A PRIEST";
+                Anchor: (Height: 24);
+                Style: (FontSize: 16, TextColor: #f0c040, RenderBold: true, RenderUppercase: true, LetterSpacing: 2, HorizontalAlignment: Center, VerticalAlignment: Center);
+            }
+
+            Group { Anchor: (Height: 1); Background: #7a5a10; }
+            Group { Anchor: (Height: 8); }
+
+            // ---- Header Card ----
+            Group {
+                LayoutMode: Top;
+                Background: #0b141f(0.88);
+                Padding: (Full: 14);
+
+                Group {
+                    Anchor: (Width: 3, Top: 0, Left: 0, Bottom: 0);
+                    Background: #e5c68a;
+                }
+
+                Group {
+                    LayoutMode: Left;
+                    Padding: (Left: 12);
+
+                    Label {
+                        Text: "NEARBY PRIESTS";
+                        Style: (FontSize: 10, TextColor: #e5c68a, RenderBold: true, LetterSpacing: 2, VerticalAlignment: Center);
+                    }
+
+                    Group { FlexWeight: 1; }
+
+                    Label #PriestCountLabel {
+                        Text: "0 priests";
+                        Style: (FontSize: 10, TextColor: #7a9abf, VerticalAlignment: Center);
+                    }
+                }
+            }
+
+            Group { Anchor: (Height: 4); }
+
+            Label #PriestInstructionLabel {
+                Text: "Select a nearby Priest to request marriage officiation.";
+                Style: (FontSize: 12, TextColor: #e8e8b0);
+                Anchor: (Height: 16);
+                Padding: (Left: 4);
+            }
+
+            Group { Anchor: (Height: 4); }
+
+            // ---- Priest List ----
+            Group #PriestListScroll {
+                FlexWeight: 1;
+                LayoutMode: TopScrolling;
+                ScrollbarStyle: $C.@DefaultScrollbarStyle;
+                Background: #040c17(0.90);
+                Padding: (Full: 6);
+
+                Group #PriestRows {
+                    LayoutMode: Top;
+                }
+            }
+
+            Group { Anchor: (Height: 8); }
+
+            Label #NoPriestsLabel {
+                Text: "No priests are nearby. Ask a Priest player to come closer.";
+                Style: (FontSize: 13, TextColor: #ffb347, RenderBold: true, Wrap: true);
+                Anchor: (Height: 36);
+                Visible: false;
+            }
+        }
+    }
+}
