@@ -11,8 +11,10 @@ package com.airijko.endlessleveling.endlessmarriage.ui;
 
 import com.airijko.endlessleveling.api.EndlessLevelingAPI;
 import com.airijko.endlessleveling.endlessmarriage.EndlessMarriage;
+import com.airijko.endlessleveling.endlessmarriage.MarriageAnnouncer;
 import com.airijko.endlessleveling.endlessmarriage.config.MarriageConfig;
 import com.airijko.endlessleveling.endlessmarriage.data.MarriageDataManager;
+import com.airijko.endlessleveling.endlessmarriage.services.WitnessCollector;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.logger.HytaleLogger;
@@ -29,7 +31,12 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 
 import static com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType.Activating;
 import static com.hypixel.hytale.server.core.ui.builder.EventData.of;
@@ -137,7 +144,7 @@ public class MarriageOfficiatePage extends InteractiveCustomUIPage<MarriagePageD
             String spouseName = spouse != null ? resolvePlayerName(spouse) : "?";
             ui.set(base + " #PlayerName.Text", name + " & " + spouseName);
             ui.set(base + " #ActionButton.Text", "GRANT");
-            ui.set(base + " #ActionButton.Enabled", isMagistrate);
+            ui.set(base + " #ActionButton.Disabled", !isMagistrate);
 
             events.addEventBinding(Activating,
                     base + " #ActionButton",
@@ -224,21 +231,37 @@ public class MarriageOfficiatePage extends InteractiveCustomUIPage<MarriagePageD
                 return;
             }
 
+            // Collect witnesses (online players in the same world within the witness
+            // radius of the priest, excluding the priest and the two newlyweds).
+            Set<UUID> excluded = new HashSet<>();
+            excluded.add(priestUuid);
+            excluded.add(p1);
+            excluded.add(p2);
+            List<UUID> witnesses = WitnessCollector.collect(priestStore, priestPos,
+                    config.getWitnessMaxRange(), excluded);
+
             // --- All checks passed, marry them ---
-            data.marry(p1, p2, priestUuid);
+            data.marry(p1, p2, priestUuid, witnesses);
             // marry() already calls clearPriestRequestsForCouple
 
+            String name1 = resolvePlayerName(p1);
+            String name2 = resolvePlayerName(p2);
+            String priestName = resolvePlayerName(priestUuid);
+
             playerRef.sendMessage(Message.raw("[Marriage] You officiated the marriage of "
-                    + resolvePlayerName(p1) + " & " + resolvePlayerName(p2) + "!").color("#66ff66"));
+                    + name1 + " & " + name2 + "!").color("#66ff66"));
 
             if (ref1.isValid()) {
                 ref1.sendMessage(Message.raw("[Marriage] You are now married! Officiated by "
-                        + resolvePlayerName(priestUuid)).color("#66ff66"));
+                        + priestName).color("#66ff66"));
             }
             if (ref2.isValid()) {
                 ref2.sendMessage(Message.raw("[Marriage] You are now married! Officiated by "
-                        + resolvePlayerName(priestUuid)).color("#66ff66"));
+                        + priestName).color("#66ff66"));
             }
+
+            // Global wedding announcement: title, chat broadcast, wedding march SFX
+            MarriageAnnouncer.announceMarriage(name1, name2, priestName);
         } catch (IllegalArgumentException ex) {
             playerRef.sendMessage(Message.raw("[Marriage] Invalid players.").color("#ff6666"));
         }
@@ -298,15 +321,23 @@ public class MarriageOfficiatePage extends InteractiveCustomUIPage<MarriagePageD
         }
     }
 
+    @Nonnull
     private String resolvePlayerName(@Nonnull UUID uuid) {
         PlayerRef ref = Universe.get().getPlayer(uuid);
-        if (ref != null && ref.getUsername() != null) {
-            return ref.getUsername();
+        if (ref != null) {
+            String username = ref.getUsername();
+            if (username != null) {
+                return username;
+            }
         }
         var snapshot = EndlessLevelingAPI.get().getPlayerSnapshot(uuid);
-        if (snapshot != null && snapshot.playerName() != null) {
-            return snapshot.playerName();
+        if (snapshot != null) {
+            String snapshotName = snapshot.playerName();
+            if (snapshotName != null) {
+                return snapshotName;
+            }
         }
-        return uuid.toString().substring(0, 8);
+        String fallback = uuid.toString().substring(0, 8);
+        return fallback != null ? fallback : "";
     }
 }

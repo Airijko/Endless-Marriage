@@ -10,29 +10,29 @@
 package com.airijko.endlessleveling.endlessmarriage.commands.subcommands;
 
 import com.airijko.endlessleveling.api.EndlessLevelingAPI;
+import com.airijko.endlessleveling.endlessmarriage.MarriageAnnouncer;
 import com.airijko.endlessleveling.endlessmarriage.config.MarriageConfig;
 import com.airijko.endlessleveling.endlessmarriage.data.MarriageDataManager;
+import com.airijko.endlessleveling.endlessmarriage.services.WitnessCollector;
 import com.airijko.endlessleveling.util.OperatorHelper;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.math.vector.Vector3d;
-import com.hypixel.hytale.protocol.SoundCategory;
 import com.hypixel.hytale.server.core.Message;
-import com.hypixel.hytale.server.core.asset.type.soundevent.config.SoundEvent;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.arguments.system.RequiredArg;
 import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractPlayerCommand;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
-import com.hypixel.hytale.server.core.universe.Universe;
-import com.hypixel.hytale.server.core.universe.world.SoundUtil;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.hypixel.hytale.server.core.util.EventTitleUtil;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import static com.airijko.endlessleveling.endlessmarriage.commands.subcommands.MarriageUtil.*;
@@ -42,8 +42,6 @@ import static com.airijko.endlessleveling.endlessmarriage.commands.subcommands.M
  * The priest must be nearby both players to complete the ceremony.
  */
 public class OfficiateCommand extends AbstractPlayerCommand {
-
-    private static final String WEDDING_MARCH_SOUND_ID = "SFX_EM_Ceremony_WeddingMarch";
 
     private final RequiredArg<String> player1Arg = this.withRequiredArg("player1", "First player", ArgTypes.STRING);
     private final RequiredArg<String> player2Arg = this.withRequiredArg("player2", "Second player", ArgTypes.STRING);
@@ -154,8 +152,17 @@ public class OfficiateCommand extends AbstractPlayerCommand {
             return;
         }
 
+        // Collect witnesses (players within witness radius of the priest, excluding
+        // the priest and the two newlyweds themselves).
+        Set<UUID> excluded = new HashSet<>();
+        excluded.add(senderUuid);
+        excluded.add(p1);
+        excluded.add(p2);
+        List<UUID> witnesses = WitnessCollector.collect(store, priestPos,
+                config.getWitnessMaxRange(), excluded);
+
         // Officiate the marriage
-        data.marry(p1, p2, senderUuid);
+        data.marry(p1, p2, senderUuid, witnesses);
 
         String name1Resolved = resolvePlayerName(p1);
         String name2Resolved = resolvePlayerName(p2);
@@ -169,39 +176,8 @@ public class OfficiateCommand extends AbstractPlayerCommand {
         player2Ref.sendMessage(Message.raw(PREFIX + "You are now married to "
                 + name1Resolved + "! Officiated by " + priestName).color(COLOR_SUCCESS));
 
-        // Announce to all online players
-        announceMarriage(name1Resolved, name2Resolved, priestName);
-    }
-
-    private void announceMarriage(String spouse1, String spouse2, String priestName) {
-        Message titlePrimary = Message.raw("A Wedding Has Taken Place!");
-        Message titleSecondary = Message.raw(spouse1 + " & " + spouse2 + " are now married!");
-        Message chatAnnouncement = Message.raw(PREFIX
-                + "Congratulations to " + spouse1 + " and " + spouse2
-                + " on their marriage! Officiated by " + priestName
-                + ". Wishing the newlyweds a lifetime of happiness!").color(COLOR_SUCCESS);
-
-        int soundIndex = SoundEvent.getAssetMap().getIndex(WEDDING_MARCH_SOUND_ID);
-
-        for (PlayerRef player : Universe.get().getPlayers()) {
-            if (player == null || !player.isValid()) {
-                continue;
-            }
-
-            // Show title
-            EventTitleUtil.showEventTitleToPlayer(player, titlePrimary, titleSecondary, true);
-
-            // Send chat message
-            player.sendMessage(chatAnnouncement);
-
-            // Play wedding march sound
-            if (soundIndex != Integer.MIN_VALUE && soundIndex != 0) {
-                Ref<EntityStore> playerEntity = player.getReference();
-                if (playerEntity != null && playerEntity.isValid() && playerEntity.getStore() != null) {
-                    SoundUtil.playSoundEvent2d(playerEntity, soundIndex, SoundCategory.SFX, playerEntity.getStore());
-                }
-            }
-        }
+        // Announce to all online players: title, chat broadcast, wedding march SFX
+        MarriageAnnouncer.announceMarriage(name1Resolved, name2Resolved, priestName);
     }
 
     @Nullable

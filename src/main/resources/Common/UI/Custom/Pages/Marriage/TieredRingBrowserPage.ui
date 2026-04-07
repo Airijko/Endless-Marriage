@@ -1,0 +1,86 @@
+$C = "../../Common.ui";
+
+@CustomStyle = TextButtonStyle(
+    Default: (Background: $C.@DefaultSquareButtonDefaultBackground, LabelStyle: $C.@DefaultButtonLabelStyle),
+    Hovered: (Background: $C.@DefaultSquareButtonHoveredBackground, LabelStyle: $C.@DefaultButtonLabelStyle),
+    Pressed: (Background: $C.@DefaultSquareButtonPressedBackground, LabelStyle: $C.@DefaultButtonLabelStyle),
+    Disabled: (Background: $C.@DefaultSquareButtonDisabledBackground, LabelStyle: $C.@DefaultButtonDisabledLabelStyle),
+    Sounds: $C.@ButtonSounds,
+);
+
+$C.@PageOverlay {
+    Group {
+        LayoutMode: Middle;
+
+        Group {
+            Anchor: (Width: 720, Height: 560);
+            Background: (TexturePath: "Images/ObjectivePanelContainer.png", Border: 15);
+            LayoutMode: Top;
+            Padding: (Full: 16);
+
+            // ---- Title ----
+            Label {
+                Text: "TIERED ATTRIBUTE RINGS";
+                Anchor: (Height: 26);
+                Style: (FontSize: 16, TextColor: #f0c040, RenderBold: true, RenderUppercase: true, LetterSpacing: 2, HorizontalAlignment: Center, VerticalAlignment: Center);
+            }
+
+            Group { Anchor: (Height: 1); Background: #7a5a10; }
+            Group { Anchor: (Height: 4); }
+
+            Label {
+                Text: "Each ring grants an additive bonus to one skill attribute while equipped.";
+                Anchor: (Height: 16);
+                Style: (FontSize: 11, TextColor: #e8e8b0, HorizontalAlignment: Center, VerticalAlignment: Center);
+            }
+
+            Group { Anchor: (Height: 8); }
+
+            // ---- Status Card ----
+            Group {
+                LayoutMode: Top;
+                Background: #0b141f(0.88);
+                Padding: (Full: 14);
+
+                Group {
+                    Anchor: (Width: 3, Top: 0, Left: 0, Bottom: 0);
+                    Background: #f2a2e8;
+                }
+
+                Group {
+                    LayoutMode: Top;
+                    Padding: (Left: 12);
+
+                    Label #TieredCurrentRingLabel {
+                        Text: "No tiered ring equipped";
+                        Style: (FontSize: 16, TextColor: #c0cee5, RenderBold: true);
+                        Anchor: (Height: 22);
+                    }
+
+                    Group { Anchor: (Height: 4); }
+
+                    Label #TieredFilterLabel {
+                        Text: "Showing all tiers (E -> S)";
+                        Style: (FontSize: 12, TextColor: #7a9abf);
+                        Anchor: (Height: 16);
+                    }
+                }
+            }
+
+            Group { Anchor: (Height: 6); }
+
+            // ---- Ring List ----
+            Group #TieredRingListScroll {
+                FlexWeight: 1;
+                LayoutMode: TopScrolling;
+                ScrollbarStyle: $C.@DefaultScrollbarStyle;
+                Background: #040c17(0.90);
+                Padding: (Full: 6);
+
+                Group #TieredRingRows {
+                    LayoutMode: Top;
+                }
+            }
+        }
+    }
+}

@@ -13,6 +13,62 @@ $C.@PageOverlay {
         LayoutMode: Middle;
 
         Group {
+            // Horizontal wrapper holding the witness panel (left), the main panel
+            // (centre) and the affection side panel (right).
+            // Width = 280 + 12 spacer + 720 + 12 spacer + 280 = 1304.
+            LayoutMode: Left;
+            Anchor: (Width: 1304, Height: 580);
+
+        // ===== LEFT SIDE PANEL (WITNESSES) =====
+        Group #WitnessPanel {
+            Anchor: (Width: 280, Height: 580);
+            Background: (TexturePath: "Images/ObjectivePanelContainer.png", Border: 15);
+            LayoutMode: Top;
+            Padding: (Full: 16);
+            Visible: false;
+
+            // ---- Title ----
+            Label {
+                Text: "WITNESSES";
+                Anchor: (Height: 26);
+                Style: (FontSize: 16, TextColor: #f0c040, RenderBold: true, RenderUppercase: true, LetterSpacing: 2, HorizontalAlignment: Center, VerticalAlignment: Center);
+            }
+
+            Group { Anchor: (Height: 1); Background: #7a5a10; }
+            Group { Anchor: (Height: 4); }
+
+            Label {
+                Text: "Those who saw your bond sealed.";
+                Anchor: (Height: 16);
+                Style: (FontSize: 11, TextColor: #e8e8b0, HorizontalAlignment: Center, VerticalAlignment: Center);
+            }
+
+            Group { Anchor: (Height: 8); }
+
+            Label #WitnessCountLabel {
+                Text: "0 witnesses";
+                Anchor: (Height: 16);
+                Style: (FontSize: 11, TextColor: #7a9abf, HorizontalAlignment: Center, VerticalAlignment: Center);
+            }
+
+            Group { Anchor: (Height: 8); }
+
+            Group {
+                FlexWeight: 1;
+                LayoutMode: TopScrolling;
+                ScrollbarStyle: $C.@DefaultScrollbarStyle;
+                Background: #040c17(0.90);
+                Padding: (Full: 6);
+
+                Group #WitnessRows {
+                    LayoutMode: Top;
+                }
+            }
+        }
+
+        Group { Anchor: (Width: 12); }
+
+        Group {
             Anchor: (Width: 720, Height: 580);
             Background: (TexturePath: "Images/ObjectivePanelContainer.png", Border: 15);
             LayoutMode: Top;
@@ -595,6 +651,162 @@ $C.@PageOverlay {
                     }
                 }
             }
+        }
+
+        Group { Anchor: (Width: 12); }
+
+        // ===== RIGHT SIDE PANEL =====
+        // Companion container for piggyback / kiss / future affection options.
+        Group #SidePanel {
+            Anchor: (Width: 280, Height: 580);
+            Background: (TexturePath: "Images/ObjectivePanelContainer.png", Border: 15);
+            LayoutMode: Top;
+            Padding: (Full: 16);
+
+            // ---- Title ----
+            Label {
+                Text: "AFFECTION";
+                Anchor: (Height: 26);
+                Style: (FontSize: 16, TextColor: #f2a2e8, RenderBold: true, RenderUppercase: true, LetterSpacing: 2, HorizontalAlignment: Center, VerticalAlignment: Center);
+            }
+
+            Group { Anchor: (Height: 1); Background: #5a2e4a; }
+            Group { Anchor: (Height: 4); }
+
+            Label {
+                Text: "Bonds shared in body and heart.";
+                Anchor: (Height: 16);
+                Style: (FontSize: 11, TextColor: #f0d0e8, HorizontalAlignment: Center, VerticalAlignment: Center);
+            }
+
+            Group { Anchor: (Height: 12); }
+
+            // Hidden when not married — sender will toggle visibility from Java.
+            Group #SideMarriedBlock {
+                LayoutMode: Top;
+                Visible: false;
+
+                // ---- Piggyback Card ----
+                Group {
+                    LayoutMode: Top;
+                    Background: #0b141f(0.88);
+                    Padding: (Full: 14);
+
+                    Group {
+                        Anchor: (Width: 3, Top: 0, Left: 0, Bottom: 0);
+                        Background: #f2a2e8;
+                    }
+
+                    Group {
+                        LayoutMode: Top;
+                        Padding: (Left: 12);
+
+                        Label {
+                            Text: "PIGGYBACK";
+                            Style: (FontSize: 10, TextColor: #f2a2e8, RenderBold: true, LetterSpacing: 2);
+                            Anchor: (Height: 14);
+                        }
+
+                        Group { Anchor: (Height: 1); Background: #ffffff(0.07); }
+                        Group { Anchor: (Height: 6); }
+
+                        Label #PiggybackStatusLabel {
+                            Text: "Idle";
+                            Style: (FontSize: 13, TextColor: #c0cee5);
+                            Anchor: (Height: 18);
+                        }
+
+                        Group { Anchor: (Height: 4); }
+
+                        Label {
+                            Text: "-25% damage taken (multiplicative).";
+                            Style: (FontSize: 11, TextColor: #9fb6d3, Wrap: true);
+                            Anchor: (Height: 16);
+                        }
+
+                        Group { Anchor: (Height: 8); }
+
+                        $C.@TextButton #PiggybackButton {
+                            Text: "PIGGYBACK";
+                            Anchor: (Height: 32);
+                            Padding: (Horizontal: 8);
+                            Style: @CustomStyle;
+                        }
+
+                        Group { Anchor: (Height: 4); }
+
+                        $C.@TextButton #DismountButton {
+                            Text: "DISMOUNT";
+                            Anchor: (Height: 28);
+                            Padding: (Horizontal: 8);
+                            Style: @CustomStyle;
+                            Disabled: true;
+                        }
+                    }
+                }
+
+                Group { Anchor: (Height: 10); }
+
+                // ---- Kiss Card ----
+                Group {
+                    LayoutMode: Top;
+                    Background: #0b141f(0.88);
+                    Padding: (Full: 14);
+
+                    Group {
+                        Anchor: (Width: 3, Top: 0, Left: 0, Bottom: 0);
+                        Background: #ff6e9c;
+                    }
+
+                    Group {
+                        LayoutMode: Top;
+                        Padding: (Left: 12);
+
+                        Label {
+                            Text: "KISS";
+                            Style: (FontSize: 10, TextColor: #ff6e9c, RenderBold: true, LetterSpacing: 2);
+                            Anchor: (Height: 14);
+                        }
+
+                        Group { Anchor: (Height: 1); Background: #ffffff(0.07); }
+                        Group { Anchor: (Height: 6); }
+
+                        Label #KissStatusLabel {
+                            Text: "Stand close to your spouse.";
+                            Style: (FontSize: 11, TextColor: #c0cee5, Wrap: true);
+                            Anchor: (Height: 28);
+                        }
+
+                        Group { Anchor: (Height: 6); }
+
+                        $C.@TextButton #KissButton {
+                            Text: "KISS";
+                            Anchor: (Height: 32);
+                            Padding: (Horizontal: 8);
+                            Style: @CustomStyle;
+                        }
+                    }
+                }
+            }
+
+            // Shown only to unmarried players, hides the marriage-only cards above.
+            Group #SideUnmarriedBlock {
+                LayoutMode: Top;
+                Visible: false;
+
+                Group {
+                    LayoutMode: Top;
+                    Background: #0b141f(0.88);
+                    Padding: (Full: 14);
+
+                    Label {
+                        Text: "Affection options unlock once you are married.";
+                        Style: (FontSize: 12, TextColor: #c0cee5, Wrap: true);
+                        Anchor: (Height: 48);
+                    }
+                }
+            }
+        }
         }
     }
 }

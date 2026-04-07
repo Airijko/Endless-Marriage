@@ -29,6 +29,11 @@ public class DebugCommand extends AbstractPlayerCommand {
         super("debug", "Debug commands for admins");
 
         this.addSubCommand(new DebugInventoryCommand());
+        this.addSubCommand(new DebugNpcCommand());
+        this.addSubCommand(new DebugKissCommand());
+        this.addSubCommand(new DebugPiggybackCommand());
+        this.addSubCommand(new DebugMenuCommand());
+        this.addSubCommand(new DebugRingsCommand());
     }
 
     @Override
@@ -42,6 +47,6 @@ public class DebugCommand extends AbstractPlayerCommand {
             @Nonnull Ref<EntityStore> ref,
             @Nonnull PlayerRef senderRef,
             @Nonnull World world) {
-        senderRef.sendMessage(Message.raw("[Marriage Debug] Available: /marry debug inv").color("#4fd7f7"));
+        senderRef.sendMessage(Message.raw("[Marriage Debug] Available: /marry debug inv | npc | kiss | piggyback | menu | rings").color("#4fd7f7"));
     }
 }

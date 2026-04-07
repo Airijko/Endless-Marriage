@@ -10,10 +10,14 @@
 package com.airijko.endlessleveling.endlessmarriage.ui;
 
 import com.airijko.endlessleveling.endlessmarriage.EndlessMarriage;
+import com.airijko.endlessleveling.endlessmarriage.MarriageAnnouncer;
 import com.airijko.endlessleveling.endlessmarriage.data.MarriageDataManager;
 import com.airijko.endlessleveling.endlessmarriage.data.MarriageHome;
 import com.airijko.endlessleveling.endlessmarriage.data.MarriagePair;
 import com.airijko.endlessleveling.endlessmarriage.data.WeddingRingTier;
+import com.airijko.endlessleveling.endlessmarriage.services.DebugNpcService;
+import com.airijko.endlessleveling.endlessmarriage.services.KissService;
+import com.airijko.endlessleveling.endlessmarriage.services.PiggybackService;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.logger.HytaleLogger;
@@ -55,19 +59,32 @@ import static com.hypixel.hytale.server.core.ui.builder.EventData.of;
 public class MarriageMainPage extends InteractiveCustomUIPage<MarriagePageData> {
 
     private static final HytaleLogger LOGGER = HytaleLogger.forEnclosingClassFull();
+    private static final String WITNESS_ROW_TEMPLATE = "Pages/Marriage/WitnessRow.ui";
 
     private final PlayerRef playerRef;
     private final Ref<EntityStore> entityRef;
     private final Store<EntityStore> entityStore;
+    /** When non-null, the page renders the married view using this fake pair regardless of real marital status. Used by /marry debug menu. */
+    @Nullable
+    private final MarriagePair forcedPair;
 
     public MarriageMainPage(@Nonnull PlayerRef playerRef,
             @Nonnull CustomPageLifetime lifetime,
             @Nonnull Ref<EntityStore> entityRef,
             @Nonnull Store<EntityStore> entityStore) {
+        this(playerRef, lifetime, entityRef, entityStore, null);
+    }
+
+    public MarriageMainPage(@Nonnull PlayerRef playerRef,
+            @Nonnull CustomPageLifetime lifetime,
+            @Nonnull Ref<EntityStore> entityRef,
+            @Nonnull Store<EntityStore> entityStore,
+            @Nullable MarriagePair forcedPair) {
         super(playerRef, lifetime, MarriagePageData.CODEC);
         this.playerRef = playerRef;
         this.entityRef = entityRef;
         this.entityStore = entityStore;
+        this.forcedPair = forcedPair;
     }
 
     @Override
@@ -81,17 +98,19 @@ public class MarriageMainPage extends InteractiveCustomUIPage<MarriagePageData> 
         UUID senderUuid = playerRef.getUuid();
         MarriageDataManager data = EndlessMarriage.getInstance().getMarriageDataManager();
 
-        if (data.isMarried(senderUuid)) {
-            buildMarriedView(ui, events, senderUuid, data);
+        // Debug menu: a forced pair short-circuits the real marriage check so
+        // an admin can preview the married view without an actual partner.
+        MarriagePair effectivePair = forcedPair != null ? forcedPair : data.getMarriage(senderUuid);
+        if (effectivePair != null) {
+            buildMarriedView(ui, events, senderUuid, data, effectivePair);
         } else {
             buildUnmarriedView(ui, events, senderUuid, data);
         }
     }
 
     private void buildMarriedView(@Nonnull UICommandBuilder ui, @Nonnull UIEventBuilder events,
-            @Nonnull UUID senderUuid, @Nonnull MarriageDataManager data) {
+            @Nonnull UUID senderUuid, @Nonnull MarriageDataManager data, @Nonnull MarriagePair pair) {
 
-        MarriagePair pair = data.getMarriage(senderUuid);
         UUID spouseUuid = pair.getSpouse(senderUuid);
         String spouseName = resolvePlayerName(spouseUuid);
         String date = new SimpleDateFormat("yyyy-MM-dd").format(new Date(pair.timestamp()));
@@ -152,19 +171,19 @@ public class MarriageMainPage extends InteractiveCustomUIPage<MarriagePageData> 
         if (nextTier == null) {
             // Player is at max tier
             ui.set("#RingUpgradeButton.Text", "MAX TIER");
-            ui.set("#RingUpgradeButton.Enabled", false);
+            ui.set("#RingUpgradeButton.Disabled", true);
             ui.set("#RingNextLabel.Text", "Max tier reached");
             ui.set("#RingNextLabel.Style.TextColor", "#e0f7fa");
         } else if (lowestPrestige >= nextTier.getPrestigeRequired()) {
             // Eligible for upgrade
             ui.set("#RingUpgradeButton.Text", "UPGRADE TO " + nextTier.getDisplayName().toUpperCase());
-            ui.set("#RingUpgradeButton.Enabled", true);
+            ui.set("#RingUpgradeButton.Disabled", false);
             ui.set("#RingNextLabel.Text", "Ready to upgrade to " + nextTier.getDisplayName() + " Ring");
             ui.set("#RingNextLabel.Style.TextColor", nextTier.getColor());
         } else {
             // Not eligible
             ui.set("#RingUpgradeButton.Text", "LOCKED");
-            ui.set("#RingUpgradeButton.Enabled", false);
+            ui.set("#RingUpgradeButton.Disabled", true);
             ui.set("#RingNextLabel.Text", "Next: " + nextTier.getDisplayName()
                     + " (Prestige " + nextTier.getPrestigeRequired() + ")");
             ui.set("#RingNextLabel.Style.TextColor", "#7a9abf");
@@ -186,8 +205,8 @@ public class MarriageMainPage extends InteractiveCustomUIPage<MarriagePageData> 
 
         // Disable buttons if spouse is offline
         if (!spouseOnline) {
-            ui.set("#TpPartnerButton.Enabled", false);
-            ui.set("#InventoryButton.Enabled", false);
+            ui.set("#TpPartnerButton.Disabled", true);
+            ui.set("#InventoryButton.Disabled", true);
         }
 
         // Role section (priests / magistrates only)
@@ -204,6 +223,109 @@ public class MarriageMainPage extends InteractiveCustomUIPage<MarriagePageData> 
             events.addEventBinding(Activating, "#RecordsButton", of("Action", "marry:records"), false);
             events.addEventBinding(Activating, "#OfficiateFromMarriedButton", of("Action", "marry:officiate_ui"), false);
         }
+
+        // ---- Side panel (married) ----
+        buildSidePanelMarried(ui, events, senderUuid, spouseOnline);
+
+        // ---- Witness panel (left) ----
+        buildWitnessPanel(ui, pair);
+    }
+
+    private void buildWitnessPanel(@Nonnull UICommandBuilder ui, @Nonnull MarriagePair pair) {
+        ui.set("#WitnessPanel.Visible", true);
+        ui.clear("#WitnessRows");
+
+        List<UUID> witnesses = pair.witnesses();
+        UUID priestUuid = pair.officiant();
+
+        ui.set("#WitnessCountLabel.Text", witnesses.size() == 1
+                ? "1 witness"
+                : witnesses.size() + " witnesses");
+
+        int totalEntries = (priestUuid != null ? 1 : 0) + witnesses.size();
+        if (totalEntries == 0) {
+            return;
+        }
+
+        int rowIndex = 0;
+
+        // Priest goes first, marked with a "PRIEST" badge.
+        if (priestUuid != null) {
+            ui.append("#WitnessRows", WITNESS_ROW_TEMPLATE);
+            String base = "#WitnessRows[" + rowIndex + "]";
+            ui.set(base + " #WitnessName.Text", resolvePlayerName(priestUuid));
+            ui.set(base + " #WitnessName.Style.TextColor", "#f0c040");
+            ui.set(base + " #WitnessRoleLabel.Text", "PRIEST");
+            ui.set(base + " #WitnessRoleLabel.Visible", true);
+            rowIndex++;
+        }
+
+        // Then each witness in the order they were collected.
+        for (UUID witness : witnesses) {
+            ui.append("#WitnessRows", WITNESS_ROW_TEMPLATE);
+            String base = "#WitnessRows[" + rowIndex + "]";
+            ui.set(base + " #WitnessName.Text", resolvePlayerName(witness));
+            rowIndex++;
+        }
+    }
+
+    private void buildSidePanelMarried(@Nonnull UICommandBuilder ui, @Nonnull UIEventBuilder events,
+            @Nonnull UUID senderUuid, boolean spouseOnline) {
+
+        ui.set("#SideMarriedBlock.Visible", true);
+        ui.set("#SideUnmarriedBlock.Visible", false);
+
+        PiggybackService piggyback = EndlessMarriage.getInstance().getPiggybackService();
+        boolean isRiding = piggyback.isRiding(senderUuid);
+        boolean isCarrying = piggyback.isCarrying(senderUuid);
+        boolean inSession = isRiding || isCarrying;
+
+        // Piggyback status text
+        String statusText;
+        String statusColor;
+        if (isRiding) {
+            statusText = "Riding your spouse";
+            statusColor = "#f2a2e8";
+        } else if (isCarrying) {
+            statusText = "Carrying your spouse";
+            statusColor = "#f2a2e8";
+        } else {
+            statusText = "Idle";
+            statusColor = "#c0cee5";
+        }
+        ui.set("#PiggybackStatusLabel.Text", statusText);
+        ui.set("#PiggybackStatusLabel.Style.TextColor", statusColor);
+
+        // Piggyback button label flips between actions when already in a session.
+        if (inSession) {
+            ui.set("#PiggybackButton.Text", "DISMOUNT");
+            ui.set("#PiggybackButton.Disabled", false);
+            ui.set("#DismountButton.Disabled", false);
+        } else {
+            ui.set("#PiggybackButton.Text", "PIGGYBACK");
+            ui.set("#PiggybackButton.Disabled", !spouseOnline);
+            ui.set("#DismountButton.Disabled", true);
+        }
+
+        events.addEventBinding(Activating, "#PiggybackButton", of("Action", "marry:piggyback"), false);
+        events.addEventBinding(Activating, "#DismountButton", of("Action", "marry:dismount"), false);
+
+        // Kiss card
+        if (spouseOnline) {
+            ui.set("#KissStatusLabel.Text", "Stand within 1 block of your spouse, then kiss.");
+            ui.set("#KissStatusLabel.Style.TextColor", "#c0cee5");
+            ui.set("#KissButton.Disabled", false);
+        } else {
+            ui.set("#KissStatusLabel.Text", "Spouse is offline.");
+            ui.set("#KissStatusLabel.Style.TextColor", "#ff9999");
+            ui.set("#KissButton.Disabled", true);
+        }
+        events.addEventBinding(Activating, "#KissButton", of("Action", "marry:kiss"), false);
+    }
+
+    private void buildSidePanelUnmarried(@Nonnull UICommandBuilder ui) {
+        ui.set("#SideMarriedBlock.Visible", false);
+        ui.set("#SideUnmarriedBlock.Visible", true);
     }
 
     private void buildUnmarriedView(@Nonnull UICommandBuilder ui, @Nonnull UIEventBuilder events,
@@ -212,6 +334,9 @@ public class MarriageMainPage extends InteractiveCustomUIPage<MarriagePageData> 
         // Show unmarried panel, hide married panel
         ui.set("#MarriedPanel.Visible", false);
         ui.set("#UnmarriedPanel.Visible", true);
+
+        // Witness panel is married-only.
+        ui.set("#WitnessPanel.Visible", false);
 
         // Check for pending proposals
         if (data.hasProposal(senderUuid)) {
@@ -263,6 +388,9 @@ public class MarriageMainPage extends InteractiveCustomUIPage<MarriagePageData> 
             events.addEventBinding(Activating, "#RecordsUnmarriedButton", of("Action", "marry:records"), false);
             events.addEventBinding(Activating, "#OfficiateButton", of("Action", "marry:officiate_ui"), false);
         }
+
+        // Side panel: hide affection options for unmarried players.
+        buildSidePanelUnmarried(ui);
     }
 
     @Override
@@ -290,6 +418,134 @@ public class MarriageMainPage extends InteractiveCustomUIPage<MarriagePageData> 
             case "marry:officiate_ui" -> handleOpenOfficiatePage(ref, store);
             case "marry:rings_ui" -> handleOpenRingPage(ref, store);
             case "marry:ring_upgrade" -> handleRingUpgrade();
+            case "marry:piggyback" -> handlePiggyback(ref, store);
+            case "marry:dismount" -> handleDismount(ref, store);
+            case "marry:kiss" -> handleKiss(ref, store);
+        }
+    }
+
+    private void handlePiggyback(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store) {
+        UUID senderUuid = playerRef.getUuid();
+        PiggybackService piggyback = EndlessMarriage.getInstance().getPiggybackService();
+
+        if (piggyback.isRiding(senderUuid)) {
+            piggyback.dismount(senderUuid, ref, store);
+            playerRef.sendMessage(Message.raw("[Marriage] You hop down off your spouse.").color("#4fd7f7"));
+            return;
+        }
+        if (piggyback.isCarrying(senderUuid)) {
+            piggyback.dismountAny(senderUuid);
+            playerRef.sendMessage(Message.raw("[Marriage] You let your spouse down.").color("#4fd7f7"));
+            return;
+        }
+
+        // If a debug NPC exists for this player, use it as the carrier instead
+        // of looking up a real spouse — this lets the menu's piggyback button
+        // exercise the mount path during /marry debug menu testing.
+        DebugNpcService debugNpc = EndlessMarriage.getInstance().getDebugNpcService();
+        DebugNpcService.DebugNpc npc = debugNpc != null ? debugNpc.get(senderUuid) : null;
+        if (npc != null) {
+            PiggybackService.MountResult debugResult =
+                    piggyback.tryMountTarget(senderUuid, ref, store, npc.ref(), npc.syntheticUuid());
+            if (debugResult == PiggybackService.MountResult.SUCCESS) {
+                playerRef.sendMessage(Message.raw("[Marriage Debug] You hop onto the debug NPC.").color("#4fd7f7"));
+            } else {
+                playerRef.sendMessage(Message.raw("[Marriage Debug] Could not piggyback debug NPC: " + debugResult).color("#ff6666"));
+            }
+            return;
+        }
+
+        PiggybackService.MountResult result = piggyback.tryMount(senderUuid, ref, store);
+        switch (result) {
+            case SUCCESS -> {
+                playerRef.sendMessage(Message.raw("[Marriage] You hop onto your spouse's back!").color("#f2a2e8"));
+                MarriageDataManager data = EndlessMarriage.getInstance().getMarriageDataManager();
+                UUID spouseUuid = data.getSpouse(senderUuid);
+                if (spouseUuid != null) {
+                    PlayerRef spouseRef = Universe.get().getPlayer(spouseUuid);
+                    if (spouseRef != null && spouseRef.isValid()) {
+                        spouseRef.sendMessage(Message.raw("[Marriage] " + resolvePlayerName(senderUuid)
+                                + " is riding piggyback!").color("#f2a2e8"));
+                    }
+                }
+            }
+            case NOT_MARRIED ->
+                playerRef.sendMessage(Message.raw("[Marriage] You are not married.").color("#ff6666"));
+            case SPOUSE_OFFLINE ->
+                playerRef.sendMessage(Message.raw("[Marriage] Your spouse is not online.").color("#ff6666"));
+            case SPOUSE_NOT_IN_WORLD ->
+                playerRef.sendMessage(Message.raw("[Marriage] Your spouse is not in a world.").color("#ff6666"));
+            case SPOUSE_DIFFERENT_WORLD ->
+                playerRef.sendMessage(Message.raw("[Marriage] Your spouse is in a different world.").color("#ff6666"));
+            case TOO_FAR ->
+                playerRef.sendMessage(Message.raw("[Marriage] You must be next to your spouse to piggyback.").color("#ff9900"));
+            case ALREADY_MOUNTED ->
+                playerRef.sendMessage(Message.raw("[Marriage] You are already mounted.").color("#ff9900"));
+            case SPOUSE_ALREADY_CARRYING, SPOUSE_IS_RIDING ->
+                playerRef.sendMessage(Message.raw("[Marriage] Your spouse is already in a piggyback session.").color("#ff9900"));
+            case ERROR ->
+                playerRef.sendMessage(Message.raw("[Marriage] Could not piggyback right now.").color("#ff6666"));
+        }
+    }
+
+    private void handleDismount(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store) {
+        UUID senderUuid = playerRef.getUuid();
+        PiggybackService piggyback = EndlessMarriage.getInstance().getPiggybackService();
+        if (piggyback.isRiding(senderUuid)) {
+            piggyback.dismount(senderUuid, ref, store);
+            playerRef.sendMessage(Message.raw("[Marriage] You hop down off your spouse.").color("#4fd7f7"));
+        } else if (piggyback.isCarrying(senderUuid)) {
+            piggyback.dismountAny(senderUuid);
+            playerRef.sendMessage(Message.raw("[Marriage] You let your spouse down.").color("#4fd7f7"));
+        } else {
+            playerRef.sendMessage(Message.raw("[Marriage] You are not in a piggyback session.").color("#ff9900"));
+        }
+    }
+
+    private void handleKiss(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store) {
+        UUID senderUuid = playerRef.getUuid();
+        KissService kissService = EndlessMarriage.getInstance().getKissService();
+
+        // Route through the debug NPC if one is active for this player.
+        DebugNpcService debugNpc = EndlessMarriage.getInstance().getDebugNpcService();
+        DebugNpcService.DebugNpc npc = debugNpc != null ? debugNpc.get(senderUuid) : null;
+        if (npc != null) {
+            KissService.KissResult debugResult =
+                    kissService.tryKissTarget(senderUuid, ref, store, npc.ref());
+            if (debugResult == KissService.KissResult.SUCCESS) {
+                playerRef.sendMessage(Message.raw("[Marriage Debug] You kiss the debug NPC.").color("#f2a2e8"));
+            } else {
+                playerRef.sendMessage(Message.raw("[Marriage Debug] Could not kiss debug NPC: " + debugResult).color("#ff6666"));
+            }
+            return;
+        }
+
+        KissService.KissResult result = kissService.tryKiss(senderUuid, ref, store);
+        switch (result) {
+            case SUCCESS -> {
+                playerRef.sendMessage(Message.raw("[Marriage] You share a kiss with your spouse.").color("#f2a2e8"));
+                MarriageDataManager data = EndlessMarriage.getInstance().getMarriageDataManager();
+                UUID spouseUuid = data.getSpouse(senderUuid);
+                if (spouseUuid != null) {
+                    PlayerRef spouseRef = Universe.get().getPlayer(spouseUuid);
+                    if (spouseRef != null && spouseRef.isValid()) {
+                        spouseRef.sendMessage(Message.raw("[Marriage] " + resolvePlayerName(senderUuid)
+                                + " kissed you!").color("#f2a2e8"));
+                    }
+                }
+            }
+            case NOT_MARRIED ->
+                playerRef.sendMessage(Message.raw("[Marriage] You are not married.").color("#ff6666"));
+            case SPOUSE_OFFLINE ->
+                playerRef.sendMessage(Message.raw("[Marriage] Your spouse is not online.").color("#ff6666"));
+            case SPOUSE_NOT_IN_WORLD ->
+                playerRef.sendMessage(Message.raw("[Marriage] Your spouse is not in a world.").color("#ff6666"));
+            case SPOUSE_DIFFERENT_WORLD ->
+                playerRef.sendMessage(Message.raw("[Marriage] Your spouse is in a different world.").color("#ff6666"));
+            case TOO_FAR ->
+                playerRef.sendMessage(Message.raw("[Marriage] You must be within 1 block of your spouse to kiss.").color("#ff9900"));
+            case ERROR ->
+                playerRef.sendMessage(Message.raw("[Marriage] Could not kiss right now.").color("#ff6666"));
         }
     }
 
@@ -480,11 +736,15 @@ public class MarriageMainPage extends InteractiveCustomUIPage<MarriagePageData> 
 
         if (!config.isRequirePriestForMarriage()) {
             data.marry(proposer, senderUuid, null);
-            playerRef.sendMessage(Message.raw("[Marriage] You are now married to " + resolvePlayerName(proposer) + "!").color("#66ff66"));
+            String senderName = resolvePlayerName(senderUuid);
+            String proposerName = resolvePlayerName(proposer);
+            playerRef.sendMessage(Message.raw("[Marriage] You are now married to " + proposerName + "!").color("#66ff66"));
             PlayerRef proposerRef = Universe.get().getPlayer(proposer);
             if (proposerRef != null) {
-                proposerRef.sendMessage(Message.raw("[Marriage] " + resolvePlayerName(senderUuid) + " accepted! You are now married!").color("#66ff66"));
+                proposerRef.sendMessage(Message.raw("[Marriage] " + senderName + " accepted! You are now married!").color("#66ff66"));
             }
+            // Global wedding announcement: title, chat broadcast, wedding march SFX
+            MarriageAnnouncer.announceMarriage(proposerName, senderName, null);
         } else {
             data.addPendingMarriage(proposer, senderUuid);
             playerRef.sendMessage(Message.raw("[Marriage] Accepted! A Priest must now officiate.").color("#66ff66"));
@@ -648,15 +908,23 @@ public class MarriageMainPage extends InteractiveCustomUIPage<MarriagePageData> 
         }
     }
 
+    @Nonnull
     private String resolvePlayerName(@Nonnull UUID uuid) {
         PlayerRef ref = Universe.get().getPlayer(uuid);
-        if (ref != null && ref.getUsername() != null) {
-            return ref.getUsername();
+        if (ref != null) {
+            String username = ref.getUsername();
+            if (username != null) {
+                return username;
+            }
         }
         var snapshot = com.airijko.endlessleveling.api.EndlessLevelingAPI.get().getPlayerSnapshot(uuid);
-        if (snapshot != null && snapshot.playerName() != null) {
-            return snapshot.playerName();
+        if (snapshot != null) {
+            String snapshotName = snapshot.playerName();
+            if (snapshotName != null) {
+                return snapshotName;
+            }
         }
-        return uuid.toString().substring(0, 8);
+        String fallback = uuid.toString().substring(0, 8);
+        return fallback != null ? fallback : "";
     }
 }

@@ -1,0 +1,84 @@
+$C = "../../Common.ui";
+
+@CustomLabelStyle = LabelStyle(
+    FontSize: 13,
+    TextColor: #bfcdd5,
+    RenderBold: true,
+    RenderUppercase: true,
+    HorizontalAlignment: Center,
+    VerticalAlignment: Center
+);
+
+@RowButtonStyle = TextButtonStyle(
+    Default: (Background: $C.@DefaultSquareButtonDefaultBackground, LabelStyle: @CustomLabelStyle),
+    Hovered: (Background: $C.@DefaultSquareButtonHoveredBackground, LabelStyle: @CustomLabelStyle),
+    Pressed: (Background: $C.@DefaultSquareButtonPressedBackground, LabelStyle: @CustomLabelStyle),
+    Disabled: (Background: $C.@DefaultSquareButtonDisabledBackground, LabelStyle: (...@CustomLabelStyle, TextColor: #555555)),
+    Sounds: $C.@ButtonSounds,
+);
+
+Group {
+    LayoutMode: Top;
+
+    Group {
+        LayoutMode: Left;
+        Background: #071018(0.55);
+        Padding: (Horizontal: 14, Vertical: 10);
+
+        // Ring icon
+        Group {
+            Anchor: (Width: 48, Height: 48);
+            Background: #040c17(0.85);
+            LayoutMode: Middle;
+            Padding: (Full: 4);
+
+            ItemIcon #TieredRingRowIcon {
+                Anchor: (Width: 36, Height: 36);
+                ItemId: "Ingredient_Bar_Iron";
+            }
+        }
+
+        Group { Anchor: (Width: 12); }
+
+        // Ring name and description column
+        Group {
+            LayoutMode: Top;
+            FlexWeight: 1;
+
+            Label #TieredRingName {
+                Style: (FontSize: 16, TextColor: #f4f9ff, RenderBold: true, VerticalAlignment: Center);
+                Text: "Ring";
+                Anchor: (Height: 20);
+            }
+
+            Label #TieredRingDesc {
+                Style: (FontSize: 11, TextColor: #7a9abf, VerticalAlignment: Center);
+                Text: "Ring description";
+                Anchor: (Height: 16);
+            }
+        }
+
+        // Tier badge column
+        Group {
+            LayoutMode: Top;
+            Anchor: (Width: 70);
+
+            Label #TieredRingTierLabel {
+                Style: (FontSize: 12, TextColor: #bfcdd5, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+                Text: "TIER E";
+                Anchor: (Height: 18);
+            }
+        }
+
+        Group { Anchor: (Width: 10); }
+
+        $C.@TextButton #TieredRingActionButton {
+            Text: "EQUIP";
+            Anchor: (Width: 110, Height: 30);
+            Padding: (Horizontal: 6);
+            Style: @RowButtonStyle;
+        }
+    }
+
+    Group { Anchor: (Height: 4); }
+}

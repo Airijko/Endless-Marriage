@@ -119,10 +119,10 @@ public class MarriageRingPage extends InteractiveCustomUIPage<MarriagePageData> 
 
             if (isEquipped) {
                 ui.set(base + " #ActionButton.Text", "EQUIPPED");
-                ui.set(base + " #ActionButton.Enabled", false);
+                ui.set(base + " #ActionButton.Disabled", true);
             } else if (!meetsPrestige) {
                 ui.set(base + " #ActionButton.Text", "LOCKED");
-                ui.set(base + " #ActionButton.Enabled", false);
+                ui.set(base + " #ActionButton.Disabled", true);
             } else {
                 ui.set(base + " #ActionButton.Text", "EQUIP");
                 events.addEventBinding(Activating,

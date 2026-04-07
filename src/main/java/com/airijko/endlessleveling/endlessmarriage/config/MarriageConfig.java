@@ -9,8 +9,12 @@
 
 package com.airijko.endlessleveling.endlessmarriage.config;
 
+import com.airijko.endlessleveling.endlessmarriage.data.tiered.TieredRingCatalog;
+import com.airijko.endlessleveling.endlessmarriage.data.tiered.TieredRingTier;
+import com.airijko.endlessleveling.enums.SkillAttributeType;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.hypixel.hytale.logger.HytaleLogger;
 
@@ -18,6 +22,9 @@ import javax.annotation.Nonnull;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.EnumMap;
+import java.util.Locale;
+import java.util.Map;
 
 public class MarriageConfig {
 
@@ -32,6 +39,19 @@ public class MarriageConfig {
     private double officiateRange = 5.0;
     private String priestClassId = "priest";
     private String magistrateClassId = "magistrate";
+    private double piggybackDamageReductionPercent = 25.0;
+    private double piggybackMaxRange = 5.0;
+    private double witnessMaxRange = 50.0;
+    private double kissRange = 1.0;
+    private double kissBuffDisciplinePercent = 10.0;
+    private double kissBuffDurationSeconds = 3600.0;
+    private double kissBuffCooldownSeconds = 57600.0;
+    private String debugNpcRole = "Klops_Gentleman";
+
+    // Tiered ring base values (attribute -> tier -> value). Falls back to
+    // TieredRingCatalog.defaultBaseValue() for any missing cells.
+    private final Map<SkillAttributeType, Map<TieredRingTier, Double>> tieredRingBaseValues =
+            new EnumMap<>(SkillAttributeType.class);
 
     public boolean isRequirePriestForMarriage() {
         return requirePriestForMarriage;
@@ -63,6 +83,54 @@ public class MarriageConfig {
 
     public String getMagistrateClassId() {
         return magistrateClassId;
+    }
+
+    public double getPiggybackDamageReductionPercent() {
+        return piggybackDamageReductionPercent;
+    }
+
+    public double getPiggybackMaxRange() {
+        return piggybackMaxRange;
+    }
+
+    public double getWitnessMaxRange() {
+        return witnessMaxRange;
+    }
+
+    public double getKissRange() {
+        return kissRange;
+    }
+
+    public double getKissBuffDisciplinePercent() {
+        return kissBuffDisciplinePercent;
+    }
+
+    public double getKissBuffDurationSeconds() {
+        return kissBuffDurationSeconds;
+    }
+
+    public double getKissBuffCooldownSeconds() {
+        return kissBuffCooldownSeconds;
+    }
+
+    public String getDebugNpcRole() {
+        return debugNpcRole;
+    }
+
+    /**
+     * Resolve a tiered ring base value from config, falling back to the
+     * hardcoded {@link TieredRingCatalog#defaultBaseValue} if the user did not
+     * override this (attribute, tier) cell in {@code config.json}.
+     */
+    public double getTieredRingBaseValue(@Nonnull SkillAttributeType attribute, @Nonnull TieredRingTier tier) {
+        Map<TieredRingTier, Double> tierValues = tieredRingBaseValues.get(attribute);
+        if (tierValues != null) {
+            Double override = tierValues.get(tier);
+            if (override != null) {
+                return override;
+            }
+        }
+        return TieredRingCatalog.defaultBaseValue(attribute, tier);
     }
 
     public void load(@Nonnull File configFile) {
@@ -103,13 +171,100 @@ public class MarriageConfig {
             if (root.has("magistrate_class_id")) {
                 magistrateClassId = root.get("magistrate_class_id").getAsString();
             }
+            if (root.has("piggyback_damage_reduction_percent")) {
+                piggybackDamageReductionPercent = root.get("piggyback_damage_reduction_percent").getAsDouble();
+            }
+            if (root.has("piggyback_max_range")) {
+                piggybackMaxRange = root.get("piggyback_max_range").getAsDouble();
+            }
+            if (root.has("witness_max_range")) {
+                witnessMaxRange = root.get("witness_max_range").getAsDouble();
+            }
+            if (root.has("kiss_range")) {
+                kissRange = root.get("kiss_range").getAsDouble();
+            }
+            if (root.has("kiss_buff_discipline_percent")) {
+                kissBuffDisciplinePercent = root.get("kiss_buff_discipline_percent").getAsDouble();
+            }
+            if (root.has("kiss_buff_duration_seconds")) {
+                kissBuffDurationSeconds = root.get("kiss_buff_duration_seconds").getAsDouble();
+            }
+            if (root.has("kiss_buff_cooldown_seconds")) {
+                kissBuffCooldownSeconds = root.get("kiss_buff_cooldown_seconds").getAsDouble();
+            }
+            if (root.has("debug_npc_role")) {
+                debugNpcRole = root.get("debug_npc_role").getAsString();
+            }
 
-            LOGGER.atInfo().log("Marriage config loaded: priest=%b, magistrate=%b, range=%.1f, discipline=%.1f%%, xpShare=%.2f",
+            loadTieredRingValues(root);
+
+            LOGGER.atInfo().log("Marriage config loaded: priest=%b, magistrate=%b, range=%.1f, discipline=%.1f%%, xpShare=%.2f, piggybackDR=%.1f%%, kissRange=%.1f, kissBuff=%.1f%%/%.0fs (cd %.0fs)",
                     requirePriestForMarriage, requireMagistrateForDivorce, proximityRange,
-                    disciplineBonusPercent, xpShareMultiplier);
+                    disciplineBonusPercent, xpShareMultiplier,
+                    piggybackDamageReductionPercent, kissRange,
+                    kissBuffDisciplinePercent, kissBuffDurationSeconds, kissBuffCooldownSeconds);
         } catch (Exception ex) {
             LOGGER.atWarning().withCause(ex).log("Failed to load config.json, using defaults.");
         }
+    }
+
+    /**
+     * Parse the optional {@code tiered_rings} section. Schema:
+     * <pre>
+     * "tiered_rings": {
+     *   "life_force": { "e": 40, "d": 65, "c": 100, "b": 160, "a": 260, "s": 480 },
+     *   ...
+     * }
+     * </pre>
+     * Attribute keys match {@code SkillAttributeType.getConfigKey()} (lowercase).
+     * Tier keys are the lowercased tier names ("e".."s"). Any missing attribute
+     * or tier silently falls back to the hardcoded {@link TieredRingCatalog}
+     * default at lookup time.
+     */
+    private void loadTieredRingValues(@Nonnull JsonObject root) {
+        tieredRingBaseValues.clear();
+
+        JsonElement raw = root.get("tiered_rings");
+        if (raw == null || !raw.isJsonObject()) {
+            return;
+        }
+        JsonObject tieredRings = raw.getAsJsonObject();
+        int loaded = 0;
+
+        for (SkillAttributeType attribute : SkillAttributeType.values()) {
+            String attributeKey = attribute.getConfigKey();
+            JsonElement attributeRaw = tieredRings.get(attributeKey);
+            if (attributeRaw == null || !attributeRaw.isJsonObject()) {
+                continue;
+            }
+            JsonObject perTier = attributeRaw.getAsJsonObject();
+            EnumMap<TieredRingTier, Double> tierValues = new EnumMap<>(TieredRingTier.class);
+
+            for (TieredRingTier tier : TieredRingTier.values()) {
+                String tierKey = tier.configKey();
+                JsonElement valueRaw = perTier.get(tierKey);
+                if (valueRaw == null || valueRaw.isJsonNull()) {
+                    // Try the uppercase form too in case the user wrote "E" instead of "e".
+                    valueRaw = perTier.get(tierKey.toUpperCase(Locale.ROOT));
+                }
+                if (valueRaw == null || valueRaw.isJsonNull() || !valueRaw.isJsonPrimitive()) {
+                    continue;
+                }
+                try {
+                    tierValues.put(tier, valueRaw.getAsDouble());
+                    loaded++;
+                } catch (Exception ex) {
+                    LOGGER.atWarning().log("tiered_rings.%s.%s is not a number, skipping.",
+                            attributeKey, tierKey);
+                }
+            }
+
+            if (!tierValues.isEmpty()) {
+                tieredRingBaseValues.put(attribute, tierValues);
+            }
+        }
+
+        LOGGER.atInfo().log("Loaded %d tiered ring base value overrides from config.", loaded);
     }
 
 }

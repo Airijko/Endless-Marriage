@@ -6,5 +6,27 @@
   "xp_share_multiplier": 1.0,
   "officiate_range": 5.0,
   "priest_class_id": "priest",
-  "magistrate_class_id": "magistrate"
+  "magistrate_class_id": "magistrate",
+  "piggyback_damage_reduction_percent": 25.0,
+  "piggyback_max_range": 5.0,
+  "witness_max_range": 50.0,
+  "kiss_range": 1.0,
+  "kiss_buff_discipline_percent": 10.0,
+  "kiss_buff_duration_seconds": 3600.0,
+  "kiss_buff_cooldown_seconds": 57600.0,
+  "debug_npc_role": "Klops_Gentleman",
+
+  "tiered_rings": {
+    "_comment": "Per-attribute additive base values granted while a tiered ring is equipped. Any missing cell falls back to the hardcoded default in TieredRingCatalog. Tier keys: e, d, c, b, a, s.",
+    "life_force": { "e": 40,  "d": 65,  "c": 100, "b": 160, "a": 260, "s": 480 },
+    "strength":   { "e": 10,  "d": 16,  "c": 25,  "b": 40,  "a": 65,  "s": 120 },
+    "defense":    { "e": 3,   "d": 5,   "c": 8,   "b": 12,  "a": 20,  "s": 36  },
+    "haste":      { "e": 3,   "d": 5,   "c": 8,   "b": 12,  "a": 20,  "s": 36  },
+    "precision":  { "e": 3,   "d": 5,   "c": 8,   "b": 12,  "a": 20,  "s": 36  },
+    "ferocity":   { "e": 6,   "d": 10,  "c": 15,  "b": 25,  "a": 40,  "s": 72  },
+    "stamina":    { "e": 5,   "d": 8,   "c": 13,  "b": 20,  "a": 32,  "s": 60  },
+    "discipline": { "e": 4,   "d": 6,   "c": 10,  "b": 16,  "a": 26,  "s": 48  },
+    "flow":       { "e": 15,  "d": 25,  "c": 40,  "b": 65,  "a": 100, "s": 180 },
+    "sorcery":    { "e": 10,  "d": 16,  "c": 25,  "b": 40,  "a": 65,  "s": 120 }
+  }
 }

@@ -6,5 +6,8 @@
   "xp_share_multiplier": 1.0,
   "officiate_range": 5.0,
   "priest_class_id": "priest",
-  "magistrate_class_id": "magistrate"
+  "magistrate_class_id": "magistrate",
+  "piggyback_damage_reduction_percent": 25.0,
+  "piggyback_max_range": 4.0,
+  "kiss_range": 1.0
 }

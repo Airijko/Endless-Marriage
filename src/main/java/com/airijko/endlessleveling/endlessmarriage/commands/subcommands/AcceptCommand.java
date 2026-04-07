@@ -9,6 +9,7 @@
 
 package com.airijko.endlessleveling.endlessmarriage.commands.subcommands;
 
+import com.airijko.endlessleveling.endlessmarriage.MarriageAnnouncer;
 import com.airijko.endlessleveling.endlessmarriage.config.MarriageConfig;
 import com.airijko.endlessleveling.endlessmarriage.data.MarriageDataManager;
 import com.airijko.endlessleveling.util.OperatorHelper;
@@ -62,13 +63,17 @@ public class AcceptCommand extends AbstractPlayerCommand {
         if (!config.isRequirePriestForMarriage() || adminBypass) {
             // Marry directly (no priest needed, or admin bypass)
             data.marry(proposer, senderUuid, null);
+            String senderName = resolvePlayerName(senderUuid);
+            String proposerName = resolvePlayerName(proposer);
             senderRef.sendMessage(Message.raw(PREFIX + "You are now married to "
-                    + resolvePlayerName(proposer) + "!").color(COLOR_SUCCESS));
+                    + proposerName + "!").color(COLOR_SUCCESS));
             PlayerRef proposerRef = Universe.get().getPlayer(proposer);
             if (proposerRef != null) {
-                proposerRef.sendMessage(Message.raw(PREFIX + resolvePlayerName(senderUuid)
+                proposerRef.sendMessage(Message.raw(PREFIX + senderName
                         + " accepted your proposal! You are now married!").color(COLOR_SUCCESS));
             }
+            // Global wedding announcement: title, chat broadcast, wedding march SFX
+            MarriageAnnouncer.announceMarriage(proposerName, senderName, null);
         } else {
             // Stage pending marriage awaiting priest
             data.addPendingMarriage(proposer, senderUuid);

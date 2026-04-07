@@ -46,6 +46,9 @@ public class MarriageCommand extends AbstractPlayerCommand {
         this.addSubCommand(new HomeCommand());
         this.addSubCommand(new TpPartnerCommand());
         this.addSubCommand(new InventoryCommand());
+        this.addSubCommand(new PiggybackCommand());
+        this.addSubCommand(new DismountCommand());
+        this.addSubCommand(new KissCommand());
         this.addSubCommand(new DebugCommand());
     }
 

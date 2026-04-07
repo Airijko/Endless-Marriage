@@ -1,0 +1,26 @@
+$C = "../../Common.ui";
+
+Group {
+    LayoutMode: Top;
+
+    Group {
+        LayoutMode: Left;
+        Background: #071018(0.55);
+        Padding: (Horizontal: 10, Vertical: 6);
+
+        Label #WitnessName {
+            Style: (FontSize: 13, TextColor: #f4f9ff, RenderBold: true, VerticalAlignment: Center);
+            Text: "Witness";
+            FlexWeight: 1;
+        }
+
+        Label #WitnessRoleLabel {
+            Style: (FontSize: 10, TextColor: #f0c040, RenderBold: true, RenderUppercase: true, LetterSpacing: 1, VerticalAlignment: Center, HorizontalAlignment: End);
+            Text: "";
+            Anchor: (Width: 64);
+            Visible: false;
+        }
+    }
+
+    Group { Anchor: (Height: 3); }
+}

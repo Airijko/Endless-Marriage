@@ -13,9 +13,20 @@ import com.airijko.endlessleveling.api.EndlessLevelingAPI;
 import com.airijko.endlessleveling.endlessmarriage.commands.MarriageCommandRegistrar;
 import com.airijko.endlessleveling.endlessmarriage.config.MarriageConfig;
 import com.airijko.endlessleveling.endlessmarriage.data.MarriageDataManager;
+import com.airijko.endlessleveling.endlessmarriage.data.TieredRingDataManager;
+import com.airijko.endlessleveling.endlessmarriage.data.tiered.TieredRingCatalog;
+import com.airijko.endlessleveling.endlessmarriage.listeners.MarriageInteractListener;
 import com.airijko.endlessleveling.endlessmarriage.managers.MarriageFilesManager;
+import com.airijko.endlessleveling.endlessmarriage.services.DebugNpcService;
+import com.airijko.endlessleveling.endlessmarriage.services.KissBuffService;
+import com.airijko.endlessleveling.endlessmarriage.services.KissService;
+import com.airijko.endlessleveling.endlessmarriage.services.PiggybackService;
 import com.airijko.endlessleveling.endlessmarriage.systems.MarriageProximitySystem;
+import com.airijko.endlessleveling.endlessmarriage.systems.SpouseProtectionSystem;
 import com.hypixel.hytale.logger.HytaleLogger;
+import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
+import com.hypixel.hytale.server.core.event.events.player.PlayerInteractEvent;
+import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 
@@ -31,7 +42,14 @@ public class EndlessMarriage extends JavaPlugin {
     private MarriageFilesManager filesManager;
     private MarriageConfig marriageConfig;
     private MarriageDataManager marriageDataManager;
+    private TieredRingDataManager tieredRingDataManager;
     private MarriageProximitySystem proximitySystem;
+    private PiggybackService piggybackService;
+    private KissBuffService kissBuffService;
+    private KissService kissService;
+    private DebugNpcService debugNpcService;
+    private SpouseProtectionSystem spouseProtectionSystem;
+    private MarriageInteractListener marriageInteractListener;
     private BiConsumer<UUID, Double> xpGrantListener;
 
     public static EndlessMarriage getInstance() {
@@ -46,8 +64,24 @@ public class EndlessMarriage extends JavaPlugin {
         return marriageDataManager;
     }
 
+    public TieredRingDataManager getTieredRingDataManager() {
+        return tieredRingDataManager;
+    }
+
     public MarriageProximitySystem getProximitySystem() {
         return proximitySystem;
+    }
+
+    public PiggybackService getPiggybackService() {
+        return piggybackService;
+    }
+
+    public KissService getKissService() {
+        return kissService;
+    }
+
+    public DebugNpcService getDebugNpcService() {
+        return debugNpcService;
     }
 
     public EndlessMarriage(@Nonnull JavaPluginInit init) {
@@ -70,12 +104,44 @@ public class EndlessMarriage extends JavaPlugin {
         marriageDataManager = new MarriageDataManager(filesManager.getDataFolder());
         marriageDataManager.load();
 
+        // Build the tiered ring catalog using config-overridable base values.
+        // Must run before TieredRingDataManager.load() so persisted ring ids
+        // resolve against the freshly-built catalog.
+        TieredRingCatalog.initialize(marriageConfig);
+
+        // Load tiered (attribute-typed) ring data
+        tieredRingDataManager = new TieredRingDataManager(filesManager.getDataFolder());
+        tieredRingDataManager.load();
+
         // Register marriage manager with EndlessLeveling API for cross-mod queries
         EndlessLevelingAPI.get().registerManager("marriage", marriageDataManager, false);
 
         // Register proximity system
         proximitySystem = new MarriageProximitySystem(marriageDataManager, marriageConfig);
         this.getEntityStoreRegistry().registerSystem(proximitySystem);
+
+        // Piggyback / kiss services
+        piggybackService = new PiggybackService(marriageDataManager, marriageConfig);
+        kissBuffService = new KissBuffService(marriageConfig);
+        kissService = new KissService(marriageDataManager, marriageConfig, kissBuffService);
+        debugNpcService = new DebugNpcService(marriageConfig);
+
+        // Spouse protection: multiplicative damage reduction while piggybacking
+        spouseProtectionSystem = new SpouseProtectionSystem(piggybackService, marriageConfig);
+        this.getEntityStoreRegistry().registerSystem(spouseProtectionSystem);
+
+        // Interact-key piggyback toggle on a spouse player
+        marriageInteractListener = new MarriageInteractListener(marriageDataManager, piggybackService);
+        this.getEventRegistry().registerGlobal(PlayerInteractEvent.class,
+                marriageInteractListener::onPlayerInteract);
+
+        // Clean up piggyback state when a participant disconnects
+        this.getEventRegistry().registerGlobal(PlayerDisconnectEvent.class, this::onPlayerDisconnect);
+
+        // Re-apply persisted tiered ring bonuses after the player loads in
+        // (the augment runtime is in-memory only and would otherwise be empty
+        //  for this player after a server restart).
+        this.getEventRegistry().registerGlobal(PlayerReadyEvent.class, this::onPlayerReady);
 
         // Register XP grant listener for marriage XP sharing and Discipline bonus
         xpGrantListener = createXpGrantListener();
@@ -104,14 +170,58 @@ public class EndlessMarriage extends JavaPlugin {
         if (marriageDataManager != null) {
             marriageDataManager.save();
         }
+        if (tieredRingDataManager != null) {
+            tieredRingDataManager.save();
+        }
 
         LOGGER.atInfo().log("EndlessMarriage has been disabled!");
+    }
+
+    private void onPlayerReady(@Nonnull PlayerReadyEvent event) {
+        try {
+            if (tieredRingDataManager == null) {
+                return;
+            }
+            var player = event.getPlayer();
+            if (player == null) {
+                return;
+            }
+            UUID uuid = player.getUuid();
+            if (uuid == null) {
+                return;
+            }
+            if (!tieredRingDataManager.hasRingEquipped(uuid)) {
+                return;
+            }
+            var entityRef = event.getPlayerRef();
+            var store = entityRef != null ? entityRef.getStore() : null;
+            tieredRingDataManager.reapplyOnJoin(uuid, entityRef, store);
+        } catch (Exception ex) {
+            LOGGER.atWarning().withCause(ex).log("Failed to re-apply tiered ring bonus on join.");
+        }
+    }
+
+    private void onPlayerDisconnect(@Nonnull PlayerDisconnectEvent event) {
+        try {
+            var playerRef = event.getPlayerRef();
+            if (playerRef == null) {
+                return;
+            }
+            UUID uuid = playerRef.getUuid();
+            if (uuid != null && piggybackService != null) {
+                piggybackService.clearForPlayer(uuid);
+            }
+        } catch (Exception ex) {
+            LOGGER.atWarning().withCause(ex).log("Failed to clean up piggyback state on disconnect.");
+        }
     }
 
     /**
      * Creates the XP grant listener that handles:
      * 1. Marriage Discipline bonus: +25% XP when near spouse
-     * 2. Marriage XP sharing: 100% XP share to spouse when near each other
+     * 2. Kiss buff: temporary +10% Discipline XP (configurable) for 1h after a
+     *    successful kiss, regardless of spouse proximity
+     * 3. Marriage XP sharing: 100% XP share to spouse when near each other
      *
      * Uses a ThreadLocal guard to prevent infinite recursion since granting
      * XP to the spouse will trigger this listener again.
@@ -133,27 +243,40 @@ public class EndlessMarriage extends JavaPlugin {
                 return;
             }
 
-            if (!proximitySystem.isNearSpouse(uuid)) {
+            boolean nearSpouse = proximitySystem.isNearSpouse(uuid);
+            boolean hasKissBuff = kissBuffService != null && kissBuffService.isActive(uuid);
+
+            if (!nearSpouse && !hasKissBuff) {
                 return;
             }
 
-            UUID spouseUuid = marriageDataManager.getSpouse(uuid);
-            if (spouseUuid == null) {
-                return;
+            // Total Discipline bonus: proximity bonus + kiss buff (additive).
+            double disciplineBonusPct = 0.0;
+            if (nearSpouse) {
+                disciplineBonusPct += marriageConfig.getDisciplineBonusPercent();
+            }
+            if (hasKissBuff) {
+                disciplineBonusPct += marriageConfig.getKissBuffDisciplinePercent();
             }
 
             inMarriageXpShare.set(true);
             try {
-                // 1. Discipline bonus: grant the earning player extra XP (+25% of what they earned)
-                double disciplineBonus = adjustedXp * (marriageConfig.getDisciplineBonusPercent() / 100.0);
+                // 1. Discipline bonus: grant the earning player extra XP.
+                double disciplineBonus = adjustedXp * (disciplineBonusPct / 100.0);
                 if (disciplineBonus > 0) {
                     EndlessLevelingAPI.get().grantXp(uuid, disciplineBonus);
                 }
 
-                // 2. XP share: grant spouse 100% of the base XP the player earned
-                double spouseXp = adjustedXp * marriageConfig.getXpShareMultiplier();
-                if (spouseXp > 0) {
-                    EndlessLevelingAPI.get().grantXp(spouseUuid, spouseXp);
+                // 2. XP share: grant spouse a share of the base XP, but only
+                //    while the partners are near each other.
+                if (nearSpouse) {
+                    UUID spouseUuid = marriageDataManager.getSpouse(uuid);
+                    if (spouseUuid != null) {
+                        double spouseXp = adjustedXp * marriageConfig.getXpShareMultiplier();
+                        if (spouseXp > 0) {
+                            EndlessLevelingAPI.get().grantXp(spouseUuid, spouseXp);
+                        }
+                    }
                 }
             } finally {
                 inMarriageXpShare.set(false);

@@ -186,7 +186,12 @@ public class MarriageDataManager {
     // ---- Marriage lifecycle ----
 
     public void marry(@Nonnull UUID player1, @Nonnull UUID player2, @Nullable UUID officiant) {
-        MarriagePair pair = new MarriagePair(player1, player2, officiant, System.currentTimeMillis());
+        marry(player1, player2, officiant, new ArrayList<>());
+    }
+
+    public void marry(@Nonnull UUID player1, @Nonnull UUID player2, @Nullable UUID officiant,
+            @Nonnull List<UUID> witnesses) {
+        MarriagePair pair = new MarriagePair(player1, player2, officiant, System.currentTimeMillis(), witnesses);
         marriages.add(pair);
         marriageIndex.put(player1, pair);
         marriageIndex.put(player2, pair);
@@ -222,6 +227,17 @@ public class MarriageDataManager {
         marriageHomes.remove(player2);
         weddingRings.remove(player1);
         weddingRings.remove(player2);
+
+        // End any active piggyback session between the two players
+        try {
+            var piggyback = com.airijko.endlessleveling.endlessmarriage.EndlessMarriage.getInstance().getPiggybackService();
+            if (piggyback != null) {
+                piggyback.dismountAny(player1);
+                piggyback.dismountAny(player2);
+            }
+        } catch (Exception ex) {
+            LOGGER.atWarning().withCause(ex).log("Failed to clean up piggyback session on divorce.");
+        }
 
         if (officiant != null) {
             officiantRecords.add(new OfficiantRecord(officiant, OfficiantRecord.OfficiantType.DIVORCE,
@@ -318,7 +334,18 @@ public class MarriageDataManager {
                         : null;
                 long timestamp = obj.has("timestamp") ? obj.get("timestamp").getAsLong() : 0L;
 
-                MarriagePair pair = new MarriagePair(p1, p2, officiant, timestamp);
+                List<UUID> witnesses = new ArrayList<>();
+                if (obj.has("witnesses") && obj.get("witnesses").isJsonArray()) {
+                    for (JsonElement w : obj.getAsJsonArray("witnesses")) {
+                        try {
+                            witnesses.add(UUID.fromString(w.getAsString()));
+                        } catch (IllegalArgumentException ignored) {
+                            // Skip malformed UUIDs in legacy data.
+                        }
+                    }
+                }
+
+                MarriagePair pair = new MarriagePair(p1, p2, officiant, timestamp, witnesses);
                 marriages.add(pair);
                 marriageIndex.put(p1, pair);
                 marriageIndex.put(p2, pair);
@@ -342,6 +369,13 @@ public class MarriageDataManager {
                 obj.addProperty("player2", pair.player2().toString());
                 obj.addProperty("officiant", pair.officiant() != null ? pair.officiant().toString() : null);
                 obj.addProperty("timestamp", pair.timestamp());
+
+                JsonArray witnessArray = new JsonArray();
+                for (UUID witness : pair.witnesses()) {
+                    witnessArray.add(witness.toString());
+                }
+                obj.add("witnesses", witnessArray);
+
                 array.add(obj);
             }
 

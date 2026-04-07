@@ -1,0 +1,15 @@
+{
+  "Layers": [
+    {
+      "Files": [
+        "Sounds/Marriage/kiss.ogg"
+      ],
+      "RandomSettings": {
+        "MinPitch": -2,
+        "MaxPitch": 2,
+        "MinVolume": 0
+      }
+    }
+  ],
+  "Parent": "SFX_Attn_Loud"
+}
