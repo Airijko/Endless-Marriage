@@ -184,6 +184,104 @@ $C.@PageOverlay {
                         }
                     }
 
+                    Group { Anchor: (Height: 8); }
+
+                    // ---- Ring Card ----
+                    Group #RingCard {
+                        LayoutMode: Top;
+                        Background: #0b141f(0.88);
+                        Padding: (Full: 14);
+                        Visible: false;
+
+                        Group {
+                            Anchor: (Width: 3, Top: 0, Left: 0, Bottom: 0);
+                            Background: #f0c040;
+                        }
+
+                        Group {
+                            LayoutMode: Top;
+                            Padding: (Left: 12);
+
+                            Label {
+                                Text: "WEDDING RING";
+                                Style: (FontSize: 10, TextColor: #f0c040, RenderBold: true, LetterSpacing: 2);
+                                Anchor: (Height: 14);
+                            }
+
+                            Group { Anchor: (Height: 1); Background: #ffffff(0.07); }
+                            Group { Anchor: (Height: 8); }
+
+                            Group {
+                                LayoutMode: Left;
+                                Anchor: (Height: 56);
+
+                                // Ring icon
+                                Group {
+                                    Anchor: (Width: 56, Height: 56);
+                                    Background: #040c17(0.85);
+                                    LayoutMode: Middle;
+                                    Padding: (Full: 6);
+
+                                    ItemIcon #RingIcon {
+                                        Anchor: (Width: 40, Height: 40);
+                                        ItemId: "Ingredient_Bar_Iron";
+                                    }
+                                }
+
+                                Group { Anchor: (Width: 12); }
+
+                                // Ring info column
+                                Group {
+                                    LayoutMode: Top;
+                                    FlexWeight: 1;
+
+                                    Group { Anchor: (Height: 4); }
+
+                                    Label #RingInfoLabel {
+                                        Text: "No ring equipped";
+                                        Style: (FontSize: 15, TextColor: #7a9abf, RenderBold: true, VerticalAlignment: Center);
+                                        Anchor: (Height: 22);
+                                    }
+
+                                    Group { Anchor: (Height: 2); }
+
+                                    Label #RingNextLabel {
+                                        Text: "";
+                                        Style: (FontSize: 12, TextColor: #7a9abf, VerticalAlignment: Center);
+                                        Anchor: (Height: 18);
+                                    }
+                                }
+
+                                Group { Anchor: (Width: 8); }
+
+                                // Action buttons column — both buttons always visible,
+                                // upgrade button toggles Enabled instead of Visible so the
+                                // layout stays stable across states.
+                                Group {
+                                    LayoutMode: Top;
+                                    Anchor: (Width: 170);
+
+                                    $C.@TextButton #RingUpgradeButton {
+                                        Text: "LOCKED";
+                                        Anchor: (Height: 26);
+                                        Padding: (Horizontal: 8);
+                                        Style: @CustomStyle;
+                                        Enabled: false;
+                                    }
+
+                                    Group { Anchor: (Height: 4); }
+
+                                    $C.@TextButton #RingsButton {
+                                        Text: "BROWSE RINGS";
+                                        Anchor: (Height: 26);
+                                        Padding: (Horizontal: 8);
+                                        Style: @CustomStyle;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     Group { Anchor: (Height: 12); }
 
                     // ---- Action Buttons ----

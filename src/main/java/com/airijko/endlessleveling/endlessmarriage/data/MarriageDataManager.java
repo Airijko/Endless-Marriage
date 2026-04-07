@@ -55,6 +55,9 @@ public class MarriageDataManager {
     // Priest inbox: priest UUID -> list of couple pairs [player1, player2] awaiting officiation
     private final Map<UUID, List<UUID[]>> priestInbox = new ConcurrentHashMap<>();
 
+    // Wedding rings: keyed by either spouse's UUID (both map to the same tier)
+    private final Map<UUID, WeddingRingTier> weddingRings = new ConcurrentHashMap<>();
+
     public MarriageDataManager(@Nonnull File dataFolder) {
         this.dataFolder = dataFolder;
         dataFolder.mkdirs();
@@ -214,9 +217,11 @@ public class MarriageDataManager {
         pendingDivorces.remove(player1);
         pendingDivorces.remove(player2);
 
-        // Clean up marriage home
+        // Clean up marriage home and ring
         marriageHomes.remove(player1);
         marriageHomes.remove(player2);
+        weddingRings.remove(player1);
+        weddingRings.remove(player2);
 
         if (officiant != null) {
             officiantRecords.add(new OfficiantRecord(officiant, OfficiantRecord.OfficiantType.DIVORCE,
@@ -256,6 +261,19 @@ public class MarriageDataManager {
         save();
     }
 
+    // ---- Wedding rings ----
+
+    @Nullable
+    public WeddingRingTier getRing(@Nonnull UUID uuid) {
+        return weddingRings.get(uuid);
+    }
+
+    public void setRing(@Nonnull UUID player1, @Nonnull UUID player2, @Nonnull WeddingRingTier tier) {
+        weddingRings.put(player1, tier);
+        weddingRings.put(player2, tier);
+        save();
+    }
+
     // ---- Persistence ----
 
     public void load() {
@@ -263,6 +281,7 @@ public class MarriageDataManager {
         loadRecords();
         loadHomes();
         loadPriestInbox();
+        loadRings();
     }
 
     public void save() {
@@ -270,6 +289,7 @@ public class MarriageDataManager {
         saveRecords();
         saveHomes();
         savePriestInbox();
+        saveRings();
     }
 
     private void loadMarriages() {
@@ -515,6 +535,72 @@ public class MarriageDataManager {
             Files.writeString(file.toPath(), GSON.toJson(root), StandardCharsets.UTF_8);
         } catch (IOException ex) {
             LOGGER.atWarning().withCause(ex).log("Failed to save priest_inbox.json.");
+        }
+    }
+
+    private void loadRings() {
+        File file = new File(dataFolder, "rings.json");
+        if (!file.exists()) {
+            return;
+        }
+
+        try {
+            String json = Files.readString(file.toPath(), StandardCharsets.UTF_8);
+            JsonObject root = GSON.fromJson(json, JsonObject.class);
+            if (root == null || !root.has("rings")) {
+                return;
+            }
+
+            JsonArray array = root.getAsJsonArray("rings");
+            weddingRings.clear();
+
+            for (JsonElement element : array) {
+                JsonObject obj = element.getAsJsonObject();
+                UUID p1 = UUID.fromString(obj.get("player1").getAsString());
+                UUID p2 = UUID.fromString(obj.get("player2").getAsString());
+                WeddingRingTier tier = WeddingRingTier.fromName(obj.get("tier").getAsString());
+                if (tier != null) {
+                    weddingRings.put(p1, tier);
+                    weddingRings.put(p2, tier);
+                }
+            }
+
+            LOGGER.atInfo().log("Loaded %d wedding rings from disk.", array.size());
+        } catch (Exception ex) {
+            LOGGER.atWarning().withCause(ex).log("Failed to load rings.json.");
+        }
+    }
+
+    private void saveRings() {
+        File file = new File(dataFolder, "rings.json");
+        try {
+            JsonObject root = new JsonObject();
+            JsonArray array = new JsonArray();
+
+            // Deduplicate: only save one entry per marriage pair
+            Set<String> saved = new HashSet<>();
+            for (MarriagePair pair : marriages) {
+                WeddingRingTier tier = weddingRings.get(pair.player1());
+                if (tier == null) {
+                    continue;
+                }
+                String key = pair.player1().toString() + ":" + pair.player2().toString();
+                if (saved.contains(key)) {
+                    continue;
+                }
+                saved.add(key);
+
+                JsonObject obj = new JsonObject();
+                obj.addProperty("player1", pair.player1().toString());
+                obj.addProperty("player2", pair.player2().toString());
+                obj.addProperty("tier", tier.name());
+                array.add(obj);
+            }
+
+            root.add("rings", array);
+            Files.writeString(file.toPath(), GSON.toJson(root), StandardCharsets.UTF_8);
+        } catch (IOException ex) {
+            LOGGER.atWarning().withCause(ex).log("Failed to save rings.json.");
         }
     }
 }

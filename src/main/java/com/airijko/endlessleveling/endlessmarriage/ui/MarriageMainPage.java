@@ -13,6 +13,7 @@ import com.airijko.endlessleveling.endlessmarriage.EndlessMarriage;
 import com.airijko.endlessleveling.endlessmarriage.data.MarriageDataManager;
 import com.airijko.endlessleveling.endlessmarriage.data.MarriageHome;
 import com.airijko.endlessleveling.endlessmarriage.data.MarriagePair;
+import com.airijko.endlessleveling.endlessmarriage.data.WeddingRingTier;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.logger.HytaleLogger;
@@ -128,6 +129,52 @@ public class MarriageMainPage extends InteractiveCustomUIPage<MarriagePageData> 
                 ? String.format("Home: %.0f, %.0f, %.0f (%s)", home.x(), home.y(), home.z(), home.worldName())
                 : "No home set");
 
+        // Ring info
+        WeddingRingTier ring = data.getRing(senderUuid);
+        WeddingRingTier displayedRing = ring != null ? ring : WeddingRingTier.lowest();
+        ui.set("#RingIcon.ItemId", displayedRing.getIconItemId());
+
+        if (ring != null) {
+            ui.set("#RingInfoLabel.Text", ring.getDisplayName() + " Ring");
+            ui.set("#RingInfoLabel.Style.TextColor", ring.getColor());
+        } else {
+            ui.set("#RingInfoLabel.Text", "No ring equipped");
+            ui.set("#RingInfoLabel.Style.TextColor", "#7a9abf");
+        }
+
+        // Upgrade button — always visible; Enabled toggles based on eligibility
+        // so the ring card's layout stays stable.
+        WeddingRingTier nextTier = ring != null ? ring.next() : WeddingRingTier.lowest();
+        int senderPrestige = EndlessLevelingAPI.get().getPlayerPrestigeLevel(senderUuid);
+        int spousePrestige = EndlessLevelingAPI.get().getPlayerPrestigeLevel(spouseUuid);
+        int lowestPrestige = Math.min(senderPrestige, spousePrestige);
+
+        if (nextTier == null) {
+            // Player is at max tier
+            ui.set("#RingUpgradeButton.Text", "MAX TIER");
+            ui.set("#RingUpgradeButton.Enabled", false);
+            ui.set("#RingNextLabel.Text", "Max tier reached");
+            ui.set("#RingNextLabel.Style.TextColor", "#e0f7fa");
+        } else if (lowestPrestige >= nextTier.getPrestigeRequired()) {
+            // Eligible for upgrade
+            ui.set("#RingUpgradeButton.Text", "UPGRADE TO " + nextTier.getDisplayName().toUpperCase());
+            ui.set("#RingUpgradeButton.Enabled", true);
+            ui.set("#RingNextLabel.Text", "Ready to upgrade to " + nextTier.getDisplayName() + " Ring");
+            ui.set("#RingNextLabel.Style.TextColor", nextTier.getColor());
+        } else {
+            // Not eligible
+            ui.set("#RingUpgradeButton.Text", "LOCKED");
+            ui.set("#RingUpgradeButton.Enabled", false);
+            ui.set("#RingNextLabel.Text", "Next: " + nextTier.getDisplayName()
+                    + " (Prestige " + nextTier.getPrestigeRequired() + ")");
+            ui.set("#RingNextLabel.Style.TextColor", "#7a9abf");
+        }
+
+        // Always bind the event — the disabled state prevents activation when not eligible
+        events.addEventBinding(Activating, "#RingUpgradeButton", of("Action", "marry:ring_upgrade"), false);
+
+        ui.set("#RingCard.Visible", true);
+
         // Button actions
         events.addEventBinding(Activating, "#TpPartnerButton", of("Action", "marry:tp"), false);
         events.addEventBinding(Activating, "#HomeButton", of("Action", "marry:home"), false);
@@ -135,6 +182,7 @@ public class MarriageMainPage extends InteractiveCustomUIPage<MarriagePageData> 
         events.addEventBinding(Activating, "#InventoryButton", of("Action", "marry:inventory"), false);
         events.addEventBinding(Activating, "#DivorceButton", of("Action", "marry:divorce"), false);
         events.addEventBinding(Activating, "#StatusButton", of("Action", "marry:status"), false);
+        events.addEventBinding(Activating, "#RingsButton", of("Action", "marry:rings_ui"), false);
 
         // Disable buttons if spouse is offline
         if (!spouseOnline) {
@@ -240,6 +288,8 @@ public class MarriageMainPage extends InteractiveCustomUIPage<MarriagePageData> 
             case "marry:status" -> handleStatus();
             case "marry:records" -> handleRecords();
             case "marry:officiate_ui" -> handleOpenOfficiatePage(ref, store);
+            case "marry:rings_ui" -> handleOpenRingPage(ref, store);
+            case "marry:ring_upgrade" -> handleRingUpgrade();
         }
     }
 
@@ -478,6 +528,59 @@ public class MarriageMainPage extends InteractiveCustomUIPage<MarriagePageData> 
             return;
         }
         MarriagePriestPage page = new MarriagePriestPage(playerRef, CustomPageLifetime.CanDismiss);
+        player.getPageManager().openCustomPage(ref, store, page);
+    }
+
+    private void handleRingUpgrade() {
+        UUID senderUuid = playerRef.getUuid();
+        MarriageDataManager data = EndlessMarriage.getInstance().getMarriageDataManager();
+
+        if (!data.isMarried(senderUuid)) {
+            playerRef.sendMessage(Message.raw("[Marriage] You are not married.").color("#ff6666"));
+            return;
+        }
+
+        UUID spouseUuid = data.getSpouse(senderUuid);
+        if (spouseUuid == null) {
+            return;
+        }
+
+        WeddingRingTier current = data.getRing(senderUuid);
+        WeddingRingTier next = current != null ? current.next() : WeddingRingTier.lowest();
+        if (next == null) {
+            playerRef.sendMessage(Message.raw("[Marriage] You already have the highest tier ring.").color("#ff9900"));
+            return;
+        }
+
+        int senderPrestige = EndlessLevelingAPI.get().getPlayerPrestigeLevel(senderUuid);
+        int spousePrestige = EndlessLevelingAPI.get().getPlayerPrestigeLevel(spouseUuid);
+        int lowestPrestige = Math.min(senderPrestige, spousePrestige);
+
+        if (lowestPrestige < next.getPrestigeRequired()) {
+            playerRef.sendMessage(Message.raw("[Marriage] Both partners need prestige "
+                    + next.getPrestigeRequired() + " for this upgrade.").color("#ff6666"));
+            return;
+        }
+
+        // Placeholder: economy check would go here
+        // if (next.getCost() > 0 && !hasBalance(senderUuid, next.getCost())) { ... }
+
+        data.setRing(senderUuid, spouseUuid, next);
+        playerRef.sendMessage(Message.raw("[Marriage] Ring upgraded to " + next.getDisplayName() + "!").color("#66ff66"));
+
+        PlayerRef spouseRef = Universe.get().getPlayer(spouseUuid);
+        if (spouseRef != null && spouseRef.isValid()) {
+            spouseRef.sendMessage(Message.raw("[Marriage] " + resolvePlayerName(senderUuid)
+                    + " upgraded your wedding ring to " + next.getDisplayName() + "!").color("#4fd7f7"));
+        }
+    }
+
+    private void handleOpenRingPage(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store) {
+        Player player = store.getComponent(ref, Player.getComponentType());
+        if (player == null) {
+            return;
+        }
+        MarriageRingPage page = new MarriageRingPage(playerRef, CustomPageLifetime.CanDismiss);
         player.getPageManager().openCustomPage(ref, store, page);
     }
 

@@ -1,0 +1,95 @@
+$C = "../../Common.ui";
+
+@CustomStyle = TextButtonStyle(
+    Default: (Background: $C.@DefaultSquareButtonDefaultBackground, LabelStyle: $C.@DefaultButtonLabelStyle),
+    Hovered: (Background: $C.@DefaultSquareButtonHoveredBackground, LabelStyle: $C.@DefaultButtonLabelStyle),
+    Pressed: (Background: $C.@DefaultSquareButtonPressedBackground, LabelStyle: $C.@DefaultButtonLabelStyle),
+    Disabled: (Background: $C.@DefaultSquareButtonDisabledBackground, LabelStyle: $C.@DefaultButtonDisabledLabelStyle),
+    Sounds: $C.@ButtonSounds,
+);
+
+$C.@PageOverlay {
+    Group {
+        LayoutMode: Middle;
+
+        Group {
+            Anchor: (Width: 660, Height: 540);
+            Background: (TexturePath: "Images/ObjectivePanelContainer.png", Border: 15);
+            LayoutMode: Top;
+            Padding: (Full: 16);
+
+            // ---- Title ----
+            Label {
+                Text: "WEDDING RINGS";
+                Anchor: (Height: 26);
+                Style: (FontSize: 16, TextColor: #f0c040, RenderBold: true, RenderUppercase: true, LetterSpacing: 2, HorizontalAlignment: Center, VerticalAlignment: Center);
+            }
+
+            Group { Anchor: (Height: 1); Background: #7a5a10; }
+            Group { Anchor: (Height: 4); }
+
+            Label {
+                Text: "Strengthen your bond with a ring that reflects your prestige.";
+                Anchor: (Height: 16);
+                Style: (FontSize: 11, TextColor: #e8e8b0, HorizontalAlignment: Center, VerticalAlignment: Center);
+            }
+
+            Group { Anchor: (Height: 8); }
+
+            // ---- Status Card ----
+            Group {
+                LayoutMode: Top;
+                Background: #0b141f(0.88);
+                Padding: (Full: 14);
+
+                Group {
+                    Anchor: (Width: 3, Top: 0, Left: 0, Bottom: 0);
+                    Background: #f2a2e8;
+                }
+
+                Group {
+                    LayoutMode: Top;
+                    Padding: (Left: 12);
+
+                    Label #CurrentRingLabel {
+                        Text: "No ring equipped";
+                        Style: (FontSize: 16, TextColor: #c0cee5, RenderBold: true);
+                        Anchor: (Height: 22);
+                    }
+
+                    Group { Anchor: (Height: 4); }
+
+                    Label #PrestigeInfoLabel {
+                        Text: "Your prestige: 0 | Spouse prestige: 0";
+                        Style: (FontSize: 12, TextColor: #7a9abf);
+                        Anchor: (Height: 16);
+                    }
+                }
+            }
+
+            Group { Anchor: (Height: 4); }
+
+            Label #RingInfoLabel {
+                Text: "Both partners must meet the prestige requirement.";
+                Style: (FontSize: 12, TextColor: #e8e8b0);
+                Anchor: (Height: 16);
+                Padding: (Left: 4);
+            }
+
+            Group { Anchor: (Height: 4); }
+
+            // ---- Ring List ----
+            Group #RingListScroll {
+                FlexWeight: 1;
+                LayoutMode: TopScrolling;
+                ScrollbarStyle: $C.@DefaultScrollbarStyle;
+                Background: #040c17(0.90);
+                Padding: (Full: 6);
+
+                Group #RingRows {
+                    LayoutMode: Top;
+                }
+            }
+        }
+    }
+}
