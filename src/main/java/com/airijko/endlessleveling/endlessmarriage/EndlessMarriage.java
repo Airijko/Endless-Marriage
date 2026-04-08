@@ -33,6 +33,7 @@ import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import javax.annotation.Nonnull;
 import java.util.UUID;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 public class EndlessMarriage extends JavaPlugin {
 
@@ -51,6 +52,7 @@ public class EndlessMarriage extends JavaPlugin {
     private SpouseProtectionSystem spouseProtectionSystem;
     private MarriageInteractListener marriageInteractListener;
     private BiConsumer<UUID, Double> xpGrantListener;
+    private Consumer<UUID> preTeleportListener;
 
     public static EndlessMarriage getInstance() {
         return INSTANCE;
@@ -167,6 +169,15 @@ public class EndlessMarriage extends JavaPlugin {
         xpGrantListener = createXpGrantListener();
         EndlessLevelingAPI.get().addXpGrantListener(xpGrantListener);
 
+        // Dismount piggyback before any cross-world teleport so the rider
+        // does not become invisible or desync in the destination world.
+        preTeleportListener = uuid -> {
+            if (piggybackService != null) {
+                piggybackService.dismountAny(uuid);
+            }
+        };
+        EndlessLevelingAPI.get().addPreTeleportListener(preTeleportListener);
+
         // Register commands
         MarriageCommandRegistrar.registerCommands(this.getCommandRegistry());
 
@@ -176,6 +187,11 @@ public class EndlessMarriage extends JavaPlugin {
 
     @Override
     protected void shutdown() {
+        // Unregister pre-teleport listener
+        if (preTeleportListener != null) {
+            EndlessLevelingAPI.get().removePreTeleportListener(preTeleportListener);
+        }
+
         // Unregister XP listener
         if (xpGrantListener != null) {
             EndlessLevelingAPI.get().removeXpGrantListener(xpGrantListener);

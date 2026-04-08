@@ -58,6 +58,9 @@ public class MarriageDataManager {
     // Wedding rings: keyed by either spouse's UUID (both map to the same tier)
     private final Map<UUID, WeddingRingTier> weddingRings = new ConcurrentHashMap<>();
 
+    // Divorce cooldown: UUID -> timestamp of most recent divorce (both ex-spouses are recorded)
+    private final Map<UUID, Long> recentDivorces = new ConcurrentHashMap<>();
+
     public MarriageDataManager(@Nonnull File dataFolder) {
         this.dataFolder = dataFolder;
         dataFolder.mkdirs();
@@ -244,6 +247,11 @@ public class MarriageDataManager {
                     player1, player2, System.currentTimeMillis()));
         }
 
+        // Record divorce time so both ex-spouses must wait before remarrying
+        long divorceTime = System.currentTimeMillis();
+        recentDivorces.put(player1, divorceTime);
+        recentDivorces.put(player2, divorceTime);
+
         save();
         LOGGER.atInfo().log("Divorce finalized: %s + %s (officiant: %s)", player1, player2, officiant);
     }
@@ -290,6 +298,25 @@ public class MarriageDataManager {
         save();
     }
 
+    // ---- Divorce cooldown ----
+
+    /**
+     * Returns the timestamp (ms) of the most recent divorce for this player,
+     * or {@code null} if no cooldown is recorded.
+     */
+    @Nullable
+    public Long getDivorceTimestamp(@Nonnull UUID uuid) {
+        return recentDivorces.get(uuid);
+    }
+
+    /**
+     * Clears the divorce cooldown for a player (admin use).
+     */
+    public void clearDivorceCooldown(@Nonnull UUID uuid) {
+        recentDivorces.remove(uuid);
+        save();
+    }
+
     // ---- Persistence ----
 
     public void load() {
@@ -298,6 +325,7 @@ public class MarriageDataManager {
         loadHomes();
         loadPriestInbox();
         loadRings();
+        loadDivorceCooldowns();
     }
 
     public void save() {
@@ -306,6 +334,7 @@ public class MarriageDataManager {
         saveHomes();
         savePriestInbox();
         saveRings();
+        saveDivorceCooldowns();
     }
 
     private void loadMarriages() {
@@ -635,6 +664,48 @@ public class MarriageDataManager {
             Files.writeString(file.toPath(), GSON.toJson(root), StandardCharsets.UTF_8);
         } catch (IOException ex) {
             LOGGER.atWarning().withCause(ex).log("Failed to save rings.json.");
+        }
+    }
+
+    private void loadDivorceCooldowns() {
+        File file = new File(dataFolder, "divorce_cooldowns.json");
+        if (!file.exists()) {
+            return;
+        }
+        try {
+            String json = Files.readString(file.toPath(), StandardCharsets.UTF_8);
+            JsonObject root = GSON.fromJson(json, JsonObject.class);
+            if (root == null || !root.has("cooldowns")) {
+                return;
+            }
+            recentDivorces.clear();
+            for (Map.Entry<String, JsonElement> entry : root.getAsJsonObject("cooldowns").entrySet()) {
+                try {
+                    UUID uuid = UUID.fromString(entry.getKey());
+                    long ts = entry.getValue().getAsLong();
+                    recentDivorces.put(uuid, ts);
+                } catch (Exception ignored) {
+                    // skip malformed entries
+                }
+            }
+            LOGGER.atInfo().log("Loaded %d divorce cooldown entries.", recentDivorces.size());
+        } catch (Exception ex) {
+            LOGGER.atWarning().withCause(ex).log("Failed to load divorce_cooldowns.json.");
+        }
+    }
+
+    private void saveDivorceCooldowns() {
+        File file = new File(dataFolder, "divorce_cooldowns.json");
+        try {
+            JsonObject root = new JsonObject();
+            JsonObject cooldowns = new JsonObject();
+            for (Map.Entry<UUID, Long> entry : recentDivorces.entrySet()) {
+                cooldowns.addProperty(entry.getKey().toString(), entry.getValue());
+            }
+            root.add("cooldowns", cooldowns);
+            Files.writeString(file.toPath(), GSON.toJson(root), StandardCharsets.UTF_8);
+        } catch (IOException ex) {
+            LOGGER.atWarning().withCause(ex).log("Failed to save divorce_cooldowns.json.");
         }
     }
 }

@@ -9,33 +9,27 @@
 
 package com.airijko.endlessleveling.endlessmarriage.commands.subcommands;
 
+import com.airijko.endlessleveling.endlessmarriage.ui.MarriageAdminListPage;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.server.core.Message;
+import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractPlayerCommand;
+import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import javax.annotation.Nonnull;
+import java.util.concurrent.CompletableFuture;
 
 /**
- * /marry admin - Parent command for admin/debug subcommands.
+ * /marry admin list - Opens an admin UI listing all active marriages.
  */
-public class DebugCommand extends AbstractPlayerCommand {
+public class AdminListCommand extends AbstractPlayerCommand {
 
-    public DebugCommand() {
-        super("admin", "Admin commands for marriage system");
-        this.addAliases("debug");
-
-        this.addSubCommand(new DebugInventoryCommand());
-        this.addSubCommand(new DebugNpcCommand());
-        this.addSubCommand(new DebugKissCommand());
-        this.addSubCommand(new DebugPiggybackCommand());
-        this.addSubCommand(new DebugMenuCommand());
-        this.addSubCommand(new DebugRingsCommand());
-        this.addSubCommand(new AdminListCommand());
+    public AdminListCommand() {
+        super("list", "List all active marriages");
     }
 
     @Override
@@ -49,6 +43,15 @@ public class DebugCommand extends AbstractPlayerCommand {
             @Nonnull Ref<EntityStore> ref,
             @Nonnull PlayerRef senderRef,
             @Nonnull World world) {
-        senderRef.sendMessage(Message.raw("[Marriage Admin] Available: /marry admin inv | npc | kiss | piggyback | menu | rings | list").color("#4fd7f7"));
+
+        Player player = context.senderAs(Player.class);
+        if (player == null) {
+            return;
+        }
+
+        CompletableFuture.runAsync(() -> {
+            MarriageAdminListPage page = new MarriageAdminListPage(senderRef, CustomPageLifetime.CanDismiss);
+            player.getPageManager().openCustomPage(ref, store, page);
+        }, world);
     }
 }

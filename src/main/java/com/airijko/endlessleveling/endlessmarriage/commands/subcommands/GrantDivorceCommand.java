@@ -56,8 +56,9 @@ public class GrantDivorceCommand extends AbstractPlayerCommand {
         MarriageDataManager data = dataManager();
         MarriageConfig config = config();
 
-        // Check magistrate class requirement
-        if (config.isRequireMagistrateForDivorce()) {
+        // Check magistrate class requirement (permission-holders bypass)
+        if (config.isRequireMagistrateForDivorce()
+                && !senderHasPermission(context, PERM_DIVORCE_GRANT)) {
             String magistrateClassId = config.getMagistrateClassId();
             String primaryClass = EndlessLevelingAPI.get().getPrimaryClassId(senderUuid);
             String secondaryClass = EndlessLevelingAPI.get().getSecondaryClassId(senderUuid);
@@ -66,7 +67,7 @@ public class GrantDivorceCommand extends AbstractPlayerCommand {
 
             if (!isMagistrate) {
                 senderRef.sendMessage(Message.raw(PREFIX
-                        + "Only players with the Magistrate class can grant divorces.").color(COLOR_ERROR));
+                        + "Only players with the Magistrate class (or the endlessmarriage.divorce.grant permission) can grant divorces.").color(COLOR_ERROR));
                 return;
             }
         }

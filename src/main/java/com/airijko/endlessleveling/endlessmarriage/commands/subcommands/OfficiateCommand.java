@@ -66,8 +66,10 @@ public class OfficiateCommand extends AbstractPlayerCommand {
         MarriageDataManager data = dataManager();
         MarriageConfig config = config();
 
-        // Check priest class requirement (admins bypass)
-        if (config.isRequirePriestForMarriage() && !OperatorHelper.isOperator(senderRef)) {
+        // Check priest class requirement (admins and permission-holders bypass)
+        if (config.isRequirePriestForMarriage()
+                && !OperatorHelper.isOperator(senderRef)
+                && !senderHasPermission(context, PERM_OFFICIATE)) {
             String priestClassId = config.getPriestClassId();
             String primaryClass = EndlessLevelingAPI.get().getPrimaryClassId(senderUuid);
             String secondaryClass = EndlessLevelingAPI.get().getSecondaryClassId(senderUuid);
@@ -76,7 +78,7 @@ public class OfficiateCommand extends AbstractPlayerCommand {
 
             if (!isPriest) {
                 senderRef.sendMessage(Message.raw(PREFIX
-                        + "Only players with the Priest class can officiate marriages.").color(COLOR_ERROR));
+                        + "Only players with the Priest class (or the endlessmarriage.officiate permission) can officiate marriages.").color(COLOR_ERROR));
                 return;
             }
         }

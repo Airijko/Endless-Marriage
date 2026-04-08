@@ -11,6 +11,7 @@ package com.airijko.endlessleveling.endlessmarriage.commands.subcommands;
 
 import com.airijko.endlessleveling.endlessmarriage.config.MarriageConfig;
 import com.airijko.endlessleveling.endlessmarriage.data.MarriageDataManager;
+import com.airijko.endlessleveling.endlessmarriage.data.MarriagePair;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
@@ -51,6 +52,19 @@ public class DivorceCommand extends AbstractPlayerCommand {
         if (!data.isMarried(senderUuid)) {
             senderRef.sendMessage(Message.raw(PREFIX + "You are not married.").color(COLOR_ERROR));
             return;
+        }
+
+        // Enforce 72-hour minimum before divorce is allowed
+        MarriagePair pair = data.getMarriage(senderUuid);
+        if (pair != null) {
+            long elapsed = System.currentTimeMillis() - pair.timestamp();
+            if (elapsed < HOURS_72_MS) {
+                long remaining = HOURS_72_MS - elapsed;
+                senderRef.sendMessage(Message.raw(PREFIX
+                        + "You must be married for at least 72 hours before divorcing. "
+                        + "Time remaining: " + formatDuration(remaining) + ".").color(COLOR_ERROR));
+                return;
+            }
         }
 
         UUID spouseUuid = data.getSpouse(senderUuid);

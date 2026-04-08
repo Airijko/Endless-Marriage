@@ -70,6 +70,19 @@ public class ProposeCommand extends AbstractPlayerCommand {
             return;
         }
 
+        // Remarriage cooldown check for the sender
+        Long senderDivorceTime = data.getDivorceTimestamp(senderUuid);
+        if (senderDivorceTime != null) {
+            long elapsed = System.currentTimeMillis() - senderDivorceTime;
+            if (elapsed < HOURS_72_MS) {
+                long remaining = HOURS_72_MS - elapsed;
+                senderRef.sendMessage(Message.raw(PREFIX
+                        + "You must wait 72 hours after a divorce before remarrying. "
+                        + "Time remaining: " + formatDuration(remaining) + ".").color(COLOR_ERROR));
+                return;
+            }
+        }
+
         PlayerRef targetRef = findPlayerByName(targetName);
         if (targetRef == null) {
             senderRef.sendMessage(Message.raw(PREFIX + "Player '" + targetName + "' is not online.").color(COLOR_ERROR));
@@ -85,6 +98,19 @@ public class ProposeCommand extends AbstractPlayerCommand {
         if (data.isMarried(targetUuid)) {
             senderRef.sendMessage(Message.raw(PREFIX + targetName + " is already married.").color(COLOR_ERROR));
             return;
+        }
+
+        // Remarriage cooldown check for the target
+        Long targetDivorceTime = data.getDivorceTimestamp(targetUuid);
+        if (targetDivorceTime != null) {
+            long elapsed = System.currentTimeMillis() - targetDivorceTime;
+            if (elapsed < HOURS_72_MS) {
+                long remaining = HOURS_72_MS - elapsed;
+                senderRef.sendMessage(Message.raw(PREFIX
+                        + targetName + " recently divorced and must wait before remarrying. "
+                        + "Time remaining: " + formatDuration(remaining) + ".").color(COLOR_ERROR));
+                return;
+            }
         }
 
         data.addProposal(senderUuid, targetUuid);

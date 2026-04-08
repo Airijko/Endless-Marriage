@@ -13,6 +13,7 @@ import com.airijko.endlessleveling.api.EndlessLevelingAPI;
 import com.airijko.endlessleveling.endlessmarriage.EndlessMarriage;
 import com.airijko.endlessleveling.endlessmarriage.config.MarriageConfig;
 import com.airijko.endlessleveling.endlessmarriage.data.MarriageDataManager;
+import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 
@@ -30,6 +31,15 @@ final class MarriageUtil {
     static final String COLOR_INFO = "#4fd7f7";
     static final String COLOR_WARN = "#ff9900";
     static final String PREFIX = "[Endless Marriage] ";
+
+    /** 72 hours in milliseconds. */
+    static final long HOURS_72_MS = 72L * 60L * 60L * 1000L;
+
+    /** Permission node that allows officiating marriages regardless of class. */
+    static final String PERM_OFFICIATE = "endlessmarriage.officiate";
+
+    /** Permission node that allows granting divorces regardless of class. */
+    static final String PERM_DIVORCE_GRANT = "endlessmarriage.divorce.grant";
 
     private MarriageUtil() {
     }
@@ -62,5 +72,25 @@ final class MarriageUtil {
             }
         }
         return null;
+    }
+
+    /**
+     * Returns {@code true} if the command sender has the given permission node.
+     */
+    static boolean senderHasPermission(@Nonnull CommandContext context, @Nonnull String node) {
+        try {
+            return context.sender().hasPermission(node);
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    /**
+     * Formats a duration in milliseconds as "Xh Ym".
+     */
+    static String formatDuration(long ms) {
+        long hours = ms / 3_600_000L;
+        long minutes = (ms % 3_600_000L) / 60_000L;
+        return hours + "h " + minutes + "m";
     }
 }

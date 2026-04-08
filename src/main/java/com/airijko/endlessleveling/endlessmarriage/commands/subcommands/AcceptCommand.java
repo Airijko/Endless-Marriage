@@ -56,6 +56,30 @@ public class AcceptCommand extends AbstractPlayerCommand {
             return;
         }
 
+        // Remarriage cooldown: check both the acceptor and the proposer
+        Long senderDivorceTime = data.getDivorceTimestamp(senderUuid);
+        if (senderDivorceTime != null) {
+            long elapsed = System.currentTimeMillis() - senderDivorceTime;
+            if (elapsed < HOURS_72_MS) {
+                long remaining = HOURS_72_MS - elapsed;
+                senderRef.sendMessage(Message.raw(PREFIX
+                        + "You must wait 72 hours after a divorce before remarrying. "
+                        + "Time remaining: " + formatDuration(remaining) + ".").color(COLOR_ERROR));
+                return;
+            }
+        }
+        Long proposerDivorceTime = data.getDivorceTimestamp(proposer);
+        if (proposerDivorceTime != null) {
+            long elapsed = System.currentTimeMillis() - proposerDivorceTime;
+            if (elapsed < HOURS_72_MS) {
+                long remaining = HOURS_72_MS - elapsed;
+                senderRef.sendMessage(Message.raw(PREFIX
+                        + "The proposer recently divorced and must wait before remarrying. "
+                        + "Time remaining: " + formatDuration(remaining) + ".").color(COLOR_ERROR));
+                return;
+            }
+        }
+
         data.removeProposal(proposer);
 
         boolean adminBypass = OperatorHelper.isOperator(senderRef);

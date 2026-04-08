@@ -1,0 +1,48 @@
+$C = "../../Common.ui";
+
+Group {
+    LayoutMode: Top;
+
+    Group {
+        LayoutMode: Top;
+        Background: #0b141f(0.88);
+        Padding: (Full: 14);
+
+        Group {
+            Anchor: (Width: 3, Top: 0, Left: 0, Bottom: 0);
+            Background: #f2a2e8;
+        }
+
+        Group {
+            LayoutMode: Top;
+            Padding: (Left: 12);
+
+            Group {
+                LayoutMode: Left;
+                Anchor: (Height: 22);
+
+                Label #AdminRowNames {
+                    Text: "Player1 & Player2";
+                    Style: (FontSize: 15, TextColor: #ffffff, RenderBold: true, VerticalAlignment: Center);
+                    FlexWeight: 1;
+                }
+
+                Label #AdminRowDate {
+                    Text: "----";
+                    Style: (FontSize: 11, TextColor: #7a9abf, VerticalAlignment: Center, HorizontalAlignment: End);
+                    Anchor: (Width: 100);
+                }
+            }
+
+            Group { Anchor: (Height: 4); }
+
+            Label #AdminRowOfficiant {
+                Text: "No officiant";
+                Style: (FontSize: 11, TextColor: #555555);
+                Anchor: (Height: 14);
+            }
+        }
+    }
+
+    Group { Anchor: (Height: 6); }
+}

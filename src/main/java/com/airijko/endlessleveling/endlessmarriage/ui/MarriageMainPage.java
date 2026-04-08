@@ -705,6 +705,21 @@ public class MarriageMainPage extends InteractiveCustomUIPage<MarriagePageData> 
             return;
         }
 
+        // Enforce 72-hour minimum before divorce is allowed
+        MarriagePair currentPair = data.getMarriage(senderUuid);
+        if (currentPair != null) {
+            long elapsed = System.currentTimeMillis() - currentPair.timestamp();
+            long minMs = 72L * 60L * 60L * 1000L;
+            if (elapsed < minMs) {
+                long remaining = minMs - elapsed;
+                long hours = remaining / 3_600_000L;
+                long minutes = (remaining % 3_600_000L) / 60_000L;
+                playerRef.sendMessage(Message.raw("[Marriage] You must be married for at least 72 hours before divorcing. "
+                        + "Time remaining: " + hours + "h " + minutes + "m.").color("#ff6666"));
+                return;
+            }
+        }
+
         UUID spouseUuid = data.getSpouse(senderUuid);
         var config = EndlessMarriage.getInstance().getMarriageConfig();
 
@@ -730,6 +745,33 @@ public class MarriageMainPage extends InteractiveCustomUIPage<MarriagePageData> 
         if (proposer == null) {
             playerRef.sendMessage(Message.raw("[Marriage] No pending proposals.").color("#ff6666"));
             return;
+        }
+
+        // Remarriage cooldown: check both the acceptor and the proposer
+        final long minMs = 72L * 60L * 60L * 1000L;
+        Long senderDivorceTime = data.getDivorceTimestamp(senderUuid);
+        if (senderDivorceTime != null) {
+            long elapsed = System.currentTimeMillis() - senderDivorceTime;
+            if (elapsed < minMs) {
+                long remaining = minMs - elapsed;
+                long hours = remaining / 3_600_000L;
+                long minutes = (remaining % 3_600_000L) / 60_000L;
+                playerRef.sendMessage(Message.raw("[Marriage] You must wait 72 hours after a divorce before remarrying. "
+                        + "Time remaining: " + hours + "h " + minutes + "m.").color("#ff6666"));
+                return;
+            }
+        }
+        Long proposerDivorceTime = data.getDivorceTimestamp(proposer);
+        if (proposerDivorceTime != null) {
+            long elapsed = System.currentTimeMillis() - proposerDivorceTime;
+            if (elapsed < minMs) {
+                long remaining = minMs - elapsed;
+                long hours = remaining / 3_600_000L;
+                long minutes = (remaining % 3_600_000L) / 60_000L;
+                playerRef.sendMessage(Message.raw("[Marriage] The proposer recently divorced and must wait before remarrying. "
+                        + "Time remaining: " + hours + "h " + minutes + "m.").color("#ff6666"));
+                return;
+            }
         }
 
         data.removeProposal(proposer);
