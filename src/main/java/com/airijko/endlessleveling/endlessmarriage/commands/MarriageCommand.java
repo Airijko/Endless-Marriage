@@ -31,7 +31,7 @@ public class MarriageCommand extends AbstractPlayerCommand {
 
     public MarriageCommand() {
         super("marry", "Marriage system commands");
-        this.addAliases("marriage");
+        this.addAliases("marriage", "em", "m");
 
         this.addSubCommand(new ProposeCommand());
         this.addSubCommand(new AcceptCommand());

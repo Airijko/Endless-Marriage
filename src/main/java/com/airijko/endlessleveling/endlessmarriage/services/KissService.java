@@ -15,7 +15,6 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.math.vector.Vector3d;
-import com.hypixel.hytale.protocol.SoundCategory;
 import com.hypixel.hytale.server.core.asset.type.soundevent.config.SoundEvent;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
@@ -165,9 +164,9 @@ public final class KissService {
         double midX = (initiatorPos.getX() + partnerPos.getX()) * 0.5;
         double midY = ((initiatorPos.getY() + partnerPos.getY()) * 0.5) + 1.8;
         double midZ = (initiatorPos.getZ() + partnerPos.getZ()) * 0.5;
+        Vector3d midpoint = new Vector3d(midX, midY, midZ);
 
         try {
-            Vector3d midpoint = new Vector3d(midX, midY, midZ);
             ParticleUtil.spawnParticleEffect(HEART_PARTICLE_ID, midpoint, store);
         } catch (Exception ex) {
             LOGGER.atWarning().withCause(ex).log("Failed to spawn heart particles for kiss between %s and %s.",
@@ -175,19 +174,19 @@ public final class KissService {
             return false;
         }
 
-        // Play the kiss SFX for both partners (positional, 2D so it always plays).
-        playKissSound(initiatorRef, store);
-        playKissSound(partnerRef, store);
+        // Play the kiss SFX as a 3D positional sound at the midpoint so
+        // everyone within ~25 blocks can hear it.
+        playKissSound3d(midpoint, store);
         return true;
     }
 
-    private void playKissSound(@Nonnull Ref<EntityStore> entityRef, @Nonnull Store<EntityStore> store) {
+    private void playKissSound3d(@Nonnull Vector3d position, @Nonnull Store<EntityStore> store) {
         try {
             int soundIndex = SoundEvent.getAssetMap().getIndex(KISS_SOUND_ID);
             if (soundIndex == Integer.MIN_VALUE || soundIndex == 0) {
                 return;
             }
-            SoundUtil.playSoundEvent2d(entityRef, soundIndex, SoundCategory.SFX, store);
+            SoundUtil.playSoundEvent3d(null, soundIndex, position, store);
         } catch (Exception ex) {
             LOGGER.atFiner().withCause(ex).log("Failed to play kiss sound effect.");
         }
