@@ -148,8 +148,9 @@ public class EndlessMarriage extends JavaPlugin {
         kissService = new KissService(marriageDataManager, marriageConfig, kissBuffService);
         debugNpcService = new DebugNpcService(marriageConfig);
 
-        // Spouse protection: multiplicative damage reduction while piggybacking
-        spouseProtectionSystem = new SpouseProtectionSystem(piggybackService, marriageConfig);
+        // Spouse protection: cancels spouse-on-spouse damage outright and
+        // applies multiplicative damage reduction while piggybacking.
+        spouseProtectionSystem = new SpouseProtectionSystem(piggybackService, marriageDataManager, marriageConfig);
         this.getEntityStoreRegistry().registerSystem(spouseProtectionSystem);
 
         // Interact-key piggyback toggle on a spouse player

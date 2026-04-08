@@ -9,22 +9,19 @@
 
 package com.airijko.endlessleveling.endlessmarriage.systems;
 
-import com.airijko.endlessleveling.api.EndlessLevelingAPI;
 import com.airijko.endlessleveling.endlessmarriage.config.MarriageConfig;
 import com.airijko.endlessleveling.endlessmarriage.data.MarriageDataManager;
 import com.airijko.endlessleveling.endlessmarriage.data.MarriagePair;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
-import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.math.vector.Vector3d;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
-import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -33,10 +30,18 @@ import java.util.concurrent.ConcurrentHashMap;
  * Ticking system that checks proximity between married couples.
  * When spouses are within range, they gain the marriage Discipline bonus.
  * Also handles XP sharing via the XP grant listener registered in the main plugin.
+ *
+ * <p>The proximity check runs <em>per store</em>: each store's tick looks up
+ * both spouses through {@code store.getExternalData().getRefFromUUID()} so the
+ * subsequent {@code TransformComponent} reads happen on the correct store
+ * thread. The previous implementation went through {@code Universe.getPlayer()
+ * .getReference()} which is fine for global lookups but then called
+ * {@code store.getComponent} from whatever thread happened to be ticking,
+ * tripping the store's {@code assertThread()} guard and silently leaving the
+ * couple flagged as "not near" until something else woke up the entity.
  */
 public class MarriageProximitySystem extends TickingSystem<EntityStore> {
 
-    private static final HytaleLogger LOGGER = HytaleLogger.forEnclosingClassFull();
     private static final float CHECK_INTERVAL_SECONDS = 2.0f;
 
     private final MarriageDataManager dataManager;
@@ -45,7 +50,12 @@ public class MarriageProximitySystem extends TickingSystem<EntityStore> {
     // Players who are currently near their spouse (eligible for marriage buffs)
     private final Set<UUID> playersNearSpouse = ConcurrentHashMap.newKeySet();
 
-    private float timeSinceLastCheck = 0f;
+    /**
+     * Per-store throttle accumulator. The system ticks once per store per
+     * server tick, so a single shared accumulator would advance N× faster on
+     * a multi-world server.
+     */
+    private final Map<Store<EntityStore>, Float> timeSinceLastCheck = new ConcurrentHashMap<>();
 
     public MarriageProximitySystem(@Nonnull MarriageDataManager dataManager,
             @Nonnull MarriageConfig config) {
@@ -66,61 +76,55 @@ public class MarriageProximitySystem extends TickingSystem<EntityStore> {
             return;
         }
 
-        timeSinceLastCheck += deltaSeconds;
-        if (timeSinceLastCheck < CHECK_INTERVAL_SECONDS) {
+        float accumulated = timeSinceLastCheck.merge(store, deltaSeconds, (a, b) -> a + b);
+        if (accumulated < CHECK_INTERVAL_SECONDS) {
             return;
         }
-        timeSinceLastCheck = 0f;
+        timeSinceLastCheck.put(store, 0f);
+
+        EntityStore entityStore = store.getExternalData();
 
         double range = config.getProximityRange();
         double rangeSq = range * range;
 
-        // Check each marriage pair
+        // Check each marriage pair within this store. Couples whose players
+        // are not both present in this store are simply skipped — the store
+        // they actually live in will tick the same system on its own thread.
         for (MarriagePair pair : dataManager.getAllMarriages()) {
-            checkCouple(pair, store, rangeSq);
+            checkCouple(pair, store, entityStore, rangeSq);
         }
     }
 
-    private void checkCouple(@Nonnull MarriagePair pair, @Nonnull Store<EntityStore> store, double rangeSq) {
+    private void checkCouple(@Nonnull MarriagePair pair,
+            @Nonnull Store<EntityStore> store,
+            @Nonnull EntityStore entityStore,
+            double rangeSq) {
         UUID p1 = pair.player1();
         UUID p2 = pair.player2();
 
-        Universe universe = Universe.get();
-        if (universe == null) {
-            playersNearSpouse.remove(p1);
-            playersNearSpouse.remove(p2);
+        Ref<EntityStore> entity1 = entityStore.getRefFromUUID(p1);
+        Ref<EntityStore> entity2 = entityStore.getRefFromUUID(p2);
+
+        boolean has1 = entity1 != null && entity1.isValid();
+        boolean has2 = entity2 != null && entity2.isValid();
+
+        // Only one (or neither) spouse is in this store. If exactly one is
+        // here, their partner is in a different world / offline — they cannot
+        // be "near" by definition, so clear the flag for the present spouse.
+        // The absent spouse is left alone; another store's tick (or none, if
+        // they are offline) is responsible for them.
+        if (!has1 || !has2) {
+            if (has1) {
+                playersNearSpouse.remove(p1);
+            }
+            if (has2) {
+                playersNearSpouse.remove(p2);
+            }
             return;
         }
 
-        PlayerRef ref1 = universe.getPlayer(p1);
-        PlayerRef ref2 = universe.getPlayer(p2);
-
-        if (ref1 == null || !ref1.isValid() || ref2 == null || !ref2.isValid()) {
-            playersNearSpouse.remove(p1);
-            playersNearSpouse.remove(p2);
-            return;
-        }
-
-        Ref<EntityStore> entity1 = ref1.getReference();
-        Ref<EntityStore> entity2 = ref2.getReference();
-
-        if (entity1 == null || entity2 == null) {
-            playersNearSpouse.remove(p1);
-            playersNearSpouse.remove(p2);
-            return;
-        }
-
-        // Must be in the same store (same world)
-        Store<EntityStore> store1 = entity1.getStore();
-        Store<EntityStore> store2 = entity2.getStore();
-        if (store1 != store2) {
-            playersNearSpouse.remove(p1);
-            playersNearSpouse.remove(p2);
-            return;
-        }
-
-        Vector3d pos1 = resolvePosition(entity1, store1);
-        Vector3d pos2 = resolvePosition(entity2, store2);
+        Vector3d pos1 = resolvePosition(entity1, store);
+        Vector3d pos2 = resolvePosition(entity2, store);
 
         if (pos1 == null || pos2 == null) {
             playersNearSpouse.remove(p1);
@@ -140,6 +144,14 @@ public class MarriageProximitySystem extends TickingSystem<EntityStore> {
             playersNearSpouse.remove(p1);
             playersNearSpouse.remove(p2);
         }
+    }
+
+    /**
+     * Drops the per-store throttle accumulator when a store shuts down so the
+     * Map does not hold onto the dead Store reference.
+     */
+    public void onStoreShutdown(@Nonnull Store<EntityStore> store) {
+        timeSinceLastCheck.remove(store);
     }
 
     @Nullable

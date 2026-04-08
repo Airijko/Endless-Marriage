@@ -15,9 +15,11 @@ import com.hypixel.hytale.builtin.mounts.MountedComponent;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.logger.HytaleLogger;
+import com.hypixel.hytale.math.shape.Box;
 import com.hypixel.hytale.math.vector.Vector3d;
 import com.hypixel.hytale.math.vector.Vector3f;
 import com.hypixel.hytale.protocol.MountController;
+import com.hypixel.hytale.server.core.modules.entity.component.BoundingBox;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
@@ -49,6 +51,15 @@ public final class PiggybackService {
     private final Map<UUID, UUID> riders = new ConcurrentHashMap<>();
     /** carrier UUID -> rider UUID (reverse for cleanup) */
     private final Map<UUID, UUID> carriers = new ConcurrentHashMap<>();
+    /**
+     * rider UUID -> snapshot of the rider's BoundingBox at mount time. While
+     * mounted the rider's box is shrunk to a zero-volume box so the carrier
+     * does not collide with them — collisions between two players standing in
+     * the exact same spot otherwise produce >10 block per-tick collision push
+     * offsets, which spam {@code "Jump in location in processMovementBlockCollisions"}
+     * warnings on the carrier and reset its velocity each tick.
+     */
+    private final Map<UUID, Box> riderBoundingBoxSnapshots = new ConcurrentHashMap<>();
 
     private final MarriageDataManager dataManager;
     private final MarriageConfig config;
@@ -152,6 +163,8 @@ public final class PiggybackService {
             return MountResult.ERROR;
         }
 
+        shrinkRiderBoundingBox(riderUuid, riderRef, riderStore);
+
         riders.put(riderUuid, spouseUuid);
         carriers.put(spouseUuid, riderUuid);
         LOGGER.atInfo().log("Piggyback started: %s riding %s", riderUuid, spouseUuid);
@@ -189,6 +202,8 @@ public final class PiggybackService {
             return MountResult.ERROR;
         }
 
+        shrinkRiderBoundingBox(riderUuid, riderRef, riderStore);
+
         riders.put(riderUuid, syntheticCarrierUuid);
         carriers.put(syntheticCarrierUuid, riderUuid);
         LOGGER.atInfo().log("Debug piggyback started: %s riding NPC %s", riderUuid, syntheticCarrierUuid);
@@ -210,12 +225,57 @@ public final class PiggybackService {
         } catch (Exception ex) {
             LOGGER.atWarning().withCause(ex).log("Failed to remove MountedComponent during dismount for %s.", riderUuid);
         }
+        restoreRiderBoundingBox(riderUuid, riderRef, riderStore);
         UUID carrierUuid = riders.remove(riderUuid);
         if (carrierUuid != null) {
             carriers.remove(carrierUuid);
         }
         LOGGER.atInfo().log("Piggyback ended: %s no longer riding %s", riderUuid, carrierUuid);
         return true;
+    }
+
+    /**
+     * Replaces the rider's BoundingBox with a zero-volume box and stores the
+     * original so it can be restored on dismount. While mounted the rider
+     * occupies the same XYZ as the carrier on the server (the visual offset
+     * is purely client-side via the {@link MountedComponent} packet), so
+     * leaving the rider's full-size box in place causes the carrier's
+     * collision sweep to push it out by >10 blocks per tick — which trips
+     * {@code PlayerProcessMovementSystem}'s "Jump in location" guard, logs
+     * a warning and resets the carrier's velocity.
+     */
+    private void shrinkRiderBoundingBox(@Nonnull UUID riderUuid,
+            @Nonnull Ref<EntityStore> riderRef,
+            @Nonnull Store<EntityStore> riderStore) {
+        try {
+            BoundingBox bbComponent = riderStore.getComponent(riderRef, BoundingBox.getComponentType());
+            if (bbComponent == null) {
+                return;
+            }
+            Box current = bbComponent.getBoundingBox();
+            riderBoundingBoxSnapshots.put(riderUuid, new Box(current));
+            current.setMinMax(Vector3d.ZERO, Vector3d.ZERO);
+        } catch (Exception ex) {
+            LOGGER.atWarning().withCause(ex).log("Failed to shrink BoundingBox for piggyback rider %s.", riderUuid);
+        }
+    }
+
+    /** Restores the rider's saved BoundingBox dimensions, if any. */
+    private void restoreRiderBoundingBox(@Nonnull UUID riderUuid,
+            @Nullable Ref<EntityStore> riderRef,
+            @Nullable Store<EntityStore> riderStore) {
+        Box saved = riderBoundingBoxSnapshots.remove(riderUuid);
+        if (saved == null || riderRef == null || riderStore == null) {
+            return;
+        }
+        try {
+            BoundingBox bbComponent = riderStore.getComponent(riderRef, BoundingBox.getComponentType());
+            if (bbComponent != null) {
+                bbComponent.getBoundingBox().setMinMax(saved.min, saved.max);
+            }
+        } catch (Exception ex) {
+            LOGGER.atWarning().withCause(ex).log("Failed to restore BoundingBox for piggyback rider %s.", riderUuid);
+        }
     }
 
     /**
@@ -227,10 +287,38 @@ public final class PiggybackService {
         UUID carrierUuid = riders.remove(uuid);
         if (carrierUuid != null) {
             carriers.remove(carrierUuid);
+            // The disconnecting player was a rider; try to restore their box
+            // in case they reconnect to the same entity ref. If we can't reach
+            // the entity (most disconnects), drop the snapshot so it does not
+            // leak.
+            PlayerRef playerRef = Universe.get().getPlayer(uuid);
+            if (playerRef != null && playerRef.isValid()) {
+                Ref<EntityStore> entityRef = playerRef.getReference();
+                if (entityRef != null) {
+                    restoreRiderBoundingBox(uuid, entityRef, entityRef.getStore());
+                } else {
+                    riderBoundingBoxSnapshots.remove(uuid);
+                }
+            } else {
+                riderBoundingBoxSnapshots.remove(uuid);
+            }
         }
         UUID riderUuid = carriers.remove(uuid);
         if (riderUuid != null) {
             riders.remove(riderUuid);
+            // The disconnecting player was a carrier; the rider on their back
+            // is now stranded — try to restore the rider's box too.
+            PlayerRef riderPlayerRef = Universe.get().getPlayer(riderUuid);
+            if (riderPlayerRef != null && riderPlayerRef.isValid()) {
+                Ref<EntityStore> riderEntity = riderPlayerRef.getReference();
+                if (riderEntity != null) {
+                    restoreRiderBoundingBox(riderUuid, riderEntity, riderEntity.getStore());
+                } else {
+                    riderBoundingBoxSnapshots.remove(riderUuid);
+                }
+            } else {
+                riderBoundingBoxSnapshots.remove(riderUuid);
+            }
         }
     }
 

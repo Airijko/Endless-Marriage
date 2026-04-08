@@ -10,6 +10,7 @@
 package com.airijko.endlessleveling.endlessmarriage.systems;
 
 import com.airijko.endlessleveling.endlessmarriage.config.MarriageConfig;
+import com.airijko.endlessleveling.endlessmarriage.data.MarriageDataManager;
 import com.airijko.endlessleveling.endlessmarriage.services.PiggybackService;
 import com.hypixel.hytale.component.ArchetypeChunk;
 import com.hypixel.hytale.component.CommandBuffer;
@@ -27,6 +28,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import javax.annotation.Nonnull;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * Damage event system that applies a multiplicative damage reduction to
@@ -41,11 +43,14 @@ import java.util.Set;
 public class SpouseProtectionSystem extends DamageEventSystem {
 
     private final PiggybackService piggybackService;
+    private final MarriageDataManager dataManager;
     private final MarriageConfig config;
 
     public SpouseProtectionSystem(@Nonnull PiggybackService piggybackService,
+            @Nonnull MarriageDataManager dataManager,
             @Nonnull MarriageConfig config) {
         this.piggybackService = piggybackService;
+        this.dataManager = dataManager;
         this.config = config;
     }
 
@@ -73,8 +78,28 @@ public class SpouseProtectionSystem extends DamageEventSystem {
         if (defenderPlayer == null || !defenderPlayer.isValid()) {
             return;
         }
+        UUID defenderUuid = defenderPlayer.getUuid();
 
-        if (!piggybackService.isInActivePiggyback(defenderPlayer.getUuid())) {
+        // 1. Cancel any damage between marriage partners (melee + projectile,
+        //    since ProjectileSource extends EntitySource).
+        if (damage.getSource() instanceof Damage.EntitySource entitySource) {
+            Ref<EntityStore> attackerRef = entitySource.getRef();
+            if (attackerRef != null && attackerRef.isValid()) {
+                PlayerRef attackerPlayer = commandBuffer.getComponent(attackerRef, PlayerRef.getComponentType());
+                if (attackerPlayer != null && attackerPlayer.isValid()) {
+                    UUID attackerUuid = attackerPlayer.getUuid();
+                    if (!attackerUuid.equals(defenderUuid)
+                            && dataManager.isMarried(attackerUuid)
+                            && defenderUuid.equals(dataManager.getSpouse(attackerUuid))) {
+                        damage.setAmount(0f);
+                        return;
+                    }
+                }
+            }
+        }
+
+        // 2. Multiplicative damage reduction while piggybacking with the spouse.
+        if (!piggybackService.isInActivePiggyback(defenderUuid)) {
             return;
         }
 
