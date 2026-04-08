@@ -49,6 +49,6 @@ public class DebugCommand extends AbstractPlayerCommand {
             @Nonnull Ref<EntityStore> ref,
             @Nonnull PlayerRef senderRef,
             @Nonnull World world) {
-        senderRef.sendMessage(Message.raw("[Marriage Admin] Available: /marry admin inv | npc | kiss | piggyback | menu | rings | list").color("#4fd7f7"));
+        senderRef.sendMessage(Message.raw("[Marriage Admin] Available: /marry admin inv | npc | kiss | piggyback | testmenu | rings | list").color("#4fd7f7"));
     }
 }

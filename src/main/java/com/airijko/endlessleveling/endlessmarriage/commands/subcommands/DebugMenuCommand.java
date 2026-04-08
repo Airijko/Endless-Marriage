@@ -38,7 +38,7 @@ public class DebugMenuCommand extends AbstractPlayerCommand {
     private static final UUID DEBUG_SPOUSE_UUID = new UUID(0L, 1L);
 
     public DebugMenuCommand() {
-        super("menu", "Open the marriage menu in fake-married preview mode");
+        super("testmenu", "Open the marriage menu in fake-married preview mode");
     }
 
     @Override
