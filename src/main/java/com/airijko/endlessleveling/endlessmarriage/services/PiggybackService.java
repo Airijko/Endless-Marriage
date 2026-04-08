@@ -83,6 +83,35 @@ public final class PiggybackService {
         return riders.containsKey(uuid) || carriers.containsKey(uuid);
     }
 
+    /**
+     * Returns the carrier UUID for the given rider, or {@code null} if the
+     * rider is not currently in a piggyback session.
+     */
+    @Nullable
+    public UUID getCarrierFor(@Nonnull UUID riderUuid) {
+        return riders.get(riderUuid);
+    }
+
+    /**
+     * Returns the rider UUID for the given carrier, or {@code null} if the
+     * carrier is not currently in a piggyback session.
+     */
+    @Nullable
+    public UUID getRiderFor(@Nonnull UUID carrierUuid) {
+        return carriers.get(carrierUuid);
+    }
+
+    /**
+     * Live, read-only view of the rider-to-carrier index. The map is backed by
+     * a {@link ConcurrentHashMap}, so callers can safely iterate it without
+     * copying — but they must not mutate it. Used by tick systems that need to
+     * walk every active piggyback session each frame.
+     */
+    @Nonnull
+    public Map<UUID, UUID> getRiderToCarrierView() {
+        return riders;
+    }
+
     /** Result codes for {@link #tryMount}. */
     public enum MountResult {
         SUCCESS,

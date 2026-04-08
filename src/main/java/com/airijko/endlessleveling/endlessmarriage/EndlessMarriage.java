@@ -22,6 +22,7 @@ import com.airijko.endlessleveling.endlessmarriage.services.KissBuffService;
 import com.airijko.endlessleveling.endlessmarriage.services.KissService;
 import com.airijko.endlessleveling.endlessmarriage.services.PiggybackService;
 import com.airijko.endlessleveling.endlessmarriage.systems.MarriageProximitySystem;
+import com.airijko.endlessleveling.endlessmarriage.systems.PiggybackFollowSystem;
 import com.airijko.endlessleveling.endlessmarriage.systems.SpouseProtectionSystem;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
@@ -50,6 +51,7 @@ public class EndlessMarriage extends JavaPlugin {
     private KissService kissService;
     private DebugNpcService debugNpcService;
     private SpouseProtectionSystem spouseProtectionSystem;
+    private PiggybackFollowSystem piggybackFollowSystem;
     private MarriageInteractListener marriageInteractListener;
     private BiConsumer<UUID, Double> xpGrantListener;
     private Consumer<UUID> preTeleportListener;
@@ -152,6 +154,15 @@ public class EndlessMarriage extends JavaPlugin {
         // applies multiplicative damage reduction while piggybacking.
         spouseProtectionSystem = new SpouseProtectionSystem(piggybackService, marriageDataManager, marriageConfig);
         this.getEntityStoreRegistry().registerSystem(spouseProtectionSystem);
+
+        // Piggyback follow: each tick, copy the carrier's TransformComponent
+        // position into the rider's so the rider's camera actually moves with
+        // the carrier (the engine's MountedComponent only affects client-side
+        // visual rendering — it never updates the rider's server position, so
+        // without this system the rider's screen stays glued to the spot
+        // where they pressed the use key).
+        piggybackFollowSystem = new PiggybackFollowSystem(piggybackService);
+        this.getEntityStoreRegistry().registerSystem(piggybackFollowSystem);
 
         // Interact-key piggyback toggle on a spouse player
         marriageInteractListener = new MarriageInteractListener(marriageDataManager, piggybackService);
