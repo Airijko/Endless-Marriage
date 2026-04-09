@@ -1,5 +1,17 @@
 # Endless Marriage - Update Log
 
+## 2026-04-09 — 2.1.1 (continued)
+
+### Marriage XP Even-Split (`XP Rework`)
+
+- The marriage XP system has been reworked from a **one-way share** (spouse receives `xpShareMultiplier` of the earner's XP) to a **50/50 even split** (earner's adjusted XP is pooled and divided equally between both partners).
+- When near spouse, the earner's post-bonus XP is halved: the earner keeps half, and the other half is granted to the spouse via `EndlessLevelingAPI.adjustRawXp` (no double-dipping on discipline/luck bonuses, no listener re-fire).
+- **Party exclusivity:** marriage XP split and party XP sharing are now mutually exclusive. If the earner is in a party (`EndlessLevelingAPI.isInParty`), only the discipline/kiss bonuses apply — the even split is skipped entirely so party distribution is not doubled.
+- Over time, both partners converge on the same total XP regardless of who killed what.
+- Updated Javadoc in [`EndlessMarriage`](src/main/java/com/airijko/endlessleveling/endlessmarriage/EndlessMarriage.java) to reflect the new system.
+
+---
+
 ## 2026-04-08 — 2.1.1 (compared to 2.1.0)
 
 A focused bug-fix pass on top of 2.1.0. The headlines are a piggyback collision fix, a brand-new `PiggybackFollowSystem` so the rider's camera actually moves with the carrier, multi-world correctness for the proximity tick, and outright cancellation of spouse-on-spouse damage.
@@ -12,6 +24,7 @@ A focused bug-fix pass on top of 2.1.0. The headlines are a piggyback collision 
 - `SpouseProtectionSystem` now **outright cancels** all spouse-on-spouse damage (melee + projectile), in addition to the existing piggyback damage reduction.
 - New `MarriageConfigMigrator` schema bump (v1 → v2) — every user config gets merged forward on the next boot.
 - `/marry admin menu` renamed to `/marry admin testmenu` to free up the `menu` slot.
+- **Marriage XP even-split** — XP sharing reworked from a one-way share to a 50/50 split (party-exclusive).
 
 ### Piggyback Collision Fix (`Bug Fixes`)
 
