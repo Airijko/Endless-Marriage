@@ -269,7 +269,15 @@ public class EndlessMarriage extends JavaPlugin {
      * 1. Marriage Discipline bonus: +25% XP when near spouse
      * 2. Kiss buff: temporary +10% Discipline XP (configurable) for 1h after a
      *    successful kiss, regardless of spouse proximity
-     * 3. Marriage XP sharing: 100% XP share to spouse when near each other
+     * 3. Marriage XP even split: when near spouse, the earner's adjusted XP is
+     *    split 50/50 between both partners. Each partner's individual bonuses
+     *    (luck, discipline, level range) are already baked into their own XP
+     *    before the split. Over time both partners converge on the same total
+     *    XP regardless of who killed what.
+     *
+     * Marriage XP sharing and party XP sharing are mutually exclusive. If the
+     * earner is in a party, only the discipline/kiss bonuses apply — the even
+     * split is skipped so party distribution is not doubled.
      *
      * Uses a ThreadLocal guard to prevent infinite recursion since granting
      * XP to the spouse will trigger this listener again.
@@ -315,15 +323,20 @@ public class EndlessMarriage extends JavaPlugin {
                     EndlessLevelingAPI.get().grantXp(uuid, disciplineBonus);
                 }
 
-                // 2. XP share: grant spouse a share of the base XP, but only
-                //    while the partners are near each other.
-                if (nearSpouse) {
+                // 2. Even split: pool the earner's XP and divide equally.
+                //    Marriage share and party share are mutually exclusive —
+                //    skip the split if the earner is in a party.
+                if (nearSpouse && !EndlessLevelingAPI.get().isInParty(uuid)) {
                     UUID spouseUuid = marriageDataManager.getSpouse(uuid);
                     if (spouseUuid != null) {
-                        double spouseXp = adjustedXp * marriageConfig.getXpShareMultiplier();
-                        if (spouseXp > 0) {
-                            EndlessLevelingAPI.get().grantXp(spouseUuid, spouseXp);
-                        }
+                        double halfXp = adjustedXp / 2.0;
+
+                        // Earner already received full adjustedXp from the
+                        // pipeline — subtract half so they keep only their
+                        // share. Grant the other half to the spouse using
+                        // raw XP (no bonuses, no listener re-fire).
+                        EndlessLevelingAPI.get().adjustRawXp(uuid, -halfXp);
+                        EndlessLevelingAPI.get().adjustRawXp(spouseUuid, halfXp);
                     }
                 }
             } finally {
