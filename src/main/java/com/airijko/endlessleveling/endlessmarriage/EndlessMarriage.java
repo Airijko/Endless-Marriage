@@ -324,9 +324,16 @@ public class EndlessMarriage extends JavaPlugin {
                 }
 
                 // 2. Even split: pool the earner's XP and divide equally.
-                //    Marriage share and party share are mutually exclusive —
-                //    skip the split if the earner is in a party.
-                if (nearSpouse && !EndlessLevelingAPI.get().isInParty(uuid)) {
+                //    Runs when the earner is near their spouse AND either
+                //    (a) not in a party, or (b) in a couple-only party (just
+                //    the two spouses). When outsiders are in the party the
+                //    standard party-share pipeline runs instead. PartyManager
+                //    mirrors this check and skips its member distribution for
+                //    couple-only parties so the spouse does not double-dip.
+                EndlessLevelingAPI api = EndlessLevelingAPI.get();
+                boolean inParty = api.isInParty(uuid);
+                boolean coupleOnlyParty = inParty && api.isCoupleOnlyParty(uuid);
+                if (nearSpouse && (!inParty || coupleOnlyParty)) {
                     UUID spouseUuid = marriageDataManager.getSpouse(uuid);
                     if (spouseUuid != null) {
                         double halfXp = adjustedXp / 2.0;

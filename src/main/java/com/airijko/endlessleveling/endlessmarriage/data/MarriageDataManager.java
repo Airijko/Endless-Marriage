@@ -78,6 +78,22 @@ public class MarriageDataManager {
         return pair != null ? pair.getSpouse(uuid) : null;
     }
 
+    /**
+     * Delegates to the proximity system so the EndlessLeveling API can query
+     * spouse proximity via reflection on the registered "marriage" manager
+     * without needing a separate handle to the proximity system.
+     */
+    public boolean isNearSpouse(@Nonnull UUID uuid) {
+        com.airijko.endlessleveling.endlessmarriage.EndlessMarriage plugin =
+                com.airijko.endlessleveling.endlessmarriage.EndlessMarriage.getInstance();
+        if (plugin == null) {
+            return false;
+        }
+        com.airijko.endlessleveling.endlessmarriage.systems.MarriageProximitySystem proximity =
+                plugin.getProximitySystem();
+        return proximity != null && proximity.isNearSpouse(uuid);
+    }
+
     @Nullable
     public MarriagePair getMarriage(@Nonnull UUID uuid) {
         return marriageIndex.get(uuid);
