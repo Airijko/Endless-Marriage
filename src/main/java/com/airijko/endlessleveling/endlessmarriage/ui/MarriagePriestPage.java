@@ -18,7 +18,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
 import com.hypixel.hytale.server.core.Message;
-import com.hypixel.hytale.server.core.entity.entities.player.pages.InteractiveCustomUIPage;
+import com.airijko.endlessleveling.ui.base.SafeInteractiveCustomUIPage;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
@@ -37,7 +37,7 @@ import static com.hypixel.hytale.server.core.ui.builder.EventData.of;
  * UI page listing all online priests for marriage officiation requests.
  * The request is stored in the priest's inbox and persists even if the priest logs off.
  */
-public class MarriagePriestPage extends InteractiveCustomUIPage<MarriagePageData> {
+public class MarriagePriestPage extends SafeInteractiveCustomUIPage<MarriagePageData> {
 
     private static final HytaleLogger LOGGER = HytaleLogger.forEnclosingClassFull();
     private static final String PLAYER_ROW_TEMPLATE = "Pages/Marriage/PlayerRow.ui";

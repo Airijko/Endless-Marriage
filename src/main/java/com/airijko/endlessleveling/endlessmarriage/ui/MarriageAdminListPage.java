@@ -16,7 +16,7 @@ import com.airijko.endlessleveling.endlessmarriage.data.MarriagePair;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
-import com.hypixel.hytale.server.core.entity.entities.player.pages.InteractiveCustomUIPage;
+import com.airijko.endlessleveling.ui.base.SafeInteractiveCustomUIPage;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
@@ -32,7 +32,7 @@ import java.util.UUID;
 /**
  * Admin UI page listing all active marriages. Opened by /marry admin list.
  */
-public class MarriageAdminListPage extends InteractiveCustomUIPage<MarriagePageData> {
+public class MarriageAdminListPage extends SafeInteractiveCustomUIPage<MarriagePageData> {
 
     private static final String ROW_TEMPLATE = "Pages/Marriage/MarriageAdminRow.ui";
 

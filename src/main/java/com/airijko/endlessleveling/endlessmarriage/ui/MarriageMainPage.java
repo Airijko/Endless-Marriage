@@ -26,7 +26,7 @@ import com.hypixel.hytale.math.vector.Vector3f;
 import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.server.core.entity.entities.player.pages.InteractiveCustomUIPage;
+import com.airijko.endlessleveling.ui.base.SafeInteractiveCustomUIPage;
 import com.hypixel.hytale.protocol.packets.interface_.Page;
 import com.hypixel.hytale.server.core.inventory.container.CombinedItemContainer;
 import com.hypixel.hytale.server.core.inventory.Inventory;
@@ -56,7 +56,7 @@ import static com.hypixel.hytale.server.core.ui.builder.EventData.of;
  * Main marriage UI hub opened by /marry. Shows different layouts for
  * married and unmarried players with buttons for all features.
  */
-public class MarriageMainPage extends InteractiveCustomUIPage<MarriagePageData> {
+public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageData> {
 
     private static final HytaleLogger LOGGER = HytaleLogger.forEnclosingClassFull();
     private static final String WITNESS_ROW_TEMPLATE = "Pages/Marriage/WitnessRow.ui";
@@ -161,7 +161,7 @@ public class MarriageMainPage extends InteractiveCustomUIPage<MarriagePageData> 
             ui.set("#RingInfoLabel.Style.TextColor", "#7a9abf");
         }
 
-        // Upgrade button — always visible; Enabled toggles based on eligibility
+        // Upgrade button â€” always visible; Enabled toggles based on eligibility
         // so the ring card's layout stays stable.
         WeddingRingTier nextTier = ring != null ? ring.next() : WeddingRingTier.lowest();
         int senderPrestige = EndlessLevelingAPI.get().getPlayerPrestigeLevel(senderUuid);
@@ -189,7 +189,7 @@ public class MarriageMainPage extends InteractiveCustomUIPage<MarriagePageData> 
             ui.set("#RingNextLabel.Style.TextColor", "#7a9abf");
         }
 
-        // Always bind the event — the disabled state prevents activation when not eligible
+        // Always bind the event â€” the disabled state prevents activation when not eligible
         events.addEventBinding(Activating, "#RingUpgradeButton", of("Action", "marry:ring_upgrade"), false);
 
         ui.set("#RingCard.Visible", true);
@@ -440,7 +440,7 @@ public class MarriageMainPage extends InteractiveCustomUIPage<MarriagePageData> 
         }
 
         // If a debug NPC exists for this player, use it as the carrier instead
-        // of looking up a real spouse — this lets the menu's piggyback button
+        // of looking up a real spouse â€” this lets the menu's piggyback button
         // exercise the mount path during /marry debug menu testing.
         DebugNpcService debugNpc = EndlessMarriage.getInstance().getDebugNpcService();
         DebugNpcService.DebugNpc npc = debugNpc != null ? debugNpc.get(senderUuid) : null;

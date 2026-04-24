@@ -16,7 +16,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
 import com.hypixel.hytale.server.core.Message;
-import com.hypixel.hytale.server.core.entity.entities.player.pages.InteractiveCustomUIPage;
+import com.airijko.endlessleveling.ui.base.SafeInteractiveCustomUIPage;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
@@ -34,7 +34,7 @@ import static com.hypixel.hytale.server.core.ui.builder.EventData.of;
 /**
  * UI page listing online, unmarried players for marriage proposals.
  */
-public class MarriageProposePage extends InteractiveCustomUIPage<MarriagePageData> {
+public class MarriageProposePage extends SafeInteractiveCustomUIPage<MarriagePageData> {
 
     private static final HytaleLogger LOGGER = HytaleLogger.forEnclosingClassFull();
     private static final String PLAYER_ROW_TEMPLATE = "Pages/Marriage/PlayerRow.ui";
