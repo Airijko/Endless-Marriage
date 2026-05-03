@@ -2,6 +2,7 @@
  * Copyright (c) 2026 Airijko
  *
  * This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+ *
  * If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
  *
  * This Source Code Form is "Incompatible With Secondary Licenses", as defined by the Mozilla Public License, v. 2.0.
@@ -15,7 +16,6 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.math.vector.Vector3d;
 import com.hypixel.hytale.math.vector.Vector3f;
-import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractPlayerCommand;
 import com.hypixel.hytale.server.core.modules.entity.teleport.Teleport;
@@ -54,19 +54,20 @@ public class HomeCommand extends AbstractPlayerCommand {
         MarriageDataManager data = dataManager();
 
         if (!data.isMarried(senderUuid)) {
-            senderRef.sendMessage(Message.raw(PREFIX + "You must be married to use this.").color(COLOR_ERROR));
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.MUST_BE_MARRIED, COLOR_ERROR));
             return;
         }
 
         MarriageHome home = data.getHome(senderUuid);
         if (home == null) {
-            senderRef.sendMessage(Message.raw(PREFIX + "No marriage home has been set. Use /marry to set one first.").color(COLOR_ERROR));
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.HOME_NO_HOME, COLOR_ERROR));
             return;
         }
 
         World targetWorld = Universe.get().getWorld(home.worldName());
         if (targetWorld == null) {
-            senderRef.sendMessage(Message.raw(PREFIX + "The world '" + home.worldName() + "' no longer exists.").color(COLOR_ERROR));
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.HOME_WORLD_MISSING, COLOR_ERROR,
+                    home.worldName()));
             return;
         }
 
@@ -75,6 +76,6 @@ public class HomeCommand extends AbstractPlayerCommand {
         Teleport teleport = Teleport.createForPlayer(targetWorld, pos, rot);
         store.addComponent(ref, Teleport.getComponentType(), teleport);
 
-        senderRef.sendMessage(Message.raw(PREFIX + "Teleporting to marriage home...").color(COLOR_SUCCESS));
+        senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.HOME_TELEPORTING, COLOR_SUCCESS));
     }
 }

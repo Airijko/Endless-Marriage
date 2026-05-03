@@ -10,6 +10,7 @@
 package com.airijko.endlessleveling.endlessmarriage.ui;
 
 import com.airijko.endlessleveling.endlessmarriage.EndlessMarriage;
+import com.airijko.endlessleveling.endlessmarriage.commands.subcommands.MarriageMessages;
 import com.airijko.endlessleveling.endlessmarriage.data.MarriageDataManager;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
@@ -122,23 +123,23 @@ public class MarriageProposePage extends SafeInteractiveCustomUIPage<MarriagePag
             MarriageDataManager data = EndlessMarriage.getInstance().getMarriageDataManager();
 
             if (data.isMarried(senderUuid)) {
-                playerRef.sendMessage(Message.raw("[Marriage] You are already married!").color("#ff6666"));
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.ALREADY_MARRIED_SELF, "#ff6666"));
                 return;
             }
 
             if (data.hasPendingProposal(senderUuid)) {
-                playerRef.sendMessage(Message.raw("[Marriage] You already have a pending proposal.").color("#ff6666"));
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.ALREADY_HAVE_PROPOSAL, "#ff6666"));
                 return;
             }
 
             if (data.isMarried(targetUuid)) {
-                playerRef.sendMessage(Message.raw("[Marriage] That player is already married.").color("#ff6666"));
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.TARGET_ALREADY_MARRIED_SHORT, "#ff6666"));
                 return;
             }
 
             PlayerRef targetRef = Universe.get().getPlayer(targetUuid);
             if (targetRef == null || !targetRef.isValid()) {
-                playerRef.sendMessage(Message.raw("[Marriage] That player is no longer online.").color("#ff6666"));
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.TARGET_OFFLINE_SHORT, "#ff6666"));
                 return;
             }
 
@@ -146,11 +147,11 @@ public class MarriageProposePage extends SafeInteractiveCustomUIPage<MarriagePag
             String senderName = playerRef.getUsername() != null ? playerRef.getUsername() : senderUuid.toString().substring(0, 8);
 
             data.addProposal(senderUuid, targetUuid);
-            playerRef.sendMessage(Message.raw("[Marriage] You proposed to " + targetName + "!").color("#66ff66"));
-            targetRef.sendMessage(Message.raw("[Marriage] " + senderName + " has proposed to you! Use /marry accept or /marry deny").color("#4fd7f7"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.PROPOSED_TO, "#66ff66", targetName));
+            targetRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.RECEIVED_PROPOSAL_SHORT, "#4fd7f7", senderName));
 
         } catch (IllegalArgumentException ex) {
-            playerRef.sendMessage(Message.raw("[Marriage] Invalid player.").color("#ff6666"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.INVALID_PLAYER, "#ff6666"));
         }
     }
 }

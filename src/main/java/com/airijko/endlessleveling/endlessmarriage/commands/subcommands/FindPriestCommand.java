@@ -2,6 +2,7 @@
  * Copyright (c) 2026 Airijko
  *
  * This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+ *
  * If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
  *
  * This Source Code Form is "Incompatible With Secondary Licenses", as defined by the Mozilla Public License, v. 2.0.
@@ -14,7 +15,6 @@ import com.airijko.endlessleveling.endlessmarriage.ui.MarriagePriestPage;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
-import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractPlayerCommand;
 import com.hypixel.hytale.server.core.entity.entities.Player;
@@ -53,8 +53,7 @@ public class FindPriestCommand extends AbstractPlayerCommand {
         MarriageDataManager data = dataManager();
 
         if (!data.hasPendingMarriage(senderUuid)) {
-            senderRef.sendMessage(Message.raw(PREFIX
-                    + "You don't have a pending marriage. Use /marry to propose first.").color(COLOR_ERROR));
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.FINDPRIEST_NO_PENDING, COLOR_ERROR));
             return;
         }
 

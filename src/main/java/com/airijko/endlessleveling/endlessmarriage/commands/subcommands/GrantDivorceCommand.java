@@ -2,6 +2,7 @@
  * Copyright (c) 2026 Airijko
  *
  * This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+ *
  * If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
  *
  * This Source Code Form is "Incompatible With Secondary Licenses", as defined by the Mozilla Public License, v. 2.0.
@@ -14,7 +15,6 @@ import com.airijko.endlessleveling.endlessmarriage.config.MarriageConfig;
 import com.airijko.endlessleveling.endlessmarriage.data.MarriageDataManager;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.arguments.system.RequiredArg;
 import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
@@ -66,8 +66,7 @@ public class GrantDivorceCommand extends AbstractPlayerCommand {
                     || magistrateClassId.equalsIgnoreCase(secondaryClass);
 
             if (!isMagistrate) {
-                senderRef.sendMessage(Message.raw(PREFIX
-                        + "Only players with the Magistrate class (or the endlessmarriage.divorce.grant permission) can grant divorces.").color(COLOR_ERROR));
+                senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.GRANT_MAGISTRATE_ONLY, COLOR_ERROR));
                 return;
             }
         }
@@ -75,33 +74,33 @@ public class GrantDivorceCommand extends AbstractPlayerCommand {
         String targetName = playerArg.get(context);
         PlayerRef targetRef = findPlayerByName(targetName);
         if (targetRef == null) {
-            senderRef.sendMessage(Message.raw(PREFIX + "Player '" + targetName + "' is not online.").color(COLOR_ERROR));
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.TARGET_OFFLINE, COLOR_ERROR, targetName));
             return;
         }
 
         UUID targetUuid = targetRef.getUuid();
         if (!data.hasPendingDivorce(targetUuid)) {
-            senderRef.sendMessage(Message.raw(PREFIX + "This player has not requested a divorce.").color(COLOR_ERROR));
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.GRANT_NO_REQUEST, COLOR_ERROR));
             return;
         }
 
         UUID spouseUuid = data.getSpouse(targetUuid);
         if (spouseUuid == null) {
-            senderRef.sendMessage(Message.raw(PREFIX + "This player is not married.").color(COLOR_ERROR));
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.GRANT_NOT_MARRIED, COLOR_ERROR));
             data.removePendingDivorce(targetUuid);
             return;
         }
 
         // Grant the divorce
         data.divorce(targetUuid, spouseUuid, senderUuid);
-        senderRef.sendMessage(Message.raw(PREFIX + "You granted the divorce of "
-                + resolvePlayerName(targetUuid) + " and " + resolvePlayerName(spouseUuid) + ".").color(COLOR_SUCCESS));
-        targetRef.sendMessage(Message.raw(PREFIX + "Your divorce has been granted by Magistrate "
-                + resolvePlayerName(senderUuid) + ".").color(COLOR_WARN));
+        senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.GRANT_GRANTED_FOR, COLOR_SUCCESS,
+                resolvePlayerName(targetUuid), resolvePlayerName(spouseUuid)));
+        targetRef.sendMessage(MarriageMessages.chat(MarriageMessages.GRANT_YOUR_DIVORCE_GRANTED, COLOR_WARN,
+                resolvePlayerName(senderUuid)));
         PlayerRef spouseRef = Universe.get().getPlayer(spouseUuid);
         if (spouseRef != null) {
-            spouseRef.sendMessage(Message.raw(PREFIX + "Your divorce from "
-                    + resolvePlayerName(targetUuid) + " has been granted.").color(COLOR_WARN));
+            spouseRef.sendMessage(MarriageMessages.chat(MarriageMessages.GRANT_SPOUSE_DIVORCE_GRANTED, COLOR_WARN,
+                    resolvePlayerName(targetUuid)));
         }
     }
 }

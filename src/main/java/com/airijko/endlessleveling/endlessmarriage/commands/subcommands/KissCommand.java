@@ -2,6 +2,7 @@
  * Copyright (c) 2026 Airijko
  *
  * This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+ *
  * If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
  *
  * This Source Code Form is "Incompatible With Secondary Licenses", as defined by the Mozilla Public License, v. 2.0.
@@ -13,7 +14,6 @@ import com.airijko.endlessleveling.endlessmarriage.EndlessMarriage;
 import com.airijko.endlessleveling.endlessmarriage.services.KissService;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractPlayerCommand;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
@@ -31,6 +31,8 @@ import static com.airijko.endlessleveling.endlessmarriage.commands.subcommands.M
  * Spawns heart particles and plays the kiss SFX for both partners.
  */
 public class KissCommand extends AbstractPlayerCommand {
+
+    private static final String COLOR_HEART = "#f2a2e8";
 
     public KissCommand() {
         super("kiss", "Kiss your spouse (must be within 1 block)");
@@ -54,28 +56,28 @@ public class KissCommand extends AbstractPlayerCommand {
         KissService.KissResult result = kissService.tryKiss(senderUuid, ref, store);
         switch (result) {
             case SUCCESS -> {
-                senderRef.sendMessage(Message.raw(PREFIX + "You share a kiss with your spouse.").color("#f2a2e8"));
+                senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.KISS_SUCCESS_SELF, COLOR_HEART));
                 UUID spouseUuid = dataManager().getSpouse(senderUuid);
                 if (spouseUuid != null) {
                     PlayerRef spouseRef = Universe.get().getPlayer(spouseUuid);
                     if (spouseRef != null && spouseRef.isValid()) {
-                        spouseRef.sendMessage(Message.raw(PREFIX + resolvePlayerName(senderUuid)
-                                + " kissed you!").color("#f2a2e8"));
+                        spouseRef.sendMessage(MarriageMessages.chat(MarriageMessages.KISS_RECEIVED, COLOR_HEART,
+                                resolvePlayerName(senderUuid)));
                     }
                 }
             }
             case NOT_MARRIED ->
-                senderRef.sendMessage(Message.raw(PREFIX + "You must be married to use this.").color(COLOR_ERROR));
+                senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.MUST_BE_MARRIED, COLOR_ERROR));
             case SPOUSE_OFFLINE ->
-                senderRef.sendMessage(Message.raw(PREFIX + "Your spouse is not online.").color(COLOR_ERROR));
+                senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.SPOUSE_NOT_ONLINE, COLOR_ERROR));
             case SPOUSE_NOT_IN_WORLD ->
-                senderRef.sendMessage(Message.raw(PREFIX + "Your spouse is not in a world.").color(COLOR_ERROR));
+                senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.SPOUSE_NOT_IN_WORLD, COLOR_ERROR));
             case SPOUSE_DIFFERENT_WORLD ->
-                senderRef.sendMessage(Message.raw(PREFIX + "Your spouse is in a different world.").color(COLOR_ERROR));
+                senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.SPOUSE_DIFFERENT_WORLD, COLOR_ERROR));
             case TOO_FAR ->
-                senderRef.sendMessage(Message.raw(PREFIX + "You must be within 1 block of your spouse to kiss.").color(COLOR_WARN));
+                senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.KISS_TOO_FAR, COLOR_WARN));
             case ERROR ->
-                senderRef.sendMessage(Message.raw(PREFIX + "Could not kiss right now.").color(COLOR_ERROR));
+                senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.KISS_ERROR, COLOR_ERROR));
         }
     }
 }

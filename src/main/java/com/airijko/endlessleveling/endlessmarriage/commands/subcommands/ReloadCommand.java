@@ -2,6 +2,7 @@
  * Copyright (c) 2026 Airijko
  *
  * This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+ *
  * If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
  *
  * This Source Code Form is "Incompatible With Secondary Licenses", as defined by the Mozilla Public License, v. 2.0.
@@ -13,7 +14,6 @@ import com.airijko.endlessleveling.endlessmarriage.EndlessMarriage;
 import com.airijko.endlessleveling.util.OperatorHelper;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractPlayerCommand;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
@@ -24,7 +24,6 @@ import javax.annotation.Nonnull;
 
 import static com.airijko.endlessleveling.endlessmarriage.commands.subcommands.MarriageUtil.COLOR_ERROR;
 import static com.airijko.endlessleveling.endlessmarriage.commands.subcommands.MarriageUtil.COLOR_SUCCESS;
-import static com.airijko.endlessleveling.endlessmarriage.commands.subcommands.MarriageUtil.PREFIX;
 
 /**
  * /marry reload - Reloads {@code config.json} from disk (and re-runs the
@@ -50,17 +49,16 @@ public class ReloadCommand extends AbstractPlayerCommand {
             @Nonnull World world) {
 
         if (!OperatorHelper.isOperator(senderRef)) {
-            senderRef.sendMessage(Message.raw(PREFIX + "You must be an operator to reload the marriage config.")
-                    .color(COLOR_ERROR));
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.RELOAD_MUST_BE_OP, COLOR_ERROR));
             return;
         }
 
         try {
             EndlessMarriage.getInstance().reloadConfig();
-            senderRef.sendMessage(Message.raw(PREFIX + "Config reloaded from disk.").color(COLOR_SUCCESS));
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.RELOAD_SUCCESS, COLOR_SUCCESS));
         } catch (Exception ex) {
-            senderRef.sendMessage(Message.raw(PREFIX + "Failed to reload config: " + ex.getMessage())
-                    .color(COLOR_ERROR));
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.RELOAD_FAILED, COLOR_ERROR,
+                    ex.getMessage()));
         }
     }
 }

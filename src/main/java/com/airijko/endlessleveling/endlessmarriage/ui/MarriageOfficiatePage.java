@@ -12,6 +12,7 @@ package com.airijko.endlessleveling.endlessmarriage.ui;
 import com.airijko.endlessleveling.api.EndlessLevelingAPI;
 import com.airijko.endlessleveling.endlessmarriage.EndlessMarriage;
 import com.airijko.endlessleveling.endlessmarriage.MarriageAnnouncer;
+import com.airijko.endlessleveling.endlessmarriage.commands.subcommands.MarriageMessages;
 import com.airijko.endlessleveling.endlessmarriage.config.MarriageConfig;
 import com.airijko.endlessleveling.endlessmarriage.data.MarriageDataManager;
 import com.airijko.endlessleveling.endlessmarriage.services.WitnessCollector;
@@ -182,7 +183,7 @@ public class MarriageOfficiatePage extends SafeInteractiveCustomUIPage<MarriageP
             MarriageConfig config = EndlessMarriage.getInstance().getMarriageConfig();
 
             if (!data.hasPendingMarriage(p1) || !data.hasPendingMarriage(p2)) {
-                playerRef.sendMessage(Message.raw("[Marriage] This marriage is no longer pending.").color("#ff6666"));
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.MARRIAGE_NOT_PENDING, "#ff6666"));
                 return;
             }
 
@@ -192,21 +193,21 @@ public class MarriageOfficiatePage extends SafeInteractiveCustomUIPage<MarriageP
 
             Vector3d priestPos = resolvePosition(priestRef, priestStore);
             if (priestPos == null) {
-                playerRef.sendMessage(Message.raw("[Marriage] Could not determine your position.").color("#ff6666"));
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.CANNOT_DETERMINE_POSITION, "#ff6666"));
                 return;
             }
 
             PlayerRef ref1 = Universe.get().getPlayer(p1);
             PlayerRef ref2 = Universe.get().getPlayer(p2);
             if (ref1 == null || !ref1.isValid() || ref2 == null || !ref2.isValid()) {
-                playerRef.sendMessage(Message.raw("[Marriage] Both players must be online to officiate.").color("#ff6666"));
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.BOTH_MUST_BE_ONLINE_OFFICIATE, "#ff6666"));
                 return;
             }
 
             Ref<EntityStore> ent1 = ref1.getReference();
             Ref<EntityStore> ent2 = ref2.getReference();
             if (ent1 == null || ent2 == null) {
-                playerRef.sendMessage(Message.raw("[Marriage] Both players must be in a world.").color("#ff6666"));
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.BOTH_MUST_BE_IN_WORLD, "#ff6666"));
                 return;
             }
 
@@ -214,20 +215,20 @@ public class MarriageOfficiatePage extends SafeInteractiveCustomUIPage<MarriageP
             Store<EntityStore> store1 = ent1.getStore();
             Store<EntityStore> store2 = ent2.getStore();
             if (store1 != priestStore || store2 != priestStore) {
-                playerRef.sendMessage(Message.raw("[Marriage] You must be in the same world as both players.").color("#ff6666"));
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.SAME_WORLD_REQUIRED, "#ff6666"));
                 return;
             }
 
             Vector3d pos1 = resolvePosition(ent1, store1);
             Vector3d pos2 = resolvePosition(ent2, store2);
             if (pos1 == null || pos2 == null) {
-                playerRef.sendMessage(Message.raw("[Marriage] Could not locate both players.").color("#ff6666"));
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.CANNOT_LOCATE_BOTH, "#ff6666"));
                 return;
             }
 
             if (distanceSq(priestPos, pos1) > rangeSq || distanceSq(priestPos, pos2) > rangeSq) {
-                playerRef.sendMessage(Message.raw("[Marriage] You must be within " + (int) range
-                        + " blocks of both players to officiate.").color("#ff6666"));
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.OFFICIATE_TOO_FAR, "#ff6666",
+                        (int) range));
                 return;
             }
 
@@ -248,22 +249,19 @@ public class MarriageOfficiatePage extends SafeInteractiveCustomUIPage<MarriageP
             String name2 = resolvePlayerName(p2);
             String priestName = resolvePlayerName(priestUuid);
 
-            playerRef.sendMessage(Message.raw("[Marriage] You officiated the marriage of "
-                    + name1 + " & " + name2 + "!").color("#66ff66"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.OFFICIATED_OF, "#66ff66", name1, name2));
 
             if (ref1.isValid()) {
-                ref1.sendMessage(Message.raw("[Marriage] You are now married! Officiated by "
-                        + priestName).color("#66ff66"));
+                ref1.sendMessage(MarriageMessages.shortChat(MarriageMessages.NOW_MARRIED_OFFICIATED_BY, "#66ff66", priestName));
             }
             if (ref2.isValid()) {
-                ref2.sendMessage(Message.raw("[Marriage] You are now married! Officiated by "
-                        + priestName).color("#66ff66"));
+                ref2.sendMessage(MarriageMessages.shortChat(MarriageMessages.NOW_MARRIED_OFFICIATED_BY, "#66ff66", priestName));
             }
 
             // Global wedding announcement: title, chat broadcast, wedding march SFX
             MarriageAnnouncer.announceMarriage(name1, name2, priestName);
         } catch (IllegalArgumentException ex) {
-            playerRef.sendMessage(Message.raw("[Marriage] Invalid players.").color("#ff6666"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.INVALID_PLAYERS, "#ff6666"));
         }
     }
 
@@ -274,32 +272,32 @@ public class MarriageOfficiatePage extends SafeInteractiveCustomUIPage<MarriageP
             MarriageDataManager data = EndlessMarriage.getInstance().getMarriageDataManager();
 
             if (!data.hasPendingDivorce(requester)) {
-                playerRef.sendMessage(Message.raw("[Marriage] This divorce is no longer pending.").color("#ff6666"));
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.DIVORCE_NOT_PENDING, "#ff6666"));
                 return;
             }
 
             UUID spouse = data.getSpouse(requester);
             if (spouse == null) {
-                playerRef.sendMessage(Message.raw("[Marriage] This player is not married.").color("#ff6666"));
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.PLAYER_NOT_MARRIED, "#ff6666"));
                 data.removePendingDivorce(requester);
                 return;
             }
 
             data.divorce(requester, spouse, senderUuid);
 
-            playerRef.sendMessage(Message.raw("[Marriage] Divorce granted for "
-                    + resolvePlayerName(requester) + " & " + resolvePlayerName(spouse) + ".").color("#66ff66"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.DIVORCE_GRANTED_FOR_BOTH, "#66ff66",
+                    resolvePlayerName(requester), resolvePlayerName(spouse)));
 
             PlayerRef reqRef = Universe.get().getPlayer(requester);
             PlayerRef spRef = Universe.get().getPlayer(spouse);
             if (reqRef != null) {
-                reqRef.sendMessage(Message.raw("[Marriage] Your divorce has been granted.").color("#ff9900"));
+                reqRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.YOUR_DIVORCE_GRANTED, "#ff9900"));
             }
             if (spRef != null) {
-                spRef.sendMessage(Message.raw("[Marriage] Your divorce has been granted.").color("#ff9900"));
+                spRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.YOUR_DIVORCE_GRANTED, "#ff9900"));
             }
         } catch (IllegalArgumentException ex) {
-            playerRef.sendMessage(Message.raw("[Marriage] Invalid player.").color("#ff6666"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.INVALID_PLAYER, "#ff6666"));
         }
     }
 

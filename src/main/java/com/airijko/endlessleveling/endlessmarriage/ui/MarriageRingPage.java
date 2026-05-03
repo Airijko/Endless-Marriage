@@ -11,6 +11,7 @@ package com.airijko.endlessleveling.endlessmarriage.ui;
 
 import com.airijko.endlessleveling.api.EndlessLevelingAPI;
 import com.airijko.endlessleveling.endlessmarriage.EndlessMarriage;
+import com.airijko.endlessleveling.endlessmarriage.commands.subcommands.MarriageMessages;
 import com.airijko.endlessleveling.endlessmarriage.data.MarriageDataManager;
 import com.airijko.endlessleveling.endlessmarriage.data.WeddingRingTier;
 import com.hypixel.hytale.component.Ref;
@@ -152,7 +153,7 @@ public class MarriageRingPage extends SafeInteractiveCustomUIPage<MarriagePageDa
     private void handleEquipRing(@Nonnull String tierName) {
         WeddingRingTier tier = WeddingRingTier.fromName(tierName);
         if (tier == null) {
-            playerRef.sendMessage(Message.raw("[Marriage] Invalid ring tier.").color("#ff6666"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.INVALID_RING_TIER, "#ff6666"));
             return;
         }
 
@@ -160,7 +161,7 @@ public class MarriageRingPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         MarriageDataManager data = EndlessMarriage.getInstance().getMarriageDataManager();
 
         if (!data.isMarried(senderUuid)) {
-            playerRef.sendMessage(Message.raw("[Marriage] You are not married.").color("#ff6666"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.NOT_MARRIED, "#ff6666"));
             return;
         }
 
@@ -174,8 +175,8 @@ public class MarriageRingPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         int lowestPrestige = Math.min(senderPrestige, spousePrestige);
 
         if (lowestPrestige < tier.getPrestigeRequired()) {
-            playerRef.sendMessage(Message.raw("[Marriage] Both partners need prestige "
-                    + tier.getPrestigeRequired() + " to equip this ring.").color("#ff6666"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.RING_NEED_PRESTIGE_TIER, "#ff6666",
+                    tier.getPrestigeRequired()));
             return;
         }
 
@@ -183,15 +184,15 @@ public class MarriageRingPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         // if (tier.getCost() > 0 && !hasBalance(senderUuid, tier.getCost())) { ... }
 
         data.setRing(senderUuid, spouseUuid, tier);
-        playerRef.sendMessage(Message.raw("[Marriage] Equipped " + tier.getDisplayName() + " ring!").color("#66ff66"));
+        playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.RING_EQUIPPED, "#66ff66", tier.getDisplayName()));
 
         PlayerRef spouseRef = com.hypixel.hytale.server.core.universe.Universe.get().getPlayer(spouseUuid);
         if (spouseRef != null && spouseRef.isValid()) {
             String senderName = playerRef.getUsername() != null
                     ? playerRef.getUsername()
                     : senderUuid.toString().substring(0, 8);
-            spouseRef.sendMessage(Message.raw("[Marriage] " + senderName
-                    + " equipped a " + tier.getDisplayName() + " wedding ring!").color("#4fd7f7"));
+            spouseRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.RING_SPOUSE_EQUIPPED, "#4fd7f7",
+                    senderName, tier.getDisplayName()));
         }
     }
 }

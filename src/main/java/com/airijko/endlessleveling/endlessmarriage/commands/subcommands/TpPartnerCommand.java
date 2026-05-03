@@ -2,6 +2,7 @@
  * Copyright (c) 2026 Airijko
  *
  * This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+ *
  * If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
  *
  * This Source Code Form is "Incompatible With Secondary Licenses", as defined by the Mozilla Public License, v. 2.0.
@@ -13,7 +14,6 @@ import com.airijko.endlessleveling.endlessmarriage.data.MarriageDataManager;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.math.vector.Vector3d;
-import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractPlayerCommand;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
@@ -54,32 +54,32 @@ public class TpPartnerCommand extends AbstractPlayerCommand {
         MarriageDataManager data = dataManager();
 
         if (!data.isMarried(senderUuid)) {
-            senderRef.sendMessage(Message.raw(PREFIX + "You must be married to use this.").color(COLOR_ERROR));
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.MUST_BE_MARRIED, COLOR_ERROR));
             return;
         }
 
         UUID spouseUuid = data.getSpouse(senderUuid);
         if (spouseUuid == null) {
-            senderRef.sendMessage(Message.raw(PREFIX + "Could not find your spouse.").color(COLOR_ERROR));
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.CANNOT_FIND_SPOUSE, COLOR_ERROR));
             return;
         }
 
         PlayerRef spouseRef = Universe.get().getPlayer(spouseUuid);
         if (spouseRef == null || !spouseRef.isValid()) {
-            senderRef.sendMessage(Message.raw(PREFIX + "Your spouse is not online.").color(COLOR_ERROR));
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.SPOUSE_NOT_ONLINE, COLOR_ERROR));
             return;
         }
 
         Ref<EntityStore> spouseEntity = spouseRef.getReference();
         if (spouseEntity == null) {
-            senderRef.sendMessage(Message.raw(PREFIX + "Your spouse is not in a world.").color(COLOR_ERROR));
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.SPOUSE_NOT_IN_WORLD, COLOR_ERROR));
             return;
         }
 
         Store<EntityStore> spouseStore = spouseEntity.getStore();
         Vector3d spousePos = resolvePosition(spouseEntity, spouseStore);
         if (spousePos == null) {
-            senderRef.sendMessage(Message.raw(PREFIX + "Could not locate your spouse.").color(COLOR_ERROR));
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.TP_CANNOT_LOCATE, COLOR_ERROR));
             return;
         }
 
@@ -89,7 +89,7 @@ public class TpPartnerCommand extends AbstractPlayerCommand {
         store.addComponent(ref, Teleport.getComponentType(), teleport);
 
         String spouseName = resolvePlayerName(spouseUuid);
-        senderRef.sendMessage(Message.raw(PREFIX + "Teleporting to " + spouseName + "...").color(COLOR_SUCCESS));
+        senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.TP_TELEPORTING_TO, COLOR_SUCCESS, spouseName));
     }
 
     @Nullable

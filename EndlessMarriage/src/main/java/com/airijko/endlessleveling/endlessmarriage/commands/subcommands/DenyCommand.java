@@ -10,13 +10,13 @@
 
 package com.airijko.endlessleveling.endlessmarriage.commands.subcommands;
 
-import com.airijko.endlessleveling.endlessmarriage.EndlessMarriage;
-import com.airijko.endlessleveling.endlessmarriage.services.PiggybackService;
+import com.airijko.endlessleveling.endlessmarriage.data.MarriageDataManager;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractPlayerCommand;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
@@ -25,14 +25,10 @@ import java.util.UUID;
 
 import static com.airijko.endlessleveling.endlessmarriage.commands.subcommands.MarriageUtil.*;
 
-/**
- * /marry dismount - End any active piggyback session, whether you are the
- * rider or the carrier.
- */
-public class DismountCommand extends AbstractPlayerCommand {
+public class DenyCommand extends AbstractPlayerCommand {
 
-    public DismountCommand() {
-        super("dismount", "End an active piggyback session");
+    public DenyCommand() {
+        super("deny", "Deny a marriage proposal");
     }
 
     @Override
@@ -48,18 +44,20 @@ public class DismountCommand extends AbstractPlayerCommand {
             @Nonnull World world) {
 
         UUID senderUuid = senderRef.getUuid();
-        PiggybackService piggyback = EndlessMarriage.getInstance().getPiggybackService();
+        MarriageDataManager data = dataManager();
 
-        if (piggyback.isRiding(senderUuid)) {
-            piggyback.dismount(senderUuid, ref, store);
-            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.PIGGYBACK_DISMOUNT_SELF, COLOR_INFO));
+        UUID proposer = data.getProposer(senderUuid);
+        if (proposer == null) {
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.NO_PENDING_PROPOSALS, COLOR_ERROR));
             return;
         }
-        if (piggyback.isCarrying(senderUuid)) {
-            piggyback.dismountAny(senderUuid);
-            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.PIGGYBACK_SHAKE_OFF, COLOR_INFO));
-            return;
+
+        data.removeProposal(proposer);
+        senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.PROPOSAL_DENIED, COLOR_WARN));
+        PlayerRef proposerRef = Universe.get().getPlayer(proposer);
+        if (proposerRef != null) {
+            proposerRef.sendMessage(MarriageMessages.chat(MarriageMessages.PROPOSER_DENIED, COLOR_ERROR,
+                    resolvePlayerName(senderUuid)));
         }
-        senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.DISMOUNT_NOT_IN_SESSION, COLOR_WARN));
     }
 }

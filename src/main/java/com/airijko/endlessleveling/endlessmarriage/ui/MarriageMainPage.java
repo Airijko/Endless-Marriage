@@ -11,6 +11,7 @@ package com.airijko.endlessleveling.endlessmarriage.ui;
 
 import com.airijko.endlessleveling.endlessmarriage.EndlessMarriage;
 import com.airijko.endlessleveling.endlessmarriage.MarriageAnnouncer;
+import com.airijko.endlessleveling.endlessmarriage.commands.subcommands.MarriageMessages;
 import com.airijko.endlessleveling.endlessmarriage.data.MarriageDataManager;
 import com.airijko.endlessleveling.endlessmarriage.data.MarriageHome;
 import com.airijko.endlessleveling.endlessmarriage.data.MarriagePair;
@@ -430,12 +431,12 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
 
         if (piggyback.isRiding(senderUuid)) {
             piggyback.dismount(senderUuid, ref, store);
-            playerRef.sendMessage(Message.raw("[Marriage] You hop down off your spouse.").color("#4fd7f7"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.PIGGYBACK_DISMOUNT_SELF, "#4fd7f7"));
             return;
         }
         if (piggyback.isCarrying(senderUuid)) {
             piggyback.dismountAny(senderUuid);
-            playerRef.sendMessage(Message.raw("[Marriage] You let your spouse down.").color("#4fd7f7"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.PIGGYBACK_SHAKE_OFF, "#4fd7f7"));
             return;
         }
 
@@ -448,9 +449,9 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
             PiggybackService.MountResult debugResult =
                     piggyback.tryMountTarget(senderUuid, ref, store, npc.ref(), npc.syntheticUuid());
             if (debugResult == PiggybackService.MountResult.SUCCESS) {
-                playerRef.sendMessage(Message.raw("[Marriage Debug] You hop onto the debug NPC.").color("#4fd7f7"));
+                playerRef.sendMessage(MarriageMessages.debugChat(MarriageMessages.DEBUG_PIGGY_NPC, "#4fd7f7"));
             } else {
-                playerRef.sendMessage(Message.raw("[Marriage Debug] Could not piggyback debug NPC: " + debugResult).color("#ff6666"));
+                playerRef.sendMessage(MarriageMessages.debugChat(MarriageMessages.DEBUG_PIGGY_NPC_FAIL, "#ff6666", debugResult));
             }
             return;
         }
@@ -458,33 +459,33 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         PiggybackService.MountResult result = piggyback.tryMount(senderUuid, ref, store);
         switch (result) {
             case SUCCESS -> {
-                playerRef.sendMessage(Message.raw("[Marriage] You hop onto your spouse's back!").color("#f2a2e8"));
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.PIGGYBACK_SUCCESS_SELF, "#f2a2e8"));
                 MarriageDataManager data = EndlessMarriage.getInstance().getMarriageDataManager();
                 UUID spouseUuid = data.getSpouse(senderUuid);
                 if (spouseUuid != null) {
                     PlayerRef spouseRef = Universe.get().getPlayer(spouseUuid);
                     if (spouseRef != null && spouseRef.isValid()) {
-                        spouseRef.sendMessage(Message.raw("[Marriage] " + resolvePlayerName(senderUuid)
-                                + " is riding piggyback!").color("#f2a2e8"));
+                        spouseRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.PIGGYBACK_SPOUSE_RIDING,
+                                "#f2a2e8", resolvePlayerName(senderUuid)));
                     }
                 }
             }
             case NOT_MARRIED ->
-                playerRef.sendMessage(Message.raw("[Marriage] You are not married.").color("#ff6666"));
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.NOT_MARRIED, "#ff6666"));
             case SPOUSE_OFFLINE ->
-                playerRef.sendMessage(Message.raw("[Marriage] Your spouse is not online.").color("#ff6666"));
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.SPOUSE_NOT_ONLINE, "#ff6666"));
             case SPOUSE_NOT_IN_WORLD ->
-                playerRef.sendMessage(Message.raw("[Marriage] Your spouse is not in a world.").color("#ff6666"));
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.SPOUSE_NOT_IN_WORLD, "#ff6666"));
             case SPOUSE_DIFFERENT_WORLD ->
-                playerRef.sendMessage(Message.raw("[Marriage] Your spouse is in a different world.").color("#ff6666"));
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.SPOUSE_DIFFERENT_WORLD, "#ff6666"));
             case TOO_FAR ->
-                playerRef.sendMessage(Message.raw("[Marriage] You must be next to your spouse to piggyback.").color("#ff9900"));
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.PIGGYBACK_TOO_FAR, "#ff9900"));
             case ALREADY_MOUNTED ->
-                playerRef.sendMessage(Message.raw("[Marriage] You are already mounted.").color("#ff9900"));
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.PIGGYBACK_ALREADY_MOUNTED, "#ff9900"));
             case SPOUSE_ALREADY_CARRYING, SPOUSE_IS_RIDING ->
-                playerRef.sendMessage(Message.raw("[Marriage] Your spouse is already in a piggyback session.").color("#ff9900"));
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.PIGGYBACK_SPOUSE_BUSY, "#ff9900"));
             case ERROR ->
-                playerRef.sendMessage(Message.raw("[Marriage] Could not piggyback right now.").color("#ff6666"));
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.PIGGYBACK_ERROR, "#ff6666"));
         }
     }
 
@@ -493,12 +494,12 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         PiggybackService piggyback = EndlessMarriage.getInstance().getPiggybackService();
         if (piggyback.isRiding(senderUuid)) {
             piggyback.dismount(senderUuid, ref, store);
-            playerRef.sendMessage(Message.raw("[Marriage] You hop down off your spouse.").color("#4fd7f7"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.PIGGYBACK_DISMOUNT_SELF, "#4fd7f7"));
         } else if (piggyback.isCarrying(senderUuid)) {
             piggyback.dismountAny(senderUuid);
-            playerRef.sendMessage(Message.raw("[Marriage] You let your spouse down.").color("#4fd7f7"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.PIGGYBACK_SHAKE_OFF, "#4fd7f7"));
         } else {
-            playerRef.sendMessage(Message.raw("[Marriage] You are not in a piggyback session.").color("#ff9900"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.DISMOUNT_NOT_IN_SESSION, "#ff9900"));
         }
     }
 
@@ -513,9 +514,9 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
             KissService.KissResult debugResult =
                     kissService.tryKissTarget(senderUuid, ref, store, npc.ref());
             if (debugResult == KissService.KissResult.SUCCESS) {
-                playerRef.sendMessage(Message.raw("[Marriage Debug] You kiss the debug NPC.").color("#f2a2e8"));
+                playerRef.sendMessage(MarriageMessages.debugChat(MarriageMessages.DEBUG_KISS_NPC, "#f2a2e8"));
             } else {
-                playerRef.sendMessage(Message.raw("[Marriage Debug] Could not kiss debug NPC: " + debugResult).color("#ff6666"));
+                playerRef.sendMessage(MarriageMessages.debugChat(MarriageMessages.DEBUG_KISS_NPC_FAIL, "#ff6666", debugResult));
             }
             return;
         }
@@ -523,29 +524,29 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         KissService.KissResult result = kissService.tryKiss(senderUuid, ref, store);
         switch (result) {
             case SUCCESS -> {
-                playerRef.sendMessage(Message.raw("[Marriage] You share a kiss with your spouse.").color("#f2a2e8"));
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.KISS_SUCCESS_SELF, "#f2a2e8"));
                 MarriageDataManager data = EndlessMarriage.getInstance().getMarriageDataManager();
                 UUID spouseUuid = data.getSpouse(senderUuid);
                 if (spouseUuid != null) {
                     PlayerRef spouseRef = Universe.get().getPlayer(spouseUuid);
                     if (spouseRef != null && spouseRef.isValid()) {
-                        spouseRef.sendMessage(Message.raw("[Marriage] " + resolvePlayerName(senderUuid)
-                                + " kissed you!").color("#f2a2e8"));
+                        spouseRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.KISS_RECEIVED,
+                                "#f2a2e8", resolvePlayerName(senderUuid)));
                     }
                 }
             }
             case NOT_MARRIED ->
-                playerRef.sendMessage(Message.raw("[Marriage] You are not married.").color("#ff6666"));
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.NOT_MARRIED, "#ff6666"));
             case SPOUSE_OFFLINE ->
-                playerRef.sendMessage(Message.raw("[Marriage] Your spouse is not online.").color("#ff6666"));
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.SPOUSE_NOT_ONLINE, "#ff6666"));
             case SPOUSE_NOT_IN_WORLD ->
-                playerRef.sendMessage(Message.raw("[Marriage] Your spouse is not in a world.").color("#ff6666"));
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.SPOUSE_NOT_IN_WORLD, "#ff6666"));
             case SPOUSE_DIFFERENT_WORLD ->
-                playerRef.sendMessage(Message.raw("[Marriage] Your spouse is in a different world.").color("#ff6666"));
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.SPOUSE_DIFFERENT_WORLD, "#ff6666"));
             case TOO_FAR ->
-                playerRef.sendMessage(Message.raw("[Marriage] You must be within 1 block of your spouse to kiss.").color("#ff9900"));
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.KISS_TOO_FAR, "#ff9900"));
             case ERROR ->
-                playerRef.sendMessage(Message.raw("[Marriage] Could not kiss right now.").color("#ff6666"));
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.KISS_ERROR, "#ff6666"));
         }
     }
 
@@ -554,34 +555,35 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         MarriageDataManager data = EndlessMarriage.getInstance().getMarriageDataManager();
 
         if (!data.isMarried(senderUuid)) {
-            playerRef.sendMessage(Message.raw("[Marriage] You are not married.").color("#ff6666"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.NOT_MARRIED, "#ff6666"));
             return;
         }
 
         UUID spouseUuid = data.getSpouse(senderUuid);
         PlayerRef spouseRef = spouseUuid != null ? Universe.get().getPlayer(spouseUuid) : null;
         if (spouseRef == null || !spouseRef.isValid()) {
-            playerRef.sendMessage(Message.raw("[Marriage] Your spouse is not online.").color("#ff6666"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.SPOUSE_NOT_ONLINE, "#ff6666"));
             return;
         }
 
         Ref<EntityStore> spouseEntity = spouseRef.getReference();
         if (spouseEntity == null) {
-            playerRef.sendMessage(Message.raw("[Marriage] Your spouse is not in a world.").color("#ff6666"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.SPOUSE_NOT_IN_WORLD, "#ff6666"));
             return;
         }
 
         Store<EntityStore> spouseStore = spouseEntity.getStore();
         Vector3d spousePos = resolvePosition(spouseEntity, spouseStore);
         if (spousePos == null) {
-            playerRef.sendMessage(Message.raw("[Marriage] Could not locate your spouse.").color("#ff6666"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.TP_CANNOT_LOCATE, "#ff6666"));
             return;
         }
 
         World spouseWorld = spouseStore.getExternalData().getWorld();
         Teleport teleport = Teleport.createForPlayer(spouseWorld, spousePos.clone(), new Vector3f(0f, 0f, 0f));
         entityStore.addComponent(entityRef, Teleport.getComponentType(), teleport);
-        playerRef.sendMessage(Message.raw("[Marriage] Teleporting to " + resolvePlayerName(spouseUuid) + "...").color("#66ff66"));
+        playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.TP_TELEPORTING_TO, "#66ff66",
+                resolvePlayerName(spouseUuid)));
     }
 
     private void handleTpHome() {
@@ -589,19 +591,20 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         MarriageDataManager data = EndlessMarriage.getInstance().getMarriageDataManager();
 
         if (!data.isMarried(senderUuid)) {
-            playerRef.sendMessage(Message.raw("[Marriage] You are not married.").color("#ff6666"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.NOT_MARRIED, "#ff6666"));
             return;
         }
 
         MarriageHome home = data.getHome(senderUuid);
         if (home == null) {
-            playerRef.sendMessage(Message.raw("[Marriage] No marriage home set. Use Set Home first.").color("#ff6666"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.HOME_NO_HOME_SHORT, "#ff6666"));
             return;
         }
 
         World targetWorld = Universe.get().getWorld(home.worldName());
         if (targetWorld == null) {
-            playerRef.sendMessage(Message.raw("[Marriage] World '" + home.worldName() + "' no longer exists.").color("#ff6666"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.HOME_WORLD_MISSING, "#ff6666",
+                    home.worldName()));
             return;
         }
 
@@ -609,7 +612,7 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         Vector3f rot = new Vector3f(home.pitch(), home.yaw(), 0f);
         Teleport teleport = Teleport.createForPlayer(targetWorld, pos, rot);
         entityStore.addComponent(entityRef, Teleport.getComponentType(), teleport);
-        playerRef.sendMessage(Message.raw("[Marriage] Teleporting to marriage home...").color("#66ff66"));
+        playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.HOME_TELEPORTING, "#66ff66"));
     }
 
     private void handleSetHome(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store) {
@@ -617,7 +620,7 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         MarriageDataManager data = EndlessMarriage.getInstance().getMarriageDataManager();
 
         if (!data.isMarried(senderUuid)) {
-            playerRef.sendMessage(Message.raw("[Marriage] You are not married.").color("#ff6666"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.NOT_MARRIED, "#ff6666"));
             return;
         }
 
@@ -628,7 +631,7 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
 
         TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
         if (transform == null) {
-            playerRef.sendMessage(Message.raw("[Marriage] Unable to get your position.").color("#ff6666"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.SETHOME_POSITION_UNKNOWN, "#ff6666"));
             return;
         }
 
@@ -645,7 +648,7 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
 
         MarriageHome home = new MarriageHome(world.getName(), pos.getX(), pos.getY(), pos.getZ(), yaw, pitch);
         data.setHome(senderUuid, spouseUuid, home);
-        playerRef.sendMessage(Message.raw("[Marriage] Marriage home set!").color("#66ff66"));
+        playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.SETHOME_SUCCESS_SHORT, "#66ff66"));
     }
 
     private void handleInventory(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store) {
@@ -653,20 +656,20 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         MarriageDataManager data = EndlessMarriage.getInstance().getMarriageDataManager();
 
         if (!data.isMarried(senderUuid)) {
-            playerRef.sendMessage(Message.raw("[Marriage] You are not married.").color("#ff6666"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.NOT_MARRIED, "#ff6666"));
             return;
         }
 
         UUID spouseUuid = data.getSpouse(senderUuid);
         PlayerRef spouseRef = spouseUuid != null ? Universe.get().getPlayer(spouseUuid) : null;
         if (spouseRef == null || !spouseRef.isValid()) {
-            playerRef.sendMessage(Message.raw("[Marriage] Your spouse is not online.").color("#ff6666"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.SPOUSE_NOT_ONLINE, "#ff6666"));
             return;
         }
 
         Ref<EntityStore> spouseEntity = spouseRef.getReference();
         if (spouseEntity == null) {
-            playerRef.sendMessage(Message.raw("[Marriage] Your spouse is not in a world.").color("#ff6666"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.SPOUSE_NOT_IN_WORLD, "#ff6666"));
             return;
         }
 
@@ -681,7 +684,7 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         spouseWorld.execute(() -> {
             Player spousePlayer = spouseStore.getComponent(spouseEntity, Player.getComponentType());
             if (spousePlayer == null) {
-                playerRef.sendMessage(Message.raw("[Marriage] Could not access spouse's inventory.").color("#ff6666"));
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.INV_CANNOT_ACCESS, "#ff6666"));
                 return;
             }
 
@@ -691,7 +694,8 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
             World senderWorld = store.getExternalData().getWorld();
             senderWorld.execute(() -> {
                 senderPlayer.getPageManager().setPageWithWindows(ref, store, Page.Bench, true, new ContainerWindow(spouseContainer));
-                playerRef.sendMessage(Message.raw("[Marriage] Viewing " + resolvePlayerName(spouseUuid) + "'s inventory.").color("#4fd7f7"));
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.INV_VIEWING, "#4fd7f7",
+                        resolvePlayerName(spouseUuid)));
             });
         });
     }
@@ -701,7 +705,7 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         MarriageDataManager data = EndlessMarriage.getInstance().getMarriageDataManager();
 
         if (!data.isMarried(senderUuid)) {
-            playerRef.sendMessage(Message.raw("[Marriage] You are not married.").color("#ff6666"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.NOT_MARRIED, "#ff6666"));
             return;
         }
 
@@ -714,8 +718,8 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
                 long remaining = minMs - elapsed;
                 long hours = remaining / 3_600_000L;
                 long minutes = (remaining % 3_600_000L) / 60_000L;
-                playerRef.sendMessage(Message.raw("[Marriage] You must be married for at least 72 hours before divorcing. "
-                        + "Time remaining: " + hours + "h " + minutes + "m.").color("#ff6666"));
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.MIN_MARRIAGE_TIME, "#ff6666",
+                        com.airijko.endlessleveling.util.Lang.tr(MarriageMessages.COOLDOWN_HM, "{0}h {1}m", hours, minutes)));
                 return;
             }
         }
@@ -725,14 +729,15 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
 
         if (!config.isRequireMagistrateForDivorce()) {
             data.divorce(senderUuid, spouseUuid, null);
-            playerRef.sendMessage(Message.raw("[Marriage] You are now divorced.").color("#ff9900"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.DIVORCED_SIMPLE, "#ff9900"));
             PlayerRef spouseRef = spouseUuid != null ? Universe.get().getPlayer(spouseUuid) : null;
             if (spouseRef != null) {
-                spouseRef.sendMessage(Message.raw("[Marriage] " + resolvePlayerName(senderUuid) + " has divorced you.").color("#ff9900"));
+                spouseRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.SPOUSE_DIVORCED_YOU, "#ff9900",
+                        resolvePlayerName(senderUuid)));
             }
         } else {
             data.addPendingDivorce(senderUuid);
-            playerRef.sendMessage(Message.raw("[Marriage] Divorce requested. A Magistrate must finalize it.").color("#ff9900"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.DIVORCE_PENDING, "#ff9900"));
         }
     }
 
@@ -743,7 +748,7 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
 
         UUID proposer = data.getProposer(senderUuid);
         if (proposer == null) {
-            playerRef.sendMessage(Message.raw("[Marriage] No pending proposals.").color("#ff6666"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.NO_PENDING_PROPOSALS, "#ff6666"));
             return;
         }
 
@@ -756,8 +761,8 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
                 long remaining = minMs - elapsed;
                 long hours = remaining / 3_600_000L;
                 long minutes = (remaining % 3_600_000L) / 60_000L;
-                playerRef.sendMessage(Message.raw("[Marriage] You must wait 72 hours after a divorce before remarrying. "
-                        + "Time remaining: " + hours + "h " + minutes + "m.").color("#ff6666"));
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.COOLDOWN_ACCEPTOR, "#ff6666",
+                        com.airijko.endlessleveling.util.Lang.tr(MarriageMessages.COOLDOWN_HM, "{0}h {1}m", hours, minutes)));
                 return;
             }
         }
@@ -768,8 +773,8 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
                 long remaining = minMs - elapsed;
                 long hours = remaining / 3_600_000L;
                 long minutes = (remaining % 3_600_000L) / 60_000L;
-                playerRef.sendMessage(Message.raw("[Marriage] The proposer recently divorced and must wait before remarrying. "
-                        + "Time remaining: " + hours + "h " + minutes + "m.").color("#ff6666"));
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.COOLDOWN_PROPOSER, "#ff6666",
+                        com.airijko.endlessleveling.util.Lang.tr(MarriageMessages.COOLDOWN_HM, "{0}h {1}m", hours, minutes)));
                 return;
             }
         }
@@ -780,19 +785,20 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
             data.marry(proposer, senderUuid, null);
             String senderName = resolvePlayerName(senderUuid);
             String proposerName = resolvePlayerName(proposer);
-            playerRef.sendMessage(Message.raw("[Marriage] You are now married to " + proposerName + "!").color("#66ff66"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.NOW_MARRIED_TO, "#66ff66", proposerName));
             PlayerRef proposerRef = Universe.get().getPlayer(proposer);
             if (proposerRef != null) {
-                proposerRef.sendMessage(Message.raw("[Marriage] " + senderName + " accepted! You are now married!").color("#66ff66"));
+                proposerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.ACCEPTED_BY_SHORT, "#66ff66", senderName));
             }
             // Global wedding announcement: title, chat broadcast, wedding march SFX
             MarriageAnnouncer.announceMarriage(proposerName, senderName, null);
         } else {
             data.addPendingMarriage(proposer, senderUuid);
-            playerRef.sendMessage(Message.raw("[Marriage] Accepted! A Priest must now officiate.").color("#66ff66"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.ACCEPTED_PRIEST_NEEDED_SIMPLE, "#66ff66"));
             PlayerRef proposerRef = Universe.get().getPlayer(proposer);
             if (proposerRef != null) {
-                proposerRef.sendMessage(Message.raw("[Marriage] " + resolvePlayerName(senderUuid) + " accepted! Find a Priest to officiate.").color("#66ff66"));
+                proposerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.PROPOSER_ACCEPTED_PRIEST_NEEDED,
+                        "#66ff66", resolvePlayerName(senderUuid)));
             }
         }
     }
@@ -803,15 +809,16 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
 
         UUID proposer = data.getProposer(senderUuid);
         if (proposer == null) {
-            playerRef.sendMessage(Message.raw("[Marriage] No pending proposals.").color("#ff6666"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.NO_PENDING_PROPOSALS, "#ff6666"));
             return;
         }
 
         data.removeProposal(proposer);
-        playerRef.sendMessage(Message.raw("[Marriage] Proposal denied.").color("#ff9900"));
+        playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.PROPOSAL_DENIED, "#ff9900"));
         PlayerRef proposerRef = Universe.get().getPlayer(proposer);
         if (proposerRef != null) {
-            proposerRef.sendMessage(Message.raw("[Marriage] " + resolvePlayerName(senderUuid) + " denied your proposal.").color("#ff6666"));
+            proposerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.PROPOSER_DENIED, "#ff6666",
+                    resolvePlayerName(senderUuid)));
         }
     }
 
@@ -838,7 +845,7 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         MarriageDataManager data = EndlessMarriage.getInstance().getMarriageDataManager();
 
         if (!data.isMarried(senderUuid)) {
-            playerRef.sendMessage(Message.raw("[Marriage] You are not married.").color("#ff6666"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.NOT_MARRIED, "#ff6666"));
             return;
         }
 
@@ -850,7 +857,7 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         WeddingRingTier current = data.getRing(senderUuid);
         WeddingRingTier next = current != null ? current.next() : WeddingRingTier.lowest();
         if (next == null) {
-            playerRef.sendMessage(Message.raw("[Marriage] You already have the highest tier ring.").color("#ff9900"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.RING_MAX, "#ff9900"));
             return;
         }
 
@@ -859,8 +866,8 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         int lowestPrestige = Math.min(senderPrestige, spousePrestige);
 
         if (lowestPrestige < next.getPrestigeRequired()) {
-            playerRef.sendMessage(Message.raw("[Marriage] Both partners need prestige "
-                    + next.getPrestigeRequired() + " for this upgrade.").color("#ff6666"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.RING_NEED_PRESTIGE, "#ff6666",
+                    next.getPrestigeRequired()));
             return;
         }
 
@@ -868,12 +875,12 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         // if (next.getCost() > 0 && !hasBalance(senderUuid, next.getCost())) { ... }
 
         data.setRing(senderUuid, spouseUuid, next);
-        playerRef.sendMessage(Message.raw("[Marriage] Ring upgraded to " + next.getDisplayName() + "!").color("#66ff66"));
+        playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.RING_UPGRADED, "#66ff66", next.getDisplayName()));
 
         PlayerRef spouseRef = Universe.get().getPlayer(spouseUuid);
         if (spouseRef != null && spouseRef.isValid()) {
-            spouseRef.sendMessage(Message.raw("[Marriage] " + resolvePlayerName(senderUuid)
-                    + " upgraded your wedding ring to " + next.getDisplayName() + "!").color("#4fd7f7"));
+            spouseRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.RING_SPOUSE_UPGRADED, "#4fd7f7",
+                    resolvePlayerName(senderUuid), next.getDisplayName()));
         }
     }
 
@@ -900,7 +907,7 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         MarriageDataManager data = EndlessMarriage.getInstance().getMarriageDataManager();
 
         if (!data.isMarried(senderUuid)) {
-            playerRef.sendMessage(Message.raw("[Marriage] You are not currently married.").color("#4fd7f7"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.STATUS_NOT_MARRIED, "#4fd7f7"));
             return;
         }
 
@@ -908,10 +915,12 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         UUID spouseUuid = pair.getSpouse(senderUuid);
         String date = new SimpleDateFormat("yyyy-MM-dd").format(new Date(pair.timestamp()));
 
-        playerRef.sendMessage(Message.raw("[Marriage] Married to: " + resolvePlayerName(spouseUuid)).color("#66ff66"));
-        playerRef.sendMessage(Message.raw("[Marriage] Since: " + date).color("#4fd7f7"));
+        playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.STATUS_MARRIED_TO, "#66ff66",
+                resolvePlayerName(spouseUuid)));
+        playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.STATUS_SINCE, "#4fd7f7", date));
         if (pair.officiant() != null) {
-            playerRef.sendMessage(Message.raw("[Marriage] Officiated by: " + resolvePlayerName(pair.officiant())).color("#4fd7f7"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.STATUS_OFFICIATED_BY, "#4fd7f7",
+                    resolvePlayerName(pair.officiant())));
         }
     }
 
@@ -921,19 +930,22 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         var records = data.getRecordsForOfficiant(senderUuid);
 
         if (records.isEmpty()) {
-            playerRef.sendMessage(Message.raw("[Marriage] You have no officiant records.").color("#4fd7f7"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.RECORDS_NONE, "#4fd7f7"));
             return;
         }
 
-        playerRef.sendMessage(Message.raw("[Marriage] Your officiant records (" + records.size() + "):").color("#4fd7f7"));
+        playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.RECORDS_HEADER, "#4fd7f7", records.size()));
         SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd HH:mm");
         for (var record : records) {
             String typeName = record.type() == com.airijko.endlessleveling.endlessmarriage.data.OfficiantRecord.OfficiantType.MARRIAGE
-                    ? "Marriage" : "Divorce";
+                    ? MarriageMessages.text(MarriageMessages.RECORDS_TYPE_MARRIAGE)
+                    : MarriageMessages.text(MarriageMessages.RECORDS_TYPE_DIVORCE);
             String dateStr = fmt.format(new Date(record.timestamp()));
-            playerRef.sendMessage(Message.raw("  " + typeName + ": "
-                    + resolvePlayerName(record.player1()) + " & "
-                    + resolvePlayerName(record.player2()) + " (" + dateStr + ")").color("#4fd7f7"));
+            playerRef.sendMessage(MarriageMessages.line(MarriageMessages.RECORDS_ENTRY, "#4fd7f7",
+                    typeName,
+                    resolvePlayerName(record.player1()),
+                    resolvePlayerName(record.player2()),
+                    dateStr));
         }
     }
 

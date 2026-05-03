@@ -10,6 +10,7 @@
 package com.airijko.endlessleveling.endlessmarriage.ui;
 
 import com.airijko.endlessleveling.endlessmarriage.EndlessMarriage;
+import com.airijko.endlessleveling.endlessmarriage.commands.subcommands.MarriageMessages;
 import com.airijko.endlessleveling.endlessmarriage.data.TieredRingDataManager;
 import com.airijko.endlessleveling.endlessmarriage.data.tiered.TieredRingCatalog;
 import com.airijko.endlessleveling.endlessmarriage.data.tiered.TieredRingDefinition;
@@ -136,15 +137,15 @@ public class TieredRingBrowserPage extends SafeInteractiveCustomUIPage<MarriageP
         }
         TieredRingDefinition def = TieredRingCatalog.byId(ringId);
         if (def == null) {
-            playerRef.sendMessage(Message.raw("[Rings] Unknown ring id: " + ringId).color("#ff6666"));
+            playerRef.sendMessage(MarriageMessages.ringsChat(MarriageMessages.RINGS_UNKNOWN_ID, "#ff6666", ringId));
             return;
         }
 
         boolean ok = data.equipRing(playerRef.getUuid(), ringId, ref, store);
         if (ok) {
-            playerRef.sendMessage(Message.raw("[Rings] Equipped " + def.displayName() + ".").color("#66ff66"));
+            playerRef.sendMessage(MarriageMessages.ringsChat(MarriageMessages.RINGS_EQUIPPED, "#66ff66", def.displayName()));
         } else {
-            playerRef.sendMessage(Message.raw("[Rings] Failed to equip " + def.displayName() + ".").color("#ff6666"));
+            playerRef.sendMessage(MarriageMessages.ringsChat(MarriageMessages.RINGS_FAILED, "#ff6666", def.displayName()));
         }
     }
 
@@ -155,7 +156,7 @@ public class TieredRingBrowserPage extends SafeInteractiveCustomUIPage<MarriageP
         }
         boolean removed = data.unequipRing(playerRef.getUuid(), ref, store);
         if (removed) {
-            playerRef.sendMessage(Message.raw("[Rings] Unequipped tiered ring.").color("#66ff66"));
+            playerRef.sendMessage(MarriageMessages.ringsChat(MarriageMessages.RINGS_UNEQUIPPED, "#66ff66"));
         }
     }
 }

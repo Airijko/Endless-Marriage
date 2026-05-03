@@ -2,6 +2,7 @@
  * Copyright (c) 2026 Airijko
  *
  * This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+ *
  * If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
  *
  * This Source Code Form is "Incompatible With Secondary Licenses", as defined by the Mozilla Public License, v. 2.0.
@@ -12,7 +13,6 @@ package com.airijko.endlessleveling.endlessmarriage.commands.subcommands;
 import com.airijko.endlessleveling.endlessmarriage.data.MarriageDataManager;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractPlayerCommand;
 import com.hypixel.hytale.server.core.entity.entities.Player;
@@ -56,25 +56,25 @@ public class InventoryCommand extends AbstractPlayerCommand {
         MarriageDataManager data = dataManager();
 
         if (!data.isMarried(senderUuid)) {
-            senderRef.sendMessage(Message.raw(PREFIX + "You must be married to use this.").color(COLOR_ERROR));
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.MUST_BE_MARRIED, COLOR_ERROR));
             return;
         }
 
         UUID spouseUuid = data.getSpouse(senderUuid);
         if (spouseUuid == null) {
-            senderRef.sendMessage(Message.raw(PREFIX + "Could not find your spouse.").color(COLOR_ERROR));
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.CANNOT_FIND_SPOUSE, COLOR_ERROR));
             return;
         }
 
         PlayerRef spouseRef = Universe.get().getPlayer(spouseUuid);
         if (spouseRef == null || !spouseRef.isValid()) {
-            senderRef.sendMessage(Message.raw(PREFIX + "Your spouse is not online.").color(COLOR_ERROR));
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.SPOUSE_NOT_ONLINE, COLOR_ERROR));
             return;
         }
 
         Ref<EntityStore> spouseEntity = spouseRef.getReference();
         if (spouseEntity == null) {
-            senderRef.sendMessage(Message.raw(PREFIX + "Your spouse is not in a world.").color(COLOR_ERROR));
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.SPOUSE_NOT_IN_WORLD, COLOR_ERROR));
             return;
         }
 
@@ -90,7 +90,7 @@ public class InventoryCommand extends AbstractPlayerCommand {
         spouseWorld.execute(() -> {
             Player spousePlayer = spouseStore.getComponent(spouseEntity, Player.getComponentType());
             if (spousePlayer == null) {
-                senderRef.sendMessage(Message.raw(PREFIX + "Could not access spouse's inventory.").color(COLOR_ERROR));
+                senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.INV_CANNOT_ACCESS, COLOR_ERROR));
                 return;
             }
 
@@ -100,7 +100,8 @@ public class InventoryCommand extends AbstractPlayerCommand {
             // Open the spouse's inventory for the sender (full access - married couples can use each other's items)
             world.execute(() -> {
                 senderPlayer.getPageManager().setPageWithWindows(ref, store, Page.Bench, true, new ContainerWindow(spouseContainer));
-                senderRef.sendMessage(Message.raw(PREFIX + "Viewing " + resolvePlayerName(spouseUuid) + "'s inventory.").color(COLOR_INFO));
+                senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.INV_VIEWING, COLOR_INFO,
+                        resolvePlayerName(spouseUuid)));
             });
         });
     }

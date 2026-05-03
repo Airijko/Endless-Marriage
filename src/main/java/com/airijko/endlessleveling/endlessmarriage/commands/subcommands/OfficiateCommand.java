@@ -2,6 +2,7 @@
  * Copyright (c) 2026 Airijko
  *
  * This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+ *
  * If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
  *
  * This Source Code Form is "Incompatible With Secondary Licenses", as defined by the Mozilla Public License, v. 2.0.
@@ -18,7 +19,6 @@ import com.airijko.endlessleveling.util.OperatorHelper;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.math.vector.Vector3d;
-import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.arguments.system.RequiredArg;
 import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
@@ -77,8 +77,7 @@ public class OfficiateCommand extends AbstractPlayerCommand {
                     || priestClassId.equalsIgnoreCase(secondaryClass);
 
             if (!isPriest) {
-                senderRef.sendMessage(Message.raw(PREFIX
-                        + "Only players with the Priest class (or the endlessmarriage.officiate permission) can officiate marriages.").color(COLOR_ERROR));
+                senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.PRIEST_ONLY, COLOR_ERROR));
                 return;
             }
         }
@@ -90,7 +89,7 @@ public class OfficiateCommand extends AbstractPlayerCommand {
         PlayerRef player2Ref = findPlayerByName(name2);
 
         if (player1Ref == null || player2Ref == null) {
-            senderRef.sendMessage(Message.raw(PREFIX + "Both players must be online.").color(COLOR_ERROR));
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.BOTH_MUST_BE_ONLINE, COLOR_ERROR));
             return;
         }
 
@@ -99,8 +98,7 @@ public class OfficiateCommand extends AbstractPlayerCommand {
 
         // Verify pending marriage
         if (!data.hasPendingMarriage(p1) || !data.hasPendingMarriage(p2)) {
-            senderRef.sendMessage(Message.raw(PREFIX
-                    + "These players do not have a pending marriage. They must use /marry to propose and accept first.").color(COLOR_ERROR));
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.NO_PENDING_PAIR, COLOR_ERROR));
             return;
         }
 
@@ -108,8 +106,7 @@ public class OfficiateCommand extends AbstractPlayerCommand {
         if (pendingPair == null
                 || !((pendingPair[0].equals(p1) && pendingPair[1].equals(p2))
                         || (pendingPair[0].equals(p2) && pendingPair[1].equals(p1)))) {
-            senderRef.sendMessage(Message.raw(PREFIX
-                    + "These players are not in a pending marriage with each other.").color(COLOR_ERROR));
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.PAIR_MISMATCH, COLOR_ERROR));
             return;
         }
 
@@ -119,38 +116,35 @@ public class OfficiateCommand extends AbstractPlayerCommand {
         Vector3d priestPos = resolvePosition(ref, store);
 
         if (priestPos == null) {
-            senderRef.sendMessage(Message.raw(PREFIX
-                    + "Unable to verify your position. Try again.").color(COLOR_ERROR));
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.PRIEST_POSITION_UNKNOWN, COLOR_ERROR));
             return;
         }
 
         // Check priest is near player 1
         Ref<EntityStore> entity1 = player1Ref.getReference();
         if (entity1 == null || entity1.getStore() != store) {
-            senderRef.sendMessage(Message.raw(PREFIX
-                    + resolvePlayerName(p1) + " is not in the same world as you.").color(COLOR_ERROR));
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.PRIEST_PLAYER_DIFF_WORLD, COLOR_ERROR,
+                    resolvePlayerName(p1)));
             return;
         }
         Vector3d pos1 = resolvePosition(entity1, entity1.getStore());
         if (pos1 == null || distanceSq(priestPos, pos1) > rangeSq) {
-            senderRef.sendMessage(Message.raw(PREFIX
-                    + "You must be closer to " + resolvePlayerName(p1)
-                    + " to officiate (within " + (int) range + " blocks).").color(COLOR_ERROR));
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.PRIEST_TOO_FAR, COLOR_ERROR,
+                    resolvePlayerName(p1), (int) range));
             return;
         }
 
         // Check priest is near player 2
         Ref<EntityStore> entity2 = player2Ref.getReference();
         if (entity2 == null || entity2.getStore() != store) {
-            senderRef.sendMessage(Message.raw(PREFIX
-                    + resolvePlayerName(p2) + " is not in the same world as you.").color(COLOR_ERROR));
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.PRIEST_PLAYER_DIFF_WORLD, COLOR_ERROR,
+                    resolvePlayerName(p2)));
             return;
         }
         Vector3d pos2 = resolvePosition(entity2, entity2.getStore());
         if (pos2 == null || distanceSq(priestPos, pos2) > rangeSq) {
-            senderRef.sendMessage(Message.raw(PREFIX
-                    + "You must be closer to " + resolvePlayerName(p2)
-                    + " to officiate (within " + (int) range + " blocks).").color(COLOR_ERROR));
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.PRIEST_TOO_FAR, COLOR_ERROR,
+                    resolvePlayerName(p2), (int) range));
             return;
         }
 
@@ -171,12 +165,12 @@ public class OfficiateCommand extends AbstractPlayerCommand {
         String priestName = resolvePlayerName(senderUuid);
 
         // Notify the priest and the newlyweds directly
-        senderRef.sendMessage(Message.raw(PREFIX + "You have officiated the marriage of "
-                + name1Resolved + " and " + name2Resolved + "!").color(COLOR_SUCCESS));
-        player1Ref.sendMessage(Message.raw(PREFIX + "You are now married to "
-                + name2Resolved + "! Officiated by " + priestName).color(COLOR_SUCCESS));
-        player2Ref.sendMessage(Message.raw(PREFIX + "You are now married to "
-                + name1Resolved + "! Officiated by " + priestName).color(COLOR_SUCCESS));
+        senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.OFFICIATED_MARRIAGE, COLOR_SUCCESS,
+                name1Resolved, name2Resolved));
+        player1Ref.sendMessage(MarriageMessages.chat(MarriageMessages.NOW_MARRIED_OFFICIATED, COLOR_SUCCESS,
+                name2Resolved, priestName));
+        player2Ref.sendMessage(MarriageMessages.chat(MarriageMessages.NOW_MARRIED_OFFICIATED, COLOR_SUCCESS,
+                name1Resolved, priestName));
 
         // Announce to all online players: title, chat broadcast, wedding march SFX
         MarriageAnnouncer.announceMarriage(name1Resolved, name2Resolved, priestName);

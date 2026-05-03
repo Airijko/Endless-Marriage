@@ -11,6 +11,7 @@ package com.airijko.endlessleveling.endlessmarriage.ui;
 
 import com.airijko.endlessleveling.api.EndlessLevelingAPI;
 import com.airijko.endlessleveling.endlessmarriage.EndlessMarriage;
+import com.airijko.endlessleveling.endlessmarriage.commands.subcommands.MarriageMessages;
 import com.airijko.endlessleveling.endlessmarriage.config.MarriageConfig;
 import com.airijko.endlessleveling.endlessmarriage.data.MarriageDataManager;
 import com.hypixel.hytale.component.Ref;
@@ -129,7 +130,7 @@ public class MarriagePriestPage extends SafeInteractiveCustomUIPage<MarriagePage
             MarriageDataManager data = EndlessMarriage.getInstance().getMarriageDataManager();
 
             if (!data.hasPendingMarriage(senderUuid)) {
-                playerRef.sendMessage(Message.raw("[Marriage] You don't have a pending marriage.").color("#ff6666"));
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.NO_PENDING_MARRIAGE_SHORT, "#ff6666"));
                 return;
             }
 
@@ -143,18 +144,18 @@ public class MarriagePriestPage extends SafeInteractiveCustomUIPage<MarriagePage
             String partnerName = resolvePlayerName(partnerId);
             String priestName = resolvePlayerName(priestUuid);
 
-            playerRef.sendMessage(Message.raw("[Marriage] Sent officiation request to " + priestName + "!").color("#66ff66"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.OFFICIATION_REQUEST_SENT, "#66ff66", priestName));
 
             // Notify priest if online
             PlayerRef priestRef = Universe.get().getPlayer(priestUuid);
             if (priestRef != null && priestRef.isValid()) {
                 String senderName = playerRef.getUsername() != null ? playerRef.getUsername()
                         : senderUuid.toString().substring(0, 8);
-                priestRef.sendMessage(Message.raw("[Marriage] " + senderName + " & " + partnerName
-                        + " request you to officiate their marriage! Open /marry to view.").color("#4fd7f7"));
+                priestRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.OFFICIATION_REQUEST_RECEIVED, "#4fd7f7",
+                        senderName, partnerName));
             }
         } catch (IllegalArgumentException ex) {
-            playerRef.sendMessage(Message.raw("[Marriage] Invalid priest.").color("#ff6666"));
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.INVALID_PRIEST, "#ff6666"));
         }
     }
 

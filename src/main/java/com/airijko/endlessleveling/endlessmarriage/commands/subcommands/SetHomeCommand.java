@@ -2,6 +2,7 @@
  * Copyright (c) 2026 Airijko
  *
  * This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+ *
  * If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
  *
  * This Source Code Form is "Incompatible With Secondary Licenses", as defined by the Mozilla Public License, v. 2.0.
@@ -14,7 +15,6 @@ import com.airijko.endlessleveling.endlessmarriage.data.MarriageHome;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.math.vector.Vector3d;
-import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractPlayerCommand;
 import com.hypixel.hytale.server.core.modules.entity.component.HeadRotation;
@@ -53,19 +53,19 @@ public class SetHomeCommand extends AbstractPlayerCommand {
         MarriageDataManager data = dataManager();
 
         if (!data.isMarried(senderUuid)) {
-            senderRef.sendMessage(Message.raw(PREFIX + "You must be married to set a home.").color(COLOR_ERROR));
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.SETHOME_MUST_BE_MARRIED, COLOR_ERROR));
             return;
         }
 
         UUID spouseUuid = data.getSpouse(senderUuid);
         if (spouseUuid == null) {
-            senderRef.sendMessage(Message.raw(PREFIX + "Could not find your spouse.").color(COLOR_ERROR));
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.CANNOT_FIND_SPOUSE, COLOR_ERROR));
             return;
         }
 
         TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
         if (transform == null) {
-            senderRef.sendMessage(Message.raw(PREFIX + "Unable to get your position.").color(COLOR_ERROR));
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.SETHOME_POSITION_UNKNOWN, COLOR_ERROR));
             return;
         }
 
@@ -82,8 +82,8 @@ public class SetHomeCommand extends AbstractPlayerCommand {
         MarriageHome home = new MarriageHome(world.getName(), pos.getX(), pos.getY(), pos.getZ(), yaw, pitch);
         data.setHome(senderUuid, spouseUuid, home);
 
-        senderRef.sendMessage(Message.raw(PREFIX + "Marriage home set at "
-                + String.format("%.0f, %.0f, %.0f", pos.getX(), pos.getY(), pos.getZ())
-                + " in " + world.getName() + "!").color(COLOR_SUCCESS));
+        String coords = String.format("%.0f, %.0f, %.0f", pos.getX(), pos.getY(), pos.getZ());
+        senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.SETHOME_SUCCESS, COLOR_SUCCESS,
+                coords, world.getName()));
     }
 }

@@ -9,6 +9,8 @@
 
 package com.airijko.endlessleveling.endlessmarriage;
 
+import com.airijko.endlessleveling.endlessmarriage.commands.subcommands.MarriageMessages;
+import com.airijko.endlessleveling.util.Lang;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.protocol.SoundCategory;
 import com.hypixel.hytale.server.core.Message;
@@ -29,34 +31,18 @@ import javax.annotation.Nullable;
 public final class MarriageAnnouncer {
 
     private static final String WEDDING_MARCH_SOUND_ID = "SFX_EM_Ceremony_WeddingMarch";
-    private static final String PREFIX = "[Endless Marriage] ";
     private static final String COLOR_SUCCESS = "#66ff66";
 
     private MarriageAnnouncer() {
     }
 
     /**
-     * Broadcasts a wedding announcement to every online player.
-     *
-     * @param spouse1    display name of the first spouse
-     * @param spouse2    display name of the second spouse
-     * @param priestName display name of the officiating priest, or {@code null} when the
-     *                   marriage was self-officiated (no priest required)
+     * Broadcasts a wedding announcement to every online player. Per-player message text is
+     * resolved against each player's locale via {@link Lang}.
      */
     public static void announceMarriage(@Nonnull String spouse1,
             @Nonnull String spouse2,
             @Nullable String priestName) {
-
-        Message titlePrimary = Message.raw("A Wedding Has Taken Place!");
-        Message titleSecondary = Message.raw(spouse1 + " & " + spouse2 + " are now married!");
-
-        String officiantSuffix = (priestName != null && !priestName.isBlank())
-                ? " Officiated by " + priestName + "."
-                : "";
-        Message chatAnnouncement = Message.raw(PREFIX
-                + "Congratulations to " + spouse1 + " and " + spouse2
-                + " on their marriage!" + officiantSuffix
-                + " Wishing the newlyweds a lifetime of happiness!").color(COLOR_SUCCESS);
 
         int soundIndex = SoundEvent.getAssetMap().getIndex(WEDDING_MARCH_SOUND_ID);
         boolean hasSound = soundIndex != Integer.MIN_VALUE && soundIndex != 0;
@@ -71,13 +57,27 @@ public final class MarriageAnnouncer {
                 continue;
             }
 
-            // Hytale event title shown to every online player
-            EventTitleUtil.showEventTitleToPlayer(player, titlePrimary, titleSecondary, true);
+            String officiantSuffix = (priestName != null && !priestName.isBlank())
+                    ? Lang.tr(player.getUuid(), MarriageMessages.ANNOUNCE_OFFICIANT_SUFFIX,
+                            " Officiated by {0}.", priestName)
+                    : "";
 
-            // Global chat congratulations
+            Message titlePrimary = Message.raw(
+                    Lang.tr(player.getUuid(), MarriageMessages.ANNOUNCE_TITLE, "A Wedding Has Taken Place!"));
+            Message titleSecondary = Message.raw(
+                    Lang.tr(player.getUuid(), MarriageMessages.ANNOUNCE_SUBTITLE,
+                            "{0} & {1} are now married!", spouse1, spouse2));
+
+            Message chatAnnouncement = Message.raw(
+                    Lang.tr(player.getUuid(), MarriageMessages.PREFIX, "[Endless Marriage] ")
+                            + Lang.tr(player.getUuid(), MarriageMessages.ANNOUNCE_CHAT,
+                                    "Congratulations to {0} and {1} on their marriage!{2} Wishing the newlyweds a lifetime of happiness!",
+                                    spouse1, spouse2, officiantSuffix))
+                    .color(COLOR_SUCCESS);
+
+            EventTitleUtil.showEventTitleToPlayer(player, titlePrimary, titleSecondary, true);
             player.sendMessage(chatAnnouncement);
 
-            // Wedding march SFX
             if (hasSound) {
                 Ref<EntityStore> playerEntity = player.getReference();
                 if (playerEntity != null && playerEntity.isValid() && playerEntity.getStore() != null) {
