@@ -10,7 +10,6 @@
 package com.airijko.endlessleveling.endlessmarriage.managers;
 
 import com.hypixel.hytale.logger.HytaleLogger;
-import com.hypixel.hytale.server.core.plugin.PluginManager;
 
 import javax.annotation.Nonnull;
 import java.io.File;
@@ -21,7 +20,6 @@ import java.nio.file.Path;
 
 public class MarriageFilesManager {
 
-    private static final String PLUGIN_FOLDER_NAME = "EndlessMarriage";
     private static final String DATA_FOLDER_NAME = "data";
     private static final String CONFIG_FILE_NAME = "config.json";
     private static final HytaleLogger LOGGER = HytaleLogger.forEnclosingClassFull();
@@ -30,12 +28,11 @@ public class MarriageFilesManager {
     private final File dataFolder;
     private final File configFile;
 
-    public MarriageFilesManager() {
-        Path modsPath = PluginManager.MODS_PATH;
-        if (modsPath == null) {
-            throw new IllegalStateException("Mods path is not initialized for EndlessMarriage");
+    public MarriageFilesManager(Path dataDirectory) {
+        if (dataDirectory == null) {
+            throw new IllegalStateException("dataDirectory is required for EndlessMarriage");
         }
-        this.pluginFolder = modsPath.resolve(PLUGIN_FOLDER_NAME).toFile();
+        this.pluginFolder = dataDirectory.toFile();
         this.dataFolder = new File(pluginFolder, DATA_FOLDER_NAME);
 
         createFolders();

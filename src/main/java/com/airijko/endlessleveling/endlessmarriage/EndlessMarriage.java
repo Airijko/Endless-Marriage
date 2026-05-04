@@ -118,7 +118,7 @@ public class EndlessMarriage extends JavaPlugin {
         LOGGER.atInfo().log("EndlessMarriage initializing...");
 
         // Initialize folders and config
-        filesManager = new MarriageFilesManager();
+        filesManager = new MarriageFilesManager(getDataDirectory());
 
         // Load config
         marriageConfig = new MarriageConfig();

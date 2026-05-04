@@ -5,6 +5,9 @@ plugins {
 
 def configuredJavaVersion = project.findProperty('javaVersion')?.toString() ?: '25'
 
+// Single source of truth: read version from manifest.json so we only bump in one place.
+version = new groovy.json.JsonSlurper().parse(file('src/main/resources/manifest.json')).Version
+
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(Integer.parseInt(configuredJavaVersion))
@@ -132,3 +135,11 @@ tasks.register('watch') {
         println "Run 'gradle build --continuous' for auto-rebuild on file changes."
     }
 }
+
+// Centralized output: also copy produced jars into ../00_EndlessBuildOutputJars
+tasks.register('copyToEndlessJars', Copy) {
+    dependsOn tasks.withType(Jar)
+    from { tasks.withType(Jar).findAll { it.enabled }.collect { it.archiveFile } }
+    into file("${projectDir}/../00_EndlessBuildOutputJars")
+}
+tasks.named('build') { finalizedBy 'copyToEndlessJars' }
