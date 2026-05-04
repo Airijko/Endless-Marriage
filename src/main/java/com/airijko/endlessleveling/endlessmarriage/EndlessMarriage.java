@@ -12,6 +12,7 @@ package com.airijko.endlessleveling.endlessmarriage;
 import com.airijko.endlessleveling.api.EndlessLevelingAPI;
 import com.airijko.endlessleveling.endlessmarriage.commands.MarriageCommandRegistrar;
 import com.airijko.endlessleveling.endlessmarriage.config.MarriageConfig;
+import com.airijko.endlessleveling.endlessmarriage.config.migration.PluginFolderMigrator;
 import com.airijko.endlessleveling.endlessmarriage.data.MarriageDataManager;
 import com.airijko.endlessleveling.endlessmarriage.data.TieredRingDataManager;
 import com.airijko.endlessleveling.endlessmarriage.data.tiered.TieredRingCatalog;
@@ -116,6 +117,11 @@ public class EndlessMarriage extends JavaPlugin {
     @Override
     protected void setup() {
         LOGGER.atInfo().log("EndlessMarriage initializing...");
+
+        // Move legacy <mods>/EndlessMarriage/ contents into Hytale's canonical
+        // <mods>/Airijko_EndlessMarriage/ before MarriageFilesManager seeds
+        // defaults into the canonical path.
+        PluginFolderMigrator.migrateIfNeeded(getDataDirectory());
 
         // Initialize folders and config
         filesManager = new MarriageFilesManager(getDataDirectory());
