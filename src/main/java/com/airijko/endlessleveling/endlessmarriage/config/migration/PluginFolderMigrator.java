@@ -19,6 +19,7 @@ import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.Comparator;
 import java.util.stream.Stream;
 
 /**
@@ -90,7 +91,7 @@ public final class PluginFolderMigrator {
         }
 
         if (isNonEmpty(canonicalDataDirectory)) {
-            Path conflictArchive = modsPath.resolve(LEGACY_FOLDER_NAME + ".legacy.conflict");
+            Path conflictArchive = replaceArchiveTarget(modsPath, LEGACY_FOLDER_NAME + ".legacy.conflict");
             tryRename(legacyFolder, conflictArchive);
             LOGGER.atSevere().log(
                     "Both legacy %s and canonical %s exist with content. Renamed legacy to %s — "
@@ -110,7 +111,7 @@ public final class PluginFolderMigrator {
             return;
         }
 
-        Path archive = modsPath.resolve(LEGACY_FOLDER_NAME + ".legacy");
+        Path archive = replaceArchiveTarget(modsPath, LEGACY_FOLDER_NAME + ".legacy");
         tryRename(legacyFolder, archive);
         LOGGER.atInfo().log(
                 "Migrated plugin folder %s → %s (legacy archived as %s)",
@@ -194,6 +195,37 @@ public final class PluginFolderMigrator {
                     "Could not archive %s → %s; manual cleanup needed.",
                     source.getFileName(),
                     target.getFileName());
+        }
+    }
+
+    /**
+     * Resolve {@code <modsPath>/<baseName>}, deleting any pre-existing folder
+     * at that path so the rename never collides. Prevents the legacy archive
+     * from accumulating timestamp-stamped siblings when a user keeps recreating
+     * the source folder. Always one {@code .legacy} folder, never a stack.
+     */
+    private static Path replaceArchiveTarget(Path modsPath, String baseName) {
+        Path candidate = modsPath.resolve(baseName);
+        if (Files.exists(candidate)) {
+            deleteRecursively(candidate);
+        }
+        return candidate;
+    }
+
+    private static void deleteRecursively(Path root) {
+        if (!Files.exists(root)) {
+            return;
+        }
+        try (Stream<Path> walk = Files.walk(root)) {
+            walk.sorted(Comparator.reverseOrder())
+                    .forEach(p -> {
+                        try {
+                            Files.deleteIfExists(p);
+                        } catch (IOException ignored) {
+                        }
+                    });
+        } catch (IOException e) {
+            LOGGER.atWarning().withCause(e).log("Failed to clear %s before archive rename.", root);
         }
     }
 }
