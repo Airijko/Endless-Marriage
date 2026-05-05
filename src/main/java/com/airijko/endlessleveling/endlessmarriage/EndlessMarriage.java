@@ -118,6 +118,19 @@ public class EndlessMarriage extends JavaPlugin {
     protected void setup() {
         LOGGER.atInfo().log("EndlessMarriage initializing...");
 
+        // Register the addon's ECS component types BEFORE any system registration so
+        // marriage systems (and any external readers) can resolve ComponentType refs at
+        // construction time. Same pattern as EL core's EndlessLevelingComponents.
+        com.hypixel.hytale.component.ComponentType<
+                com.hypixel.hytale.server.core.universe.world.storage.EntityStore,
+                com.airijko.endlessleveling.endlessmarriage.ecs.MarriageComponent> marriageType =
+                this.getEntityStoreRegistry().registerComponent(
+                        com.airijko.endlessleveling.endlessmarriage.ecs.MarriageComponent.class,
+                        "Marriage",
+                        com.airijko.endlessleveling.endlessmarriage.ecs.MarriageComponent.CODEC);
+        com.airijko.endlessleveling.endlessmarriage.ecs.MarriageComponent.setComponentType(marriageType);
+        LOGGER.atInfo().log("Registered Endless Marriage ECS components: 1 type (Marriage)");
+
         // Move legacy <mods>/EndlessMarriage/ contents into Hytale's canonical
         // <mods>/Airijko_EndlessMarriage/ before MarriageFilesManager seeds
         // defaults into the canonical path.
@@ -149,6 +162,13 @@ public class EndlessMarriage extends JavaPlugin {
         // Register proximity system
         proximitySystem = new MarriageProximitySystem(marriageDataManager, marriageConfig);
         this.getEntityStoreRegistry().registerSystem(proximitySystem);
+
+        // Pumps the lazy MarriageComponent bridge every 5s so other systems can resolve
+        // spouse state via the standard ECS lookup instead of hitting MarriageDataManager
+        // every tick. Without this, the component stays empty.
+        this.getEntityStoreRegistry().registerSystem(
+                new com.airijko.endlessleveling.endlessmarriage.systems.MarriageComponentSyncSystem(
+                        marriageDataManager));
 
         // Piggyback / kiss services
         piggybackService = new PiggybackService(marriageDataManager, marriageConfig);

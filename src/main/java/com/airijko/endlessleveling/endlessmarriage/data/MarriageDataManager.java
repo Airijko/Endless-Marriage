@@ -66,6 +66,38 @@ public class MarriageDataManager {
         dataFolder.mkdirs();
     }
 
+    /**
+     * Lazy bridge: copy this player's marriage state onto their entity as a
+     * {@link com.airijko.endlessleveling.endlessmarriage.ecs.MarriageComponent}.
+     * The disk-persisted {@code marriages}/{@code marriageIndex} maps remain canonical;
+     * component is a per-tick mirror so EL core's archetype-scan systems (and any
+     * cross-mod readers) can resolve partner state via standard ECS lookup.
+     *
+     * <p>Safe to call every tick — uses EL's {@code EcsComponents.upsert} which
+     * short-circuits on unusable / dead entities.
+     */
+    public void syncMarriageToComponent(
+            @Nonnull com.hypixel.hytale.component.Ref<com.hypixel.hytale.server.core.universe.world.storage.EntityStore> playerEntityRef,
+            @Nonnull com.hypixel.hytale.component.CommandBuffer<com.hypixel.hytale.server.core.universe.world.storage.EntityStore> commandBuffer,
+            @Nonnull UUID uuid) {
+        MarriagePair pair = marriageIndex.get(uuid);
+        if (pair == null) {
+            // Not married: ensure no stale component lingers.
+            com.airijko.endlessleveling.ecs.EcsComponents.remove(commandBuffer, playerEntityRef,
+                    com.airijko.endlessleveling.endlessmarriage.ecs.MarriageComponent.getComponentType());
+            return;
+        }
+        final UUID spouse = pair.getSpouse(uuid);
+        final long marriedAt = pair.timestamp();
+        com.airijko.endlessleveling.ecs.EcsComponents.upsert(commandBuffer, playerEntityRef,
+                com.airijko.endlessleveling.endlessmarriage.ecs.MarriageComponent.getComponentType(),
+                com.airijko.endlessleveling.endlessmarriage.ecs.MarriageComponent::new,
+                c -> {
+                    c.setSpouseUuid(spouse);
+                    c.setMarriedAtMillis(marriedAt);
+                });
+    }
+
     // ---- Marriage queries ----
 
     public boolean isMarried(@Nonnull UUID uuid) {
