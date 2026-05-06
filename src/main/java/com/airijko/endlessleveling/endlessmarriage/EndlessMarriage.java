@@ -321,6 +321,13 @@ public class EndlessMarriage extends JavaPlugin {
                 return;
             }
 
+            // Matchmaking party uses its own XP-share path. Skip marriage
+            // discipline bonus + 50/50 split entirely so XP is not double-
+            // counted across the two sharing systems.
+            if (EndlessLevelingAPI.get().isInMatchmakingParty(uuid)) {
+                return;
+            }
+
             if (!marriageDataManager.isMarried(uuid)) {
                 return;
             }
