@@ -14,7 +14,7 @@ import com.airijko.endlessleveling.endlessmarriage.data.MarriageDataManager;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.logger.HytaleLogger;
-import com.hypixel.hytale.math.vector.Vector3d;
+import org.joml.Vector3d;
 import com.hypixel.hytale.server.core.asset.type.soundevent.config.SoundEvent;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
@@ -98,9 +98,9 @@ public final class KissService {
         if (initiatorPos == null || spousePos == null) {
             return KissResult.ERROR;
         }
-        double dx = initiatorPos.getX() - spousePos.getX();
-        double dy = initiatorPos.getY() - spousePos.getY();
-        double dz = initiatorPos.getZ() - spousePos.getZ();
+        double dx = initiatorPos.x() - spousePos.x();
+        double dy = initiatorPos.y() - spousePos.y();
+        double dz = initiatorPos.z() - spousePos.z();
         double distSq = (dx * dx) + (dy * dy) + (dz * dz);
         double range = config.getKissRange();
         if (distSq > range * range) {
@@ -161,9 +161,9 @@ public final class KissService {
             @Nonnull UUID initiatorUuid,
             @Nullable UUID partnerUuid) {
 
-        double midX = (initiatorPos.getX() + partnerPos.getX()) * 0.5;
-        double midY = ((initiatorPos.getY() + partnerPos.getY()) * 0.5) + 1.8;
-        double midZ = (initiatorPos.getZ() + partnerPos.getZ()) * 0.5;
+        double midX = (initiatorPos.x() + partnerPos.x()) * 0.5;
+        double midY = ((initiatorPos.y() + partnerPos.y()) * 0.5) + 1.8;
+        double midZ = (initiatorPos.z() + partnerPos.z()) * 0.5;
         Vector3d midpoint = new Vector3d(midX, midY, midZ);
 
         try {

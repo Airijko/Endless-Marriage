@@ -14,8 +14,8 @@ import com.airijko.endlessleveling.endlessmarriage.data.MarriageDataManager;
 import com.airijko.endlessleveling.endlessmarriage.data.MarriageHome;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.math.vector.Vector3d;
-import com.hypixel.hytale.math.vector.Vector3f;
+import com.hypixel.hytale.math.vector.Rotation3f;
+import org.joml.Vector3d;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractPlayerCommand;
 import com.hypixel.hytale.server.core.modules.entity.teleport.Teleport;
@@ -72,7 +72,7 @@ public class HomeCommand extends AbstractPlayerCommand {
         }
 
         Vector3d pos = new Vector3d(home.x(), home.y(), home.z());
-        Vector3f rot = new Vector3f(home.pitch(), home.yaw(), 0f);
+        Rotation3f rot = new Rotation3f(home.pitch(), home.yaw(), 0f);
         Teleport teleport = Teleport.createForPlayer(targetWorld, pos, rot);
         store.addComponent(ref, Teleport.getComponentType(), teleport);
 

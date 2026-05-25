@@ -14,8 +14,8 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.logger.HytaleLogger;
-import com.hypixel.hytale.math.vector.Vector3d;
-import com.hypixel.hytale.math.vector.Vector3f;
+import com.hypixel.hytale.math.vector.Rotation3f;
+import org.joml.Vector3d;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.NPCPlugin;
@@ -91,8 +91,8 @@ public final class DebugNpcService {
 
         Vector3d playerPos = transform.getPosition();
         // Offset slightly in front of the player so we can see the NPC.
-        Vector3d spawnPos = new Vector3d(playerPos.getX() + 1.0, playerPos.getY(), playerPos.getZ());
-        Vector3f rotation = new Vector3f(0f, 0f, 0f);
+        Vector3d spawnPos = new Vector3d(playerPos.x() + 1.0, playerPos.y(), playerPos.z());
+        Rotation3f rotation = new Rotation3f(0f, 0f, 0f);
 
         String roleName = config.getDebugNpcRole();
         Object spawnResult;

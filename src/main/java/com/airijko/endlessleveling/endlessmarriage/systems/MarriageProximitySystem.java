@@ -15,7 +15,7 @@ import com.airijko.endlessleveling.endlessmarriage.data.MarriagePair;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
-import com.hypixel.hytale.math.vector.Vector3d;
+import org.joml.Vector3d;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
@@ -132,9 +132,9 @@ public class MarriageProximitySystem extends TickingSystem<EntityStore> {
             return;
         }
 
-        double dx = pos1.getX() - pos2.getX();
-        double dy = pos1.getY() - pos2.getY();
-        double dz = pos1.getZ() - pos2.getZ();
+        double dx = pos1.x() - pos2.x();
+        double dy = pos1.y() - pos2.y();
+        double dz = pos1.z() - pos2.z();
         double distSq = (dx * dx) + (dy * dy) + (dz * dz);
 
         if (distSq <= rangeSq) {

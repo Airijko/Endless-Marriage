@@ -96,7 +96,7 @@ public final class PiggybackFollowSystem extends TickingSystem<EntityStore> {
                 // no-op for them). The position change is picked up by the
                 // entity tracker on the next sync pass and pushed to clients,
                 // which is what makes the rider's camera follow the carrier.
-                riderTransform.getPosition().assign(carrierTransform.getPosition());
+                riderTransform.getPosition().set(carrierTransform.getPosition());
 
                 Velocity riderVelocity = store.getComponent(
                         riderRef, Velocity.getComponentType());

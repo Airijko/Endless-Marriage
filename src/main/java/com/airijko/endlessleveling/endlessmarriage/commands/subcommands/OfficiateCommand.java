@@ -18,7 +18,7 @@ import com.airijko.endlessleveling.endlessmarriage.services.WitnessCollector;
 import com.airijko.endlessleveling.util.OperatorHelper;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.math.vector.Vector3d;
+import org.joml.Vector3d;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.arguments.system.RequiredArg;
 import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
@@ -190,9 +190,9 @@ public class OfficiateCommand extends AbstractPlayerCommand {
     }
 
     private double distanceSq(Vector3d a, Vector3d b) {
-        double dx = a.getX() - b.getX();
-        double dy = a.getY() - b.getY();
-        double dz = a.getZ() - b.getZ();
+        double dx = a.x() - b.x();
+        double dy = a.y() - b.y();
+        double dz = a.z() - b.z();
         return dx * dx + dy * dy + dz * dz;
     }
 }

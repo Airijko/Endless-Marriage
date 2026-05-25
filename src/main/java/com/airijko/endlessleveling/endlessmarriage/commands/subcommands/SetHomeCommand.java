@@ -14,7 +14,7 @@ import com.airijko.endlessleveling.endlessmarriage.data.MarriageDataManager;
 import com.airijko.endlessleveling.endlessmarriage.data.MarriageHome;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.math.vector.Vector3d;
+import org.joml.Vector3d;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractPlayerCommand;
 import com.hypixel.hytale.server.core.modules.entity.component.HeadRotation;
@@ -75,14 +75,14 @@ public class SetHomeCommand extends AbstractPlayerCommand {
 
         HeadRotation headRotation = store.getComponent(ref, HeadRotation.getComponentType());
         if (headRotation != null) {
-            yaw = headRotation.getRotation().getYaw();
-            pitch = headRotation.getRotation().getPitch();
+            yaw = headRotation.getRotation().yaw();
+            pitch = headRotation.getRotation().pitch();
         }
 
-        MarriageHome home = new MarriageHome(world.getName(), pos.getX(), pos.getY(), pos.getZ(), yaw, pitch);
+        MarriageHome home = new MarriageHome(world.getName(), pos.x(), pos.y(), pos.z(), yaw, pitch);
         data.setHome(senderUuid, spouseUuid, home);
 
-        String coords = String.format("%.0f, %.0f, %.0f", pos.getX(), pos.getY(), pos.getZ());
+        String coords = String.format("%.0f, %.0f, %.0f", pos.x(), pos.y(), pos.z());
         senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.SETHOME_SUCCESS, COLOR_SUCCESS,
                 coords, world.getName()));
     }

@@ -11,7 +11,7 @@ package com.airijko.endlessleveling.endlessmarriage.services;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.math.vector.Vector3d;
+import org.joml.Vector3d;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
@@ -71,9 +71,9 @@ public final class WitnessCollector {
                 if (pos == null) {
                     continue;
                 }
-                double dx = pos.getX() - priestPos.getX();
-                double dy = pos.getY() - priestPos.getY();
-                double dz = pos.getZ() - priestPos.getZ();
+                double dx = pos.x() - priestPos.x();
+                double dy = pos.y() - priestPos.y();
+                double dz = pos.z() - priestPos.z();
                 if ((dx * dx) + (dy * dy) + (dz * dz) <= rangeSq) {
                     witnesses.add(uuid);
                 }

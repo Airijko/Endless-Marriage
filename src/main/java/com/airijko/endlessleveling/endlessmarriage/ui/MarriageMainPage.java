@@ -22,8 +22,8 @@ import com.airijko.endlessleveling.endlessmarriage.services.PiggybackService;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.logger.HytaleLogger;
-import com.hypixel.hytale.math.vector.Vector3d;
-import com.hypixel.hytale.math.vector.Vector3f;
+import com.hypixel.hytale.math.vector.Rotation3f;
+import org.joml.Vector3d;
 import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
@@ -580,7 +580,7 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         }
 
         World spouseWorld = spouseStore.getExternalData().getWorld();
-        Teleport teleport = Teleport.createForPlayer(spouseWorld, spousePos.clone(), new Vector3f(0f, 0f, 0f));
+        Teleport teleport = Teleport.createForPlayer(spouseWorld, new Vector3d(spousePos), new Rotation3f(0f, 0f, 0f));
         entityStore.addComponent(entityRef, Teleport.getComponentType(), teleport);
         playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.TP_TELEPORTING_TO, "#66ff66",
                 resolvePlayerName(spouseUuid)));
@@ -609,7 +609,7 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         }
 
         Vector3d pos = new Vector3d(home.x(), home.y(), home.z());
-        Vector3f rot = new Vector3f(home.pitch(), home.yaw(), 0f);
+        Rotation3f rot = new Rotation3f(home.pitch(), home.yaw(), 0f);
         Teleport teleport = Teleport.createForPlayer(targetWorld, pos, rot);
         entityStore.addComponent(entityRef, Teleport.getComponentType(), teleport);
         playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.HOME_TELEPORTING, "#66ff66"));
@@ -642,11 +642,11 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         float pitch = 0f;
         HeadRotation headRotation = store.getComponent(ref, HeadRotation.getComponentType());
         if (headRotation != null) {
-            yaw = headRotation.getRotation().getYaw();
-            pitch = headRotation.getRotation().getPitch();
+            yaw = headRotation.getRotation().yaw();
+            pitch = headRotation.getRotation().pitch();
         }
 
-        MarriageHome home = new MarriageHome(world.getName(), pos.getX(), pos.getY(), pos.getZ(), yaw, pitch);
+        MarriageHome home = new MarriageHome(world.getName(), pos.x(), pos.y(), pos.z(), yaw, pitch);
         data.setHome(senderUuid, spouseUuid, home);
         playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.SETHOME_SUCCESS_SHORT, "#66ff66"));
     }

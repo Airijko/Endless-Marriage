@@ -148,7 +148,7 @@ public class ProposeCommand extends AbstractPlayerCommand {
                 return;
             }
 
-            Player player = context.senderAs(Player.class);
+            Player player = store.getComponent(ref, Player.getComponentType());
             if (player == null) {
                 return;
             }

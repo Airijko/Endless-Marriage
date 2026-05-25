@@ -48,7 +48,7 @@ public class DebugRingsCommand extends AbstractPlayerCommand {
             @Nonnull PlayerRef senderRef,
             @Nonnull World world) {
 
-        Player player = context.senderAs(Player.class);
+        Player player = store.getComponent(ref, Player.getComponentType());
         if (player == null) {
             return;
         }

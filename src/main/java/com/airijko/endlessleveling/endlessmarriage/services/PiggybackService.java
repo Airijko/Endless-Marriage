@@ -16,8 +16,8 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.math.shape.Box;
-import com.hypixel.hytale.math.vector.Vector3d;
-import com.hypixel.hytale.math.vector.Vector3f;
+import com.hypixel.hytale.math.vector.Rotation3f;
+import org.joml.Vector3d;
 import com.hypixel.hytale.protocol.MountController;
 import com.hypixel.hytale.server.core.modules.entity.component.BoundingBox;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
@@ -45,7 +45,7 @@ public final class PiggybackService {
     private static final HytaleLogger LOGGER = HytaleLogger.forEnclosingClassFull();
 
     /** Default offset placing the rider 1.5 blocks above the carrier's transform. */
-    private static final Vector3f DEFAULT_OFFSET = new Vector3f(0f, 1.5f, 0f);
+    private static final Rotation3f DEFAULT_OFFSET = new Rotation3f(0f, 1.5f, 0f);
 
     /** rider UUID -> carrier UUID */
     private final Map<UUID, UUID> riders = new ConcurrentHashMap<>();
@@ -175,9 +175,9 @@ public final class PiggybackService {
         if (riderPos == null || spousePos == null) {
             return MountResult.ERROR;
         }
-        double dx = riderPos.getX() - spousePos.getX();
-        double dy = riderPos.getY() - spousePos.getY();
-        double dz = riderPos.getZ() - spousePos.getZ();
+        double dx = riderPos.x() - spousePos.x();
+        double dy = riderPos.y() - spousePos.y();
+        double dz = riderPos.z() - spousePos.z();
         double distSq = (dx * dx) + (dy * dy) + (dz * dz);
         double maxRange = config.getPiggybackMaxRange();
         if (distSq > maxRange * maxRange) {
@@ -283,7 +283,7 @@ public final class PiggybackService {
             }
             Box current = bbComponent.getBoundingBox();
             riderBoundingBoxSnapshots.put(riderUuid, new Box(current));
-            current.setMinMax(Vector3d.ZERO, Vector3d.ZERO);
+            current.setMinMax(new Vector3d(0d, 0d, 0d), new Vector3d(0d, 0d, 0d));
         } catch (Exception ex) {
             LOGGER.atWarning().withCause(ex).log("Failed to shrink BoundingBox for piggyback rider %s.", riderUuid);
         }

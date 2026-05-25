@@ -13,7 +13,7 @@ package com.airijko.endlessleveling.endlessmarriage.commands.subcommands;
 import com.airijko.endlessleveling.endlessmarriage.data.MarriageDataManager;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.math.vector.Vector3d;
+import org.joml.Vector3d;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractPlayerCommand;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
@@ -85,7 +85,7 @@ public class TpPartnerCommand extends AbstractPlayerCommand {
 
         // Resolve the spouse's world
         World spouseWorld = spouseStore.getExternalData().getWorld();
-        Teleport teleport = Teleport.createForPlayer(spouseWorld, spousePos.clone(), new com.hypixel.hytale.math.vector.Vector3f(0f, 0f, 0f));
+        Teleport teleport = Teleport.createForPlayer(spouseWorld, new Vector3d(spousePos), new com.hypixel.hytale.math.vector.Rotation3f(0f, 0f, 0f));
         store.addComponent(ref, Teleport.getComponentType(), teleport);
 
         String spouseName = resolvePlayerName(spouseUuid);
