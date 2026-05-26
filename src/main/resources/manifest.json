@@ -16,5 +16,5 @@
   "OptionalDependencies": {},
   "DisabledByDefault": false,
   "IncludesAssetPack": true,
-  "Main": "com.airijko.endlessleveling.endlessmarriage.EndlessMarriage"
+  "Main": "com.airijko.endlessmarriage.EndlessMarriage"
 }
