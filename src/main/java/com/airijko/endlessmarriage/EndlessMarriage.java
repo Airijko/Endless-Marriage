@@ -377,6 +377,15 @@ public class EndlessMarriage extends JavaPlugin {
                         // raw XP (no bonuses, no listener re-fire).
                         EndlessLevelingAPI.get().adjustRawXp(uuid, -halfXp);
                         EndlessLevelingAPI.get().adjustRawXp(spouseUuid, halfXp);
+
+                        // Positive handshake to EL core: the couple-only split
+                        // ran for this kill, so PartyManager must skip its
+                        // party-share loop (otherwise the spouse is paid twice).
+                        // Only meaningful for a couple-only party — when not
+                        // partied there is no party loop to suppress.
+                        if (coupleOnlyParty) {
+                            api.markCoupleEvenSplitApplied();
+                        }
                     }
                 }
             } finally {
