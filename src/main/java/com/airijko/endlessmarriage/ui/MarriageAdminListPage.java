@@ -113,6 +113,11 @@ public class MarriageAdminListPage extends SafeInteractiveCustomUIPage<MarriageP
                 return snapshotName;
             }
         }
+        // Offline players miss the live cache; load the name read-only from the DAO.
+        java.util.Map<String, Object> card = EndlessLevelingAPI.get().getProfileCard(uuid);
+        if (card != null && card.get("name") instanceof String name && !name.isBlank()) {
+            return name;
+        }
         return uuid.toString().substring(0, 8);
     }
 }

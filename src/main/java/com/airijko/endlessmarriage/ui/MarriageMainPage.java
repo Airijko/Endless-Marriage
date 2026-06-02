@@ -336,8 +336,12 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         ui.set("#MarriedPanel.Visible", false);
         ui.set("#UnmarriedPanel.Visible", true);
 
-        // Witness panel is married-only.
-        ui.set("#WitnessPanel.Visible", false);
+        // Keep the witness panel as a reserved left slot so the 1304-wide wrapper
+        // stays symmetric (280|12|720|12|280) and the menu renders centered. Married
+        // view fills it with witnesses; unmarried shows a placeholder.
+        ui.set("#WitnessPanel.Visible", true);
+        ui.clear("#WitnessRows");
+        ui.set("#WitnessCountLabel.Text", "Appears after marriage");
 
         // Check for pending proposals
         if (data.hasProposal(senderUuid)) {
@@ -977,6 +981,11 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
             if (snapshotName != null) {
                 return snapshotName;
             }
+        }
+        // Offline players miss the live cache; load the name read-only from the DAO.
+        java.util.Map<String, Object> card = com.airijko.endlessleveling.api.EndlessLevelingAPI.get().getProfileCard(uuid);
+        if (card != null && card.get("name") instanceof String name && !name.isBlank()) {
+            return name;
         }
         String fallback = uuid.toString().substring(0, 8);
         return fallback != null ? fallback : "";
