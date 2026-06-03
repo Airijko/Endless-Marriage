@@ -16,6 +16,7 @@ import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.modules.physics.component.Velocity;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import org.joml.Vector3d;
 
 import javax.annotation.Nonnull;
 import java.util.Map;
@@ -32,9 +33,9 @@ import java.util.UUID;
  * <p>This is safe to do every tick because {@link PiggybackService} shrinks
  * the rider's bounding box to a zero-volume box on mount, so the per-tick
  * position assignment never trips {@code PlayerProcessMovementSystem}'s
- * "Jump in location" collision push guard. The rider's velocity is also
- * cleared each tick so the engine's velocity sampling does not try to push
- * them away from the carrier.
+ * "Jump in location" collision push guard. The rider's velocity is set to
+ * match the carrier's each tick (rather than zeroed) so clients interpolate
+ * the rider smoothly along the carrier's path instead of snapping per tick.
  *
  * <p>The system is per-store: a piggyback session is only synced if both
  * spouses are present in the currently-ticking store. Cross-world cases are
@@ -44,6 +45,14 @@ import java.util.UUID;
  * disappears underneath them.
  */
 public final class PiggybackFollowSystem extends TickingSystem<EntityStore> {
+
+    /**
+     * How far ahead, in seconds, to project the rider along the carrier's
+     * velocity. Compensates for the carrier client -> server -> rider position
+     * round-trip so the rider tracks the carrier instead of lagging behind.
+     * Roughly one server tick plus a typical round-trip; tune to taste.
+     */
+    private static final float FOLLOW_LEAD_SECONDS = 0.10f;
 
     private final PiggybackService piggybackService;
 
@@ -90,18 +99,44 @@ public final class PiggybackFollowSystem extends TickingSystem<EntityStore> {
                     continue;
                 }
 
-                // Direct assign — bypasses Player.moveTo / addLocationChange
-                // so we never accumulate collisionPositionOffset on the rider
-                // (the rider's box is zero-volume anyway, so collision is a
-                // no-op for them). The position change is picked up by the
-                // entity tracker on the next sync pass and pushed to clients,
-                // which is what makes the rider's camera follow the carrier.
-                riderTransform.getPosition().set(carrierTransform.getPosition());
+                // Carrier's server velocity, used both to lead the rider's
+                // position (countering the carrier client -> server -> rider
+                // round-trip that otherwise makes the rider visibly trail) and
+                // to drive the rider's client-side interpolation below.
+                Velocity carrierVelocity = store.getComponent(
+                        carrierRef, Velocity.getComponentType());
+                double vx = 0d, vy = 0d, vz = 0d;
+                if (carrierVelocity != null) {
+                    vx = carrierVelocity.getX();
+                    vy = carrierVelocity.getY();
+                    vz = carrierVelocity.getZ();
+                }
 
+                // Direct assign — bypasses Player.moveTo / addLocationChange so
+                // we never accumulate collisionPositionOffset on the rider (the
+                // rider's box is zero-volume anyway, so collision is a no-op).
+                // Lead the carrier by a short extrapolation window so the rider
+                // lands where the carrier is heading rather than where it just
+                // was. The change is picked up by the entity tracker next sync
+                // and pushed to clients.
+                Vector3d carrierPos = carrierTransform.getPosition();
+                riderTransform.getPosition().set(
+                        carrierPos.x() + vx * FOLLOW_LEAD_SECONDS,
+                        carrierPos.y() + vy * FOLLOW_LEAD_SECONDS,
+                        carrierPos.z() + vz * FOLLOW_LEAD_SECONDS);
+
+                // Match the carrier's velocity instead of zeroing it. Zeroing
+                // told every client the rider was standing still, so each
+                // per-tick position assignment arrived as a hard snap with no
+                // client-side prediction between ticks. Feeding the carrier's
+                // velocity — including the client-prediction channel — lets the
+                // rider interpolate smoothly along the carrier's path for both
+                // the rider and onlookers.
                 Velocity riderVelocity = store.getComponent(
                         riderRef, Velocity.getComponentType());
                 if (riderVelocity != null) {
-                    riderVelocity.setZero();
+                    riderVelocity.set(vx, vy, vz);
+                    riderVelocity.setClient(vx, vy, vz);
                 }
             } catch (Exception ignored) {
                 // Wrong-thread / race during a teleport — skip this tick.

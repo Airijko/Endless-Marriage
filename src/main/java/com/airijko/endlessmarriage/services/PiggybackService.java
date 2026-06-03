@@ -170,6 +170,22 @@ public final class PiggybackService {
             return MountResult.SPOUSE_DIFFERENT_WORLD;
         }
 
+        // Refuse if either spouse already holds an engine MountedComponent (seated in a
+        // chair, riding a minecart, or on an NPC mount). The engine's
+        // MountedComponent.clone() always rebuilds via the entity constructor, so when our
+        // mount triggers an archetype change on a participant that already has a *block*
+        // MountedComponent, the clone nulls out mountedToBlock — leaving a component with
+        // both mountedToEntity and mountedToBlock null. MountSystems.TrackerUpdate then
+        // throws "Couldn't create MountedUpdate packet for MountedComponent" on the next
+        // tick and crashes the world. (The carrier gets a MountedByComponent added, which
+        // is the archetype change that clones their seated MountedComponent.)
+        if (riderStore.getComponent(riderRef, MountedComponent.getComponentType()) != null) {
+            return MountResult.ALREADY_MOUNTED;
+        }
+        if (spouseStore.getComponent(spouseRef, MountedComponent.getComponentType()) != null) {
+            return MountResult.SPOUSE_ALREADY_CARRYING;
+        }
+
         Vector3d riderPos = positionOf(riderRef, riderStore);
         Vector3d spousePos = positionOf(spouseRef, spouseStore);
         if (riderPos == null || spousePos == null) {
@@ -220,6 +236,15 @@ public final class PiggybackService {
             return MountResult.SPOUSE_IS_RIDING;
         }
         if (carriers.containsKey(syntheticCarrierUuid)) {
+            return MountResult.SPOUSE_ALREADY_CARRYING;
+        }
+
+        // Same engine clone()-corruption guard as tryMount: refuse if rider or target
+        // already holds a MountedComponent, else the archetype change crashes the world.
+        if (riderStore.getComponent(riderRef, MountedComponent.getComponentType()) != null) {
+            return MountResult.ALREADY_MOUNTED;
+        }
+        if (targetRef.getStore().getComponent(targetRef, MountedComponent.getComponentType()) != null) {
             return MountResult.SPOUSE_ALREADY_CARRYING;
         }
 
