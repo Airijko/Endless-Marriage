@@ -163,6 +163,19 @@ public class EndlessMarriage extends JavaPlugin {
         proximitySystem = new MarriageProximitySystem(marriageDataManager, marriageConfig);
         this.getEntityStoreRegistry().registerSystem(proximitySystem);
 
+        // Evict the proximity system's per-store throttle accumulator when an
+        // instance world is torn down. MarriageProximitySystem.timeSinceLastCheck
+        // is keyed by per-world Store; without this hook a dead instance world's
+        // Store stays a live map key for the whole server uptime, transitively
+        // pinning that world's entire component graph (systemMetrics,
+        // HistoricMetric arrays, ECS data, ~2,100 chunk states) — ~9 GB/hour of
+        // accumulated dead worlds on a churning instance server. RemoveWorldEvent
+        // fires synchronously inside Universe.removeWorld, so the world's
+        // EntityStore is still attached and we can resolve its Store here.
+        this.getEventRegistry().registerGlobal(
+                com.hypixel.hytale.server.core.universe.world.events.RemoveWorldEvent.class,
+                this::onWorldRemoved);
+
         // Pumps the lazy MarriageComponent bridge every 5s so other systems can resolve
         // spouse state via the standard ECS lookup instead of hitting MarriageDataManager
         // every tick. Without this, the component stays empty.
@@ -272,6 +285,31 @@ public class EndlessMarriage extends JavaPlugin {
             tieredRingDataManager.reapplyOnJoin(uuid, entityRef, store);
         } catch (Exception ex) {
             LOGGER.atWarning().withCause(ex).log("Failed to re-apply tiered ring bonus on join.");
+        }
+    }
+
+    /**
+     * Drops the dead world's per-store throttle entry from
+     * {@link MarriageProximitySystem} so a torn-down instance world's
+     * {@code Store} is no longer pinned as a map key. See the comment at the
+     * registration site for the leak this prevents.
+     */
+    private void onWorldRemoved(
+            @Nonnull com.hypixel.hytale.server.core.universe.world.events.RemoveWorldEvent event) {
+        try {
+            if (proximitySystem == null || event.getWorld() == null) {
+                return;
+            }
+            var entityStoreHolder = event.getWorld().getEntityStore();
+            com.hypixel.hytale.component.Store<
+                    com.hypixel.hytale.server.core.universe.world.storage.EntityStore> store =
+                    entityStoreHolder != null ? entityStoreHolder.getStore() : null;
+            if (store != null) {
+                proximitySystem.onStoreShutdown(store);
+            }
+        } catch (Exception ex) {
+            LOGGER.atWarning().withCause(ex).log(
+                    "Failed to evict proximity throttle entry on world removal.");
         }
     }
 
