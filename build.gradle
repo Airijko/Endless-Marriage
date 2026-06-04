@@ -136,10 +136,10 @@ tasks.register('watch') {
     }
 }
 
-// Centralized output: also copy produced jars into ../00_EndlessBuildOutputJars
+// Centralized output: also copy produced jars into ../00_EndlessUpdates
 tasks.register('copyToEndlessJars', Copy) {
     dependsOn tasks.withType(Jar)
     from { tasks.withType(Jar).findAll { it.enabled }.collect { it.archiveFile } }
-    into file("${projectDir}/../00_EndlessBuildOutputJars")
+    into file("${projectDir}/../00_EndlessUpdates")
 }
 tasks.named('build') { finalizedBy 'copyToEndlessJars' }
