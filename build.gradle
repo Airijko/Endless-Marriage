@@ -22,10 +22,20 @@ def resolveHytaleServerJar() {
         candidates.add("${configuredInstallPath}/Server/HytaleServer.jar")
     }
 
-    def appData = System.getenv('APPDATA')
-    if (appData != null && !appData.isBlank()) {
-        candidates.add("${appData}/Hytale/install/release/package/game/latest/Server/HytaleServer.jar")
-    }
+    def hytaleHome = {
+        def userHome = System.getProperty('user.home')
+        def osName = System.getProperty('os.name').toLowerCase()
+        if (osName.contains('win')) {
+            def appData = System.getenv('APPDATA') ?: "${userHome}/AppData/Roaming"
+            return "${appData}/Hytale"
+        }
+        if (osName.contains('mac')) {
+            return "${userHome}/Library/Application Support/Hytale"
+        }
+        def flatpak = "${userHome}/.var/app/com.hypixel.HytaleLauncher/data/Hytale"
+        return new File(flatpak).exists() ? flatpak : "${userHome}/.local/share/Hytale"
+    }()
+    candidates.add("${hytaleHome}/install/release/package/game/latest/Server/HytaleServer.jar")
 
     candidates.add("${project.rootDir}/libs/HytaleServer.jar")
 
@@ -54,14 +64,12 @@ repositories {
 
 def resolveEndlessLevelingJar() {
     def candidates = [
-        "${project.rootDir}/../endlessleveling/build/libs/EndlessLeveling.jar",
-        "${project.rootDir}/../EndlessLeveling/build/libs/EndlessLeveling.jar",
+        "${project.rootDir}/../Endless-Leveling-Core/build/libs/EndlessLeveling.jar",
         "${project.rootDir}/libs/EndlessLeveling.jar"
     ]
     // Also search for versioned JARs (e.g. EndlessLeveling-7.3.4.jar)
     def dirs = [
-        file("${project.rootDir}/../endlessleveling/build/libs"),
-        file("${project.rootDir}/../EndlessLeveling/build/libs"),
+        file("${project.rootDir}/../Endless-Leveling-Core/build/libs"),
         file("${project.rootDir}/libs")
     ]
     for (dir in dirs) {
