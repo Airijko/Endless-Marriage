@@ -982,9 +982,12 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
                 return snapshotName;
             }
         }
-        // Offline players miss the live cache; load the name read-only from the DAO.
-        java.util.Map<String, Object> card = com.airijko.endlessleveling.api.EndlessLevelingAPI.get().getProfileCard(uuid);
-        if (card != null && card.get("name") instanceof String name && !name.isBlank()) {
+        // Offline players miss the live cache; resolve the name read-only via the
+        // name-only DAO query (not a full profile-card build).
+        java.util.Map<String, String> names = com.airijko.endlessleveling.api.EndlessLevelingAPI.get()
+                .getPlayerNames(java.util.Collections.singletonList(uuid));
+        String name = names.get(uuid.toString());
+        if (name != null && !name.isBlank()) {
             return name;
         }
         String fallback = uuid.toString().substring(0, 8);
