@@ -1,5 +1,20 @@
 # Endless Marriage - Update Log
 
+## 2026-06-22 — 2.11.2
+
+### Piggyback: rider no longer invisible + camera follows the carrier
+
+Two long-standing piggyback bugs traced back to the same 2.1.1 fix attempt (the zero-volume `BoundingBox` + the `MountedComponent`); both are reversed here with the actual root cause addressed.
+
+- **Rider invisibility (fixed).** Shrinking the rider's `BoundingBox` to a zero-volume box made `getMaximumThickness()` return `0`. The engine's `EntityTrackerSystems.LODCull` drops any entity where `maximumThickness < ENTITY_LOD_RATIO * distanceSq` — with thickness `0` that is true for every viewer not standing exactly on the rider, so the rider was removed from everyone's visible set and never rendered (no model/skin/mount packets sent). The box is no longer touched. (Players don't physically collide with each other in this engine — all entity-collision systems are NPC-only — so the box-shrink was guarding against a push that can't happen; the original "Jump in location" spam came from the follow-system teleport, and piggyback range is ≤5 blocks so no large jump occurs.)
+- **Rider camera stationary (fixed).** The rider was given an engine `MountedComponent` with `MountController.Minecart` — the only entity-mount controller the engine has. That puts the rider's *own* client into "driver" mode: it simulates the mount's motion locally and anchors the camera to that local sim. Since a piggyback carrier is a real player who walks under their own power (the rider supplies no steering input), the rider's local sim never moved the "mount" and the camera froze. We no longer attach a `MountedComponent`. The rider is carried as an ordinary player whose position **and velocity** are slaved to the carrier every tick by `PiggybackFollowSystem`, which keeps the rider's normal player camera and makes it track the carrier smoothly.
+- `PiggybackFollowSystem` now applies a small vertical seat offset (`RIDE_OFFSET_Y`, 1.0 blocks) so the rider sits on the carrier's back/shoulders instead of clipping inside them (the old client-side `MountedComponent` attachment offset is gone with the component).
+- `PiggybackService` simplified: removed the `BoundingBox` snapshot/shrink/restore plumbing and the `MountedComponent` attach/remove; the engine-mount guards (refuse to start a piggyback while a participant is on a real minecart/seat) are retained.
+
+> Note: the "rider is a passive passenger; the carrier walks normally" control model was chosen deliberately. The engine offers no native passenger-on-a-moving-entity mount mode, so the camera-follow is achieved via server-side position/velocity slaving rather than a client mount attachment.
+
+---
+
 ## 2026-04-09 — 2.1.1 (continued)
 
 ### Marriage XP Even-Split (`XP Rework`)

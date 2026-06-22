@@ -1,9 +1,11 @@
 {
-  "config_version": 2,
+  "config_version": 3,
 
   "require_priest_for_marriage": true,
   "require_magistrate_for_divorce": true,
   "proximity_range": 25.0,
+  "proximity_check_interval_seconds": 5.0,
+  "proximity_linger_seconds": 30.0,
   "discipline_bonus_percent": 25.0,
   "xp_share_multiplier": 1.0,
   "officiate_range": 5.0,
@@ -27,7 +29,7 @@
     "precision":  { "e": 3,   "d": 5,   "c": 8,   "b": 12,  "a": 20,  "s": 36  },
     "ferocity":   { "e": 6,   "d": 10,  "c": 15,  "b": 25,  "a": 40,  "s": 72  },
     "stamina":    { "e": 5,   "d": 8,   "c": 13,  "b": 20,  "a": 32,  "s": 60  },
-    "discipline": { "e": 4,   "d": 6,   "c": 10,  "b": 16,  "a": 26,  "s": 48  },
+    "discipline": { "e": 2,   "d": 3,   "c": 5,   "b": 8,   "a": 13,  "s": 24  },
     "flow":       { "e": 15,  "d": 25,  "c": 40,  "b": 65,  "a": 100, "s": 180 },
     "sorcery":    { "e": 10,  "d": 16,  "c": 25,  "b": 40,  "a": 65,  "s": 120 }
   }

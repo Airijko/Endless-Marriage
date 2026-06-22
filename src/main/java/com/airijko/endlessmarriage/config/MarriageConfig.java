@@ -34,6 +34,13 @@ public class MarriageConfig {
     private boolean requirePriestForMarriage = true;
     private boolean requireMagistrateForDivorce = true;
     private double proximityRange = 25.0;
+    // How often the proximity check actually runs (per store). Kept deliberately
+    // slow — the linger window below covers the gap so the buff stays smooth.
+    private double proximityCheckIntervalSeconds = 5.0;
+    // How long the "near spouse" flag lingers after a couple was last seen in
+    // range. Lets the slow check coast and avoids the buff flickering off when
+    // spouses briefly separate or one streams out of the chunk.
+    private double proximityLingerSeconds = 30.0;
     private double disciplineBonusPercent = 25.0;
     private double xpShareMultiplier = 1.0;
     private double officiateRange = 5.0;
@@ -63,6 +70,14 @@ public class MarriageConfig {
 
     public double getProximityRange() {
         return proximityRange;
+    }
+
+    public double getProximityCheckIntervalSeconds() {
+        return proximityCheckIntervalSeconds;
+    }
+
+    public double getProximityLingerSeconds() {
+        return proximityLingerSeconds;
     }
 
     public double getDisciplineBonusPercent() {
@@ -159,6 +174,12 @@ public class MarriageConfig {
             }
             if (root.has("proximity_range")) {
                 proximityRange = root.get("proximity_range").getAsDouble();
+            }
+            if (root.has("proximity_check_interval_seconds")) {
+                proximityCheckIntervalSeconds = root.get("proximity_check_interval_seconds").getAsDouble();
+            }
+            if (root.has("proximity_linger_seconds")) {
+                proximityLingerSeconds = root.get("proximity_linger_seconds").getAsDouble();
             }
             if (root.has("discipline_bonus_percent")) {
                 disciplineBonusPercent = root.get("discipline_bonus_percent").getAsDouble();

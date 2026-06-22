@@ -9,6 +9,7 @@
 
 package com.airijko.endlessmarriage.commands.subcommands;
 
+import com.airijko.endlessleveling.util.OperatorHelper;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
@@ -49,6 +50,12 @@ public class DebugCommand extends AbstractPlayerCommand {
             @Nonnull Ref<EntityStore> ref,
             @Nonnull PlayerRef senderRef,
             @Nonnull World world) {
+
+        if (!OperatorHelper.isOperator(senderRef)) {
+            senderRef.sendMessage(Message.raw("[Marriage Admin] You do not have permission to use this command.").color("#ff6666"));
+            return;
+        }
+
         senderRef.sendMessage(Message.raw("[Marriage Admin] Available: /marry admin inv | npc | kiss | piggyback | testmenu | rings | list").color("#4fd7f7"));
     }
 }

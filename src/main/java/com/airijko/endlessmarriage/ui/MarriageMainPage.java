@@ -16,6 +16,9 @@ import com.airijko.endlessmarriage.data.MarriageDataManager;
 import com.airijko.endlessmarriage.data.MarriageHome;
 import com.airijko.endlessmarriage.data.MarriagePair;
 import com.airijko.endlessmarriage.data.WeddingRingTier;
+import com.airijko.endlessmarriage.data.TieredRingDataManager;
+import com.airijko.endlessmarriage.data.tiered.TieredRingDefinition;
+import com.airijko.endlessmarriage.data.tiered.TieredRingTier;
 import com.airijko.endlessmarriage.services.DebugNpcService;
 import com.airijko.endlessmarriage.services.KissService;
 import com.airijko.endlessmarriage.services.PiggybackService;
@@ -149,49 +152,50 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
                 ? String.format("Home: %.0f, %.0f, %.0f (%s)", home.x(), home.y(), home.z(), home.worldName())
                 : "No home set");
 
-        // Ring info
-        WeddingRingTier ring = data.getRing(senderUuid);
-        WeddingRingTier displayedRing = ring != null ? ring : WeddingRingTier.lowest();
-        ui.set("#RingIcon.ItemId", displayedRing.getIconItemId());
+        // Ring info — sourced from the tiered/attribute ring system (the one the
+        // Rings page now drives). The legacy cosmetic WeddingRingTier is no longer
+        // shown here.
+        TieredRingDataManager rings = EndlessMarriage.getInstance().getTieredRingDataManager();
+        TieredRingDefinition equippedRing = rings != null ? rings.getEquippedRing(senderUuid) : null;
 
-        if (ring != null) {
-            ui.set("#RingInfoLabel.Text", ring.getDisplayName() + " Ring");
-            ui.set("#RingInfoLabel.Style.TextColor", ring.getColor());
+        if (equippedRing != null) {
+            ui.set("#RingIcon.ItemId", equippedRing.iconItemId());
+            ui.set("#RingInfoLabel.Text", equippedRing.displayName());
+            ui.set("#RingInfoLabel.Style.TextColor", equippedRing.color());
         } else {
+            ui.set("#RingIcon.ItemId", TieredRingTier.E.getIconItemId());
             ui.set("#RingInfoLabel.Text", "No ring equipped");
             ui.set("#RingInfoLabel.Style.TextColor", "#7a9abf");
         }
 
-        // Upgrade button â€” always visible; Enabled toggles based on eligibility
-        // so the ring card's layout stays stable.
-        WeddingRingTier nextTier = ring != null ? ring.next() : WeddingRingTier.lowest();
+        // The button now opens the Rings page (tier -> variation picker) instead of
+        // cosmetically bumping a tier. The hint label reports unlock progress.
         int senderPrestige = EndlessLevelingAPI.get().getPlayerPrestigeLevel(senderUuid);
         int spousePrestige = EndlessLevelingAPI.get().getPlayerPrestigeLevel(spouseUuid);
         int lowestPrestige = Math.min(senderPrestige, spousePrestige);
 
-        if (nextTier == null) {
-            // Player is at max tier
-            ui.set("#RingUpgradeButton.Text", "MAX TIER");
-            ui.set("#RingUpgradeButton.Disabled", true);
-            ui.set("#RingNextLabel.Text", "Max tier reached");
+        TieredRingTier highestUnlocked = TieredRingTier.E;
+        TieredRingTier nextLocked = null;
+        for (TieredRingTier t : TieredRingTier.values()) {
+            if (lowestPrestige >= t.getPrestigeRequired()) {
+                highestUnlocked = t;
+            } else if (nextLocked == null) {
+                nextLocked = t;
+            }
+        }
+
+        ui.set("#RingUpgradeButton.Text", "BROWSE RINGS");
+        ui.set("#RingUpgradeButton.Disabled", false);
+        if (nextLocked == null) {
+            ui.set("#RingNextLabel.Text", "All tiers unlocked (up to S)");
             ui.set("#RingNextLabel.Style.TextColor", "#e0f7fa");
-        } else if (lowestPrestige >= nextTier.getPrestigeRequired()) {
-            // Eligible for upgrade
-            ui.set("#RingUpgradeButton.Text", "UPGRADE TO " + nextTier.getDisplayName().toUpperCase());
-            ui.set("#RingUpgradeButton.Disabled", false);
-            ui.set("#RingNextLabel.Text", "Ready to upgrade to " + nextTier.getDisplayName() + " Ring");
-            ui.set("#RingNextLabel.Style.TextColor", nextTier.getColor());
         } else {
-            // Not eligible
-            ui.set("#RingUpgradeButton.Text", "LOCKED");
-            ui.set("#RingUpgradeButton.Disabled", true);
-            ui.set("#RingNextLabel.Text", "Next: " + nextTier.getDisplayName()
-                    + " (Prestige " + nextTier.getPrestigeRequired() + ")");
+            ui.set("#RingNextLabel.Text", "Unlocked to " + highestUnlocked.getDisplayName()
+                    + " — " + nextLocked.getDisplayName() + " tier at Prestige " + nextLocked.getPrestigeRequired());
             ui.set("#RingNextLabel.Style.TextColor", "#7a9abf");
         }
 
-        // Always bind the event â€” the disabled state prevents activation when not eligible
-        events.addEventBinding(Activating, "#RingUpgradeButton", of("Action", "marry:ring_upgrade"), false);
+        events.addEventBinding(Activating, "#RingUpgradeButton", of("Action", "marry:rings_ui"), false);
 
         ui.set("#RingCard.Visible", true);
 

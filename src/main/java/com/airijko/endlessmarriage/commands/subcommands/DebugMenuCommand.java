@@ -11,6 +11,7 @@ package com.airijko.endlessmarriage.commands.subcommands;
 
 import com.airijko.endlessmarriage.data.MarriagePair;
 import com.airijko.endlessmarriage.ui.MarriageMainPage;
+import com.airijko.endlessleveling.util.OperatorHelper;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
@@ -52,6 +53,11 @@ public class DebugMenuCommand extends AbstractPlayerCommand {
             @Nonnull Ref<EntityStore> ref,
             @Nonnull PlayerRef senderRef,
             @Nonnull World world) {
+
+        if (!OperatorHelper.isOperator(senderRef)) {
+            senderRef.sendMessage(Message.raw("[Marriage Debug] You do not have permission to use this command.").color("#ff6666"));
+            return;
+        }
 
         Player player = store.getComponent(ref, Player.getComponentType());
         if (player == null) {

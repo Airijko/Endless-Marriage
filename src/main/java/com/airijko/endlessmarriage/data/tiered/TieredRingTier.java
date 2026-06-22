@@ -22,20 +22,27 @@ import java.util.Locale;
  */
 public enum TieredRingTier {
 
-    E("E", "#bfcdd5"),
-    D("D", "#66bb6a"),
-    C("C", "#42a5f5"),
-    B("B", "#9c5cff"),
-    A("A", "#ffa726"),
-    S("S", "#e0f7fa"),
+    E("E", "#bfcdd5",  0, "Ingredient_Bar_Iron",  "A simple iron band. No prestige required."),
+    D("D", "#66bb6a",  4, "Rock_Gem_Emerald",     "An emerald-set ring for proven adventurers."),
+    C("C", "#42a5f5",  8, "Rock_Gem_Sapphire",    "A sapphire ring forged in dedication."),
+    B("B", "#9c5cff", 12, "Rock_Gem_Voidstone",   "A voidstone ring of deep commitment."),
+    A("A", "#ffa726", 16, "Rock_Gem_Topaz",       "A golden topaz ring radiating with power."),
+    S("S", "#e0f7fa", 20, "Rock_Gem_Diamond",     "A legendary diamond ring. The ultimate bond."),
     ;
 
     private final String displayName;
     private final String color;
+    private final int prestigeRequired;
+    private final String iconItemId;
+    private final String description;
 
-    TieredRingTier(String displayName, String color) {
+    TieredRingTier(String displayName, String color, int prestigeRequired,
+                   String iconItemId, String description) {
         this.displayName = displayName;
         this.color = color;
+        this.prestigeRequired = prestigeRequired;
+        this.iconItemId = iconItemId;
+        this.description = description;
     }
 
     public String getDisplayName() {
@@ -44,6 +51,21 @@ public enum TieredRingTier {
 
     public String getColor() {
         return color;
+    }
+
+    /** Prestige both partners must reach before any ring of this tier can be equipped. */
+    public int getPrestigeRequired() {
+        return prestigeRequired;
+    }
+
+    /** Vanilla Hytale item id used as the tier's icon on the tier-selection screen. */
+    public String getIconItemId() {
+        return iconItemId;
+    }
+
+    /** Flavor text shown for the tier on the tier-selection screen. */
+    public String getDescription() {
+        return description;
     }
 
     /** Lowercase form used as a config key (e.g. "e", "s"). */

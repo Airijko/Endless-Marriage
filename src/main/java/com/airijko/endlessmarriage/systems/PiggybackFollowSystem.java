@@ -24,18 +24,19 @@ import java.util.UUID;
 
 /**
  * Per-tick system that copies the carrier's {@link TransformComponent}
- * position into the rider's transform so the rider's server-side position
- * actually follows the carrier. Without this the rider's camera stays glued
- * to wherever the {@code MountedComponent} was attached, even though the
- * client visually renders them on the carrier's back — the camera anchors to
- * the rider's server position, not the client visual offset.
+ * position (plus a small vertical seat offset) into the rider's transform so
+ * the rider is carried along as an ordinary player. This — not an engine
+ * {@code MountedComponent} — is what makes the piggyback work: the rider keeps
+ * a normal player camera, and slaving its server position + velocity to the
+ * carrier every tick makes that camera track the carrier smoothly. (An engine
+ * MountedComponent with the only available {@code MountController.Minecart}
+ * would instead put the rider's client into "driver" mode and freeze its
+ * camera, because the carrier walks under its own power rather than being
+ * steered by the rider — see {@link PiggybackService} for the full rationale.)
  *
- * <p>This is safe to do every tick because {@link PiggybackService} shrinks
- * the rider's bounding box to a zero-volume box on mount, so the per-tick
- * position assignment never trips {@code PlayerProcessMovementSystem}'s
- * "Jump in location" collision push guard. The rider's velocity is set to
- * match the carrier's each tick (rather than zeroed) so clients interpolate
- * the rider smoothly along the carrier's path instead of snapping per tick.
+ * <p>The rider's velocity is set to match the carrier's each tick (rather than
+ * zeroed) so clients interpolate the rider smoothly along the carrier's path
+ * instead of snapping per tick.
  *
  * <p>The system is per-store: a piggyback session is only synced if both
  * spouses are present in the currently-ticking store. Cross-world cases are
@@ -53,6 +54,14 @@ public final class PiggybackFollowSystem extends TickingSystem<EntityStore> {
      * Roughly one server tick plus a typical round-trip; tune to taste.
      */
     private static final float FOLLOW_LEAD_SECONDS = 0.10f;
+
+    /**
+     * Vertical offset, in blocks, placing the rider above the carrier's
+     * transform so they visibly sit on the carrier's back/shoulders rather than
+     * clipping inside them. (With no engine MountedComponent there is no
+     * client-side attachment offset, so we apply the seat height here.)
+     */
+    private static final double RIDE_OFFSET_Y = 1.0d;
 
     private final PiggybackService piggybackService;
 
@@ -122,7 +131,7 @@ public final class PiggybackFollowSystem extends TickingSystem<EntityStore> {
                 Vector3d carrierPos = carrierTransform.getPosition();
                 riderTransform.getPosition().set(
                         carrierPos.x() + vx * FOLLOW_LEAD_SECONDS,
-                        carrierPos.y() + vy * FOLLOW_LEAD_SECONDS,
+                        carrierPos.y() + RIDE_OFFSET_Y + vy * FOLLOW_LEAD_SECONDS,
                         carrierPos.z() + vz * FOLLOW_LEAD_SECONDS);
 
                 // Match the carrier's velocity instead of zeroing it. Zeroing

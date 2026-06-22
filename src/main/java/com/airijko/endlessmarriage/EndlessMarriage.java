@@ -36,6 +36,7 @@ import javax.annotation.Nonnull;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 public class EndlessMarriage extends JavaPlugin {
 
@@ -55,6 +56,7 @@ public class EndlessMarriage extends JavaPlugin {
     private PiggybackFollowSystem piggybackFollowSystem;
     private MarriageInteractListener marriageInteractListener;
     private BiConsumer<UUID, Double> xpGrantListener;
+    private Function<UUID, Double> disciplineBonusProvider;
     private Consumer<UUID> preTeleportListener;
 
     public static EndlessMarriage getInstance() {
@@ -220,6 +222,13 @@ public class EndlessMarriage extends JavaPlugin {
         xpGrantListener = createXpGrantListener();
         EndlessLevelingAPI.get().addXpGrantListener(xpGrantListener);
 
+        // Expose the live marriage Discipline bonus to EL core so the profile UI
+        // can show it in the player's Discipline row while it is active (near
+        // spouse / kiss buff). Read-only — the actual XP is granted by the
+        // listener above. Same source of truth: marriageDisciplineBonusPercent().
+        disciplineBonusProvider = this::marriageDisciplineBonusPercent;
+        EndlessLevelingAPI.get().addExternalDisciplineXpBonusProvider(disciplineBonusProvider);
+
         // Dismount piggyback before any cross-world teleport so the rider
         // does not become invisible or desync in the destination world.
         preTeleportListener = uuid -> {
@@ -246,6 +255,11 @@ public class EndlessMarriage extends JavaPlugin {
         // Unregister XP listener
         if (xpGrantListener != null) {
             EndlessLevelingAPI.get().removeXpGrantListener(xpGrantListener);
+        }
+
+        // Unregister profile-UI Discipline bonus provider
+        if (disciplineBonusProvider != null) {
+            EndlessLevelingAPI.get().removeExternalDisciplineXpBonusProvider(disciplineBonusProvider);
         }
 
         // Unregister from manager registry
@@ -346,6 +360,31 @@ public class EndlessMarriage extends JavaPlugin {
      * Uses a ThreadLocal guard to prevent infinite recursion since granting
      * XP to the spouse will trigger this listener again.
      */
+    /**
+     * The total marriage Discipline XP-bonus percent currently active for the
+     * player: the proximity bonus while near their spouse (or within the linger
+     * window) plus the kiss buff, additive. Returns {@code 0} when neither
+     * applies or the player is not married. Shared by the XP grant listener
+     * (which actually grants it) and the EL-core profile-UI provider (which
+     * displays it), so the two can never disagree.
+     */
+    private double marriageDisciplineBonusPercent(@Nonnull UUID uuid) {
+        if (marriageDataManager == null || proximitySystem == null || marriageConfig == null) {
+            return 0.0;
+        }
+        if (!marriageDataManager.isMarried(uuid)) {
+            return 0.0;
+        }
+        double pct = 0.0;
+        if (proximitySystem.isNearSpouse(uuid)) {
+            pct += marriageConfig.getDisciplineBonusPercent();
+        }
+        if (kissBuffService != null && kissBuffService.isActive(uuid)) {
+            pct += marriageConfig.getKissBuffDisciplinePercent();
+        }
+        return pct;
+    }
+
     private BiConsumer<UUID, Double> createXpGrantListener() {
         final ThreadLocal<Boolean> inMarriageXpShare = ThreadLocal.withInitial(() -> false);
 
@@ -364,19 +403,16 @@ public class EndlessMarriage extends JavaPlugin {
             }
 
             boolean nearSpouse = proximitySystem.isNearSpouse(uuid);
-            boolean hasKissBuff = kissBuffService != null && kissBuffService.isActive(uuid);
-
-            if (!nearSpouse && !hasKissBuff) {
-                return;
-            }
 
             // Total Discipline bonus: proximity bonus + kiss buff (additive).
-            double disciplineBonusPct = 0.0;
-            if (nearSpouse) {
-                disciplineBonusPct += marriageConfig.getDisciplineBonusPercent();
-            }
-            if (hasKissBuff) {
-                disciplineBonusPct += marriageConfig.getKissBuffDisciplinePercent();
+            // Single source of truth shared with the profile-UI provider so the
+            // bonus the player sees always matches the bonus actually granted.
+            double disciplineBonusPct = marriageDisciplineBonusPercent(uuid);
+
+            // Nothing to do unless a buff is active or the couple is near enough
+            // to even-split (which needs nearSpouse below).
+            if (disciplineBonusPct <= 0.0 && !nearSpouse) {
+                return;
             }
 
             inMarriageXpShare.set(true);

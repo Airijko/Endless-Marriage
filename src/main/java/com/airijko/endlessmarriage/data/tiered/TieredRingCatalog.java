@@ -75,7 +75,7 @@ public final class TieredRingCatalog {
         defaults.put(SkillAttributeType.PRECISION,  tierMap( 3,  5,  8,  12,  20,  36));
         defaults.put(SkillAttributeType.FEROCITY,   tierMap( 6, 10, 15,  25,  40,  72));
         defaults.put(SkillAttributeType.STAMINA,    tierMap( 5,  8, 13,  20,  32,  60));
-        defaults.put(SkillAttributeType.DISCIPLINE, tierMap( 4,  6, 10,  16,  26,  48));
+        defaults.put(SkillAttributeType.DISCIPLINE, tierMap( 2,  3,  5,   8,  13,  24));
         defaults.put(SkillAttributeType.FLOW,       tierMap(15, 25, 40,  65, 100, 180));
         defaults.put(SkillAttributeType.SORCERY,    tierMap(10, 16, 25,  40,  65, 120));
         DEFAULTS = Collections.unmodifiableMap(defaults);

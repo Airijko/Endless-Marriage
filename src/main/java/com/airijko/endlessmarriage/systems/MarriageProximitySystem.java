@@ -22,7 +22,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -42,13 +41,20 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class MarriageProximitySystem extends TickingSystem<EntityStore> {
 
-    private static final float CHECK_INTERVAL_SECONDS = 2.0f;
-
     private final MarriageDataManager dataManager;
     private final MarriageConfig config;
 
-    // Players who are currently near their spouse (eligible for marriage buffs)
-    private final Set<UUID> playersNearSpouse = ConcurrentHashMap.newKeySet();
+    /**
+     * Players currently eligible for marriage buffs, mapped to the wall-clock
+     * millis at which their "near spouse" state expires. The flag is refreshed
+     * (expiry pushed forward by the linger window) every time a couple is found
+     * in range, and is allowed to LINGER past that point so the buff does not
+     * flicker off the instant the pair drifts apart or one of them streams out
+     * of the chunk. This is what lets the proximity check run on a slow interval
+     * without the bonus visibly stuttering — out-of-range simply stops
+     * refreshing the entry, which then ages out on its own.
+     */
+    private final Map<UUID, Long> nearUntilMillis = new ConcurrentHashMap<>();
 
     /**
      * Per-store throttle accumulator. The system ticks once per store per
@@ -64,10 +70,12 @@ public class MarriageProximitySystem extends TickingSystem<EntityStore> {
     }
 
     /**
-     * Returns true if the player is currently within range of their spouse.
+     * Returns true if the player is currently within range of their spouse, OR
+     * was within the last linger window (see {@link #nearUntilMillis}).
      */
     public boolean isNearSpouse(@Nonnull UUID uuid) {
-        return playersNearSpouse.contains(uuid);
+        Long until = nearUntilMillis.get(uuid);
+        return until != null && System.currentTimeMillis() < until;
     }
 
     @Override
@@ -77,7 +85,7 @@ public class MarriageProximitySystem extends TickingSystem<EntityStore> {
         }
 
         float accumulated = timeSinceLastCheck.merge(store, deltaSeconds, (a, b) -> a + b);
-        if (accumulated < CHECK_INTERVAL_SECONDS) {
+        if (accumulated < (float) config.getProximityCheckIntervalSeconds()) {
             return;
         }
         timeSinceLastCheck.put(store, 0f);
@@ -86,19 +94,28 @@ public class MarriageProximitySystem extends TickingSystem<EntityStore> {
 
         double range = config.getProximityRange();
         double rangeSq = range * range;
+        long now = System.currentTimeMillis();
+        long lingerMillis = (long) (config.getProximityLingerSeconds() * 1000.0);
 
         // Check each marriage pair within this store. Couples whose players
         // are not both present in this store are simply skipped — the store
         // they actually live in will tick the same system on its own thread.
         for (MarriagePair pair : dataManager.getAllMarriages()) {
-            checkCouple(pair, store, entityStore, rangeSq);
+            checkCouple(pair, store, entityStore, rangeSq, now, lingerMillis);
         }
+
+        // Drop entries that have aged out so the map stays bounded to couples
+        // who were recently near each other rather than every player who has
+        // ever been flagged.
+        nearUntilMillis.values().removeIf(until -> until <= now);
     }
 
     private void checkCouple(@Nonnull MarriagePair pair,
             @Nonnull Store<EntityStore> store,
             @Nonnull EntityStore entityStore,
-            double rangeSq) {
+            double rangeSq,
+            long now,
+            long lingerMillis) {
         UUID p1 = pair.player1();
         UUID p2 = pair.player2();
 
@@ -108,18 +125,10 @@ public class MarriageProximitySystem extends TickingSystem<EntityStore> {
         boolean has1 = entity1 != null && entity1.isValid();
         boolean has2 = entity2 != null && entity2.isValid();
 
-        // Only one (or neither) spouse is in this store. If exactly one is
-        // here, their partner is in a different world / offline — they cannot
-        // be "near" by definition, so clear the flag for the present spouse.
-        // The absent spouse is left alone; another store's tick (or none, if
-        // they are offline) is responsible for them.
+        // Only one (or neither) spouse is in this store — their partner is in a
+        // different world / offline and cannot be "near". Don't refresh; the
+        // existing flag (if any) lingers and ages out via removeIf in tick().
         if (!has1 || !has2) {
-            if (has1) {
-                playersNearSpouse.remove(p1);
-            }
-            if (has2) {
-                playersNearSpouse.remove(p2);
-            }
             return;
         }
 
@@ -127,8 +136,6 @@ public class MarriageProximitySystem extends TickingSystem<EntityStore> {
         Vector3d pos2 = resolvePosition(entity2, store);
 
         if (pos1 == null || pos2 == null) {
-            playersNearSpouse.remove(p1);
-            playersNearSpouse.remove(p2);
             return;
         }
 
@@ -137,12 +144,12 @@ public class MarriageProximitySystem extends TickingSystem<EntityStore> {
         double dz = pos1.z() - pos2.z();
         double distSq = (dx * dx) + (dy * dy) + (dz * dz);
 
+        // Only ever refresh the flag while in range. Going out of range is a
+        // no-op: the prior expiry stands and the buff lingers until it elapses.
         if (distSq <= rangeSq) {
-            playersNearSpouse.add(p1);
-            playersNearSpouse.add(p2);
-        } else {
-            playersNearSpouse.remove(p1);
-            playersNearSpouse.remove(p2);
+            long until = now + lingerMillis;
+            nearUntilMillis.put(p1, until);
+            nearUntilMillis.put(p2, until);
         }
     }
 

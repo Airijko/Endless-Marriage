@@ -12,6 +12,7 @@ package com.airijko.endlessmarriage.commands.subcommands;
 import com.airijko.endlessmarriage.EndlessMarriage;
 import com.airijko.endlessmarriage.services.DebugNpcService;
 import com.airijko.endlessmarriage.services.PiggybackService;
+import com.airijko.endlessleveling.util.OperatorHelper;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
@@ -47,6 +48,11 @@ public class DebugPiggybackCommand extends AbstractPlayerCommand {
             @Nonnull Ref<EntityStore> ref,
             @Nonnull PlayerRef senderRef,
             @Nonnull World world) {
+
+        if (!OperatorHelper.isOperator(senderRef)) {
+            senderRef.sendMessage(Message.raw("[Marriage Debug] You do not have permission to use this command.").color("#ff6666"));
+            return;
+        }
 
         UUID senderUuid = senderRef.getUuid();
         PiggybackService piggyback = EndlessMarriage.getInstance().getPiggybackService();
