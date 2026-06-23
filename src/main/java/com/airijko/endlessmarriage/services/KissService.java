@@ -174,8 +174,10 @@ public final class KissService {
             return false;
         }
 
-        // Play the kiss SFX as a 3D positional sound at the midpoint so
-        // everyone within ~25 blocks can hear it.
+        // Play the kiss SFX as a 3D positional sound at the midpoint so only
+        // players right next to the couple hear it (SFX_EM_Kiss inherits the
+        // SFX_Attn_VeryQuiet attenuation — ~10 block max range), keeping the
+        // kiss intimate rather than audible server-wide.
         playKissSound3d(midpoint, store);
         return true;
     }

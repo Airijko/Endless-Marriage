@@ -213,37 +213,97 @@ public final class MarriageMessages {
     public static final String ANNOUNCE_CHAT = "ui.marriage.announce.chat";
     public static final String ANNOUNCE_OFFICIANT_SUFFIX = "ui.marriage.announce.officiant_suffix";
 
+    /**
+     * Centralized chat palette, mirroring EndlessLeveling core's {@code ChatMessageStrings.Color}.
+     * The brand-colored prefix is rendered separately from the body so the tag pops the same way
+     * the {@code [EndlessLeveling]} prefix does, with the body free to carry its own semantic color.
+     */
+    public static final class Color {
+        /** Romance-rose brand color for the {@code [Endless Marriage]} / {@code [Marriage]} prefixes. */
+        public static final String PREFIX_BRAND = "#ff7fb0";
+        /** Muted slate for the {@code [Marriage Debug]} / {@code [Marriage Admin]} prefixes. */
+        public static final String PREFIX_MUTED = "#9fb6d3";
+
+        public static final String SUCCESS = "#66ff66";
+        public static final String ERROR = "#ff6666";
+        public static final String INFO = "#4fd7f7";
+        public static final String WARN = "#ff9900";
+        /** Pink accent used for affection flavor (kiss, piggyback, ring sparkle). */
+        public static final String ROMANCE = "#f2a2e8";
+        public static final String MUTED = "#9fb6d3";
+
+        private Color() {
+        }
+    }
+
     private MarriageMessages() {
+    }
+
+    /** Joins a brand-colored prefix to an already-colored body, EL-core {@code prefixed(..)} style. */
+    @Nonnull
+    private static Message prefixed(@Nonnull String prefixText, @Nonnull String prefixColor, @Nonnull Message body) {
+        String tag = prefixText.endsWith(" ") ? prefixText : prefixText + " ";
+        return Message.join(Message.raw(tag).color(prefixColor), body);
     }
 
     /** Localized PREFIX-prepended chat line. Args feed into {0}, {1} of {@code key}. */
     @Nonnull
     public static Message chat(@Nonnull String key, @Nonnull String color, Object... args) {
-        return Message.raw(Lang.tr(PREFIX, "[Endless Marriage] ") + Lang.tr(key, key, args)).color(color);
+        return prefixed(Lang.tr(PREFIX, "[Endless Marriage] "), Color.PREFIX_BRAND,
+                Message.raw(Lang.tr(key, key, args)).color(color));
     }
 
     /** Same as {@link #chat} but uses the shorter {@code [Marriage]} prefix used by the main UI page. */
     @Nonnull
     public static Message shortChat(@Nonnull String key, @Nonnull String color, Object... args) {
-        return Message.raw(Lang.tr(SHORT_PREFIX, "[Marriage] ") + Lang.tr(key, key, args)).color(color);
+        return prefixed(Lang.tr(SHORT_PREFIX, "[Marriage] "), Color.PREFIX_BRAND,
+                Message.raw(Lang.tr(key, key, args)).color(color));
     }
 
     /** Same as {@link #chat} but uses the {@code [Marriage Debug]} prefix for dev/admin paths. */
     @Nonnull
     public static Message debugChat(@Nonnull String key, @Nonnull String color, Object... args) {
-        return Message.raw(Lang.tr(DEBUG_PREFIX, "[Marriage Debug] ") + Lang.tr(key, key, args)).color(color);
+        return prefixed(Lang.tr(DEBUG_PREFIX, "[Marriage Debug] "), Color.PREFIX_MUTED,
+                Message.raw(Lang.tr(key, key, args)).color(color));
     }
 
     /** Same as {@link #chat} but uses the {@code [Rings]} prefix used by the tiered ring browser. */
     @Nonnull
     public static Message ringsChat(@Nonnull String key, @Nonnull String color, Object... args) {
-        return Message.raw(Lang.tr(RINGS_PREFIX, "[Rings] ") + Lang.tr(key, key, args)).color(color);
+        return prefixed(Lang.tr(RINGS_PREFIX, "[Rings] "), Color.PREFIX_BRAND,
+                Message.raw(Lang.tr(key, key, args)).color(color));
     }
 
     /** Localized line without the marriage PREFIX. */
     @Nonnull
     public static Message line(@Nonnull String key, @Nonnull String color, Object... args) {
         return Message.raw(Lang.tr(key, key, args)).color(color);
+    }
+
+    // --- Raw (non-localized) builders for inline call sites that compose their own text ---
+
+    /** Brand prefix {@code [Endless Marriage]} + an already-built raw body string. */
+    @Nonnull
+    public static Message prefixedLine(@Nonnull String body, @Nonnull String color) {
+        return prefixed(Lang.tr(PREFIX, "[Endless Marriage] "), Color.PREFIX_BRAND, Message.raw(body).color(color));
+    }
+
+    /** Brand prefix {@code [Marriage]} + an already-built raw body string. */
+    @Nonnull
+    public static Message shortLine(@Nonnull String body, @Nonnull String color) {
+        return prefixed(Lang.tr(SHORT_PREFIX, "[Marriage] "), Color.PREFIX_BRAND, Message.raw(body).color(color));
+    }
+
+    /** Muted prefix {@code [Marriage Debug]} + an already-built raw body string. */
+    @Nonnull
+    public static Message debugLine(@Nonnull String body, @Nonnull String color) {
+        return prefixed(Lang.tr(DEBUG_PREFIX, "[Marriage Debug] "), Color.PREFIX_MUTED, Message.raw(body).color(color));
+    }
+
+    /** Muted prefix {@code [Marriage Admin]} + an already-built raw body string. */
+    @Nonnull
+    public static Message adminLine(@Nonnull String body, @Nonnull String color) {
+        return prefixed("[Marriage Admin] ", Color.PREFIX_MUTED, Message.raw(body).color(color));
     }
 
     /** Resolve a key to its localized String (no formatting wrapper). */

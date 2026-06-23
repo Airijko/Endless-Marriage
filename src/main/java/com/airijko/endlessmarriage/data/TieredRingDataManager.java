@@ -148,6 +148,30 @@ public class TieredRingDataManager {
         refreshEntityStats(uuid, ref, accessor);
     }
 
+    /**
+     * Re-inject the equipped ring's runtime bonus after EL wiped all permanent
+     * attribute bonuses on an augment-selection change.
+     *
+     * <p>EL's {@code AugmentExecutor} clears every permanent bonus (ours is
+     * registered with {@code expiresAt == 0}) on any loadout/profile change and
+     * the post-restart first sweep, then re-derives only its own augment-owned
+     * passives. Without this re-apply the ring contributes nothing after the
+     * first augment reconcile (which is why an equipped ring "does nothing" on
+     * relog). Runtime-only — no {@code EntityStatMap} refresh: this fires
+     * synchronously inside EL's reconcile pass (see
+     * {@code EndlessLevelingAPI#notifyAugmentSelectionChanged}), so the
+     * LIFE_FORCE max is reconciled by EL's own health pass on the same tick and
+     * the percent attributes are read on demand. Touching the stat map here
+     * would re-enter EL mid-reconcile; equip/join already do the full refresh.
+     */
+    public void reapplyOnAugmentSelectionChanged(@Nonnull UUID uuid) {
+        TieredRingDefinition def = getEquippedRing(uuid);
+        if (def == null) {
+            return;
+        }
+        applyRingBonus(uuid, def);
+    }
+
     // ---- Bonus plumbing ----
 
     private void applyRingBonus(@Nonnull UUID uuid, @Nonnull TieredRingDefinition def) {

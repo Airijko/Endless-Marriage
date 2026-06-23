@@ -15,7 +15,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.protocol.InteractionType;
-import com.hypixel.hytale.server.core.Message;
+import com.airijko.endlessmarriage.commands.subcommands.MarriageMessages;
 import com.hypixel.hytale.server.core.event.events.player.PlayerInteractEvent;
 import com.hypixel.hytale.server.core.entity.UUIDComponent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
@@ -85,7 +85,7 @@ public final class MarriageInteractListener {
         // Toggle: if the sender is already riding their spouse, dismount; otherwise mount.
         if (piggybackService.isRiding(senderUuid)) {
             piggybackService.dismount(senderUuid, riderRef, riderStore);
-            sendMessage(senderPlayerRef, "[Marriage] Dismounted.", "#9ad4ff");
+            sendMessage(senderPlayerRef, "Dismounted.", "#9ad4ff");
             event.setCancelled(true);
             return;
         }
@@ -93,11 +93,11 @@ public final class MarriageInteractListener {
         PiggybackService.MountResult result = piggybackService.tryMount(senderUuid, riderRef, riderStore);
         switch (result) {
             case SUCCESS -> {
-                sendMessage(senderPlayerRef, "[Marriage] You hop onto your spouse's back!", "#f2a2e8");
+                sendMessage(senderPlayerRef, "You hop onto your spouse's back!", "#f2a2e8");
                 event.setCancelled(true);
             }
             case ALREADY_MOUNTED, SPOUSE_ALREADY_CARRYING, SPOUSE_IS_RIDING ->
-                sendMessage(senderPlayerRef, "[Marriage] Cannot piggyback right now.", "#ff9900");
+                sendMessage(senderPlayerRef, "Cannot piggyback right now.", "#ff9900");
             default -> {
                 // TOO_FAR / NOT_MARRIED / SPOUSE_OFFLINE / ERROR — swallow,
                 // interact event fires often enough that spamming chat is bad.
@@ -109,7 +109,7 @@ public final class MarriageInteractListener {
         if (ref == null || !ref.isValid()) {
             return;
         }
-        ref.sendMessage(Message.raw(text).color(color));
+        ref.sendMessage(MarriageMessages.shortLine(text, color));
     }
 
     private UUID resolveUuid(@Nonnull Ref<EntityStore> ref) {

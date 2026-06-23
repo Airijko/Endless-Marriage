@@ -184,8 +184,6 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
             }
         }
 
-        ui.set("#RingUpgradeButton.Text", "BROWSE RINGS");
-        ui.set("#RingUpgradeButton.Disabled", false);
         if (nextLocked == null) {
             ui.set("#RingNextLabel.Text", "All tiers unlocked (up to S)");
             ui.set("#RingNextLabel.Style.TextColor", "#e0f7fa");
@@ -194,8 +192,6 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
                     + " — " + nextLocked.getDisplayName() + " tier at Prestige " + nextLocked.getPrestigeRequired());
             ui.set("#RingNextLabel.Style.TextColor", "#7a9abf");
         }
-
-        events.addEventBinding(Activating, "#RingUpgradeButton", of("Action", "marry:rings_ui"), false);
 
         ui.set("#RingCard.Visible", true);
 
@@ -206,6 +202,7 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         events.addEventBinding(Activating, "#InventoryButton", of("Action", "marry:inventory"), false);
         events.addEventBinding(Activating, "#DivorceButton", of("Action", "marry:divorce"), false);
         events.addEventBinding(Activating, "#StatusButton", of("Action", "marry:status"), false);
+        events.addEventBinding(Activating, "#OverflowLogButton", of("Action", "marry:overflow_log"), false);
         events.addEventBinding(Activating, "#RingsButton", of("Action", "marry:rings_ui"), false);
 
         // Disable buttons if spouse is offline
@@ -423,6 +420,7 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
             case "marry:propose_ui" -> handleOpenProposePage(ref, store);
             case "marry:find_priest" -> handleOpenFindPriestPage(ref, store);
             case "marry:status" -> handleStatus();
+            case "marry:overflow_log" -> handleOpenOverflowLogPage(ref, store);
             case "marry:records" -> handleRecords();
             case "marry:officiate_ui" -> handleOpenOfficiatePage(ref, store);
             case "marry:rings_ui" -> handleOpenRingPage(ref, store);
@@ -890,6 +888,21 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
             spouseRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.RING_SPOUSE_UPGRADED, "#4fd7f7",
                     resolvePlayerName(senderUuid), next.getDisplayName()));
         }
+    }
+
+    private void handleOpenOverflowLogPage(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store) {
+        UUID senderUuid = playerRef.getUuid();
+        MarriageDataManager data = EndlessMarriage.getInstance().getMarriageDataManager();
+        if (!data.isMarried(senderUuid)) {
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.NOT_MARRIED, "#ff6666"));
+            return;
+        }
+        Player player = store.getComponent(ref, Player.getComponentType());
+        if (player == null) {
+            return;
+        }
+        MarriageOverflowLogPage page = new MarriageOverflowLogPage(playerRef, CustomPageLifetime.CanDismiss);
+        player.getPageManager().openCustomPage(ref, store, page);
     }
 
     private void handleOpenRingPage(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store) {

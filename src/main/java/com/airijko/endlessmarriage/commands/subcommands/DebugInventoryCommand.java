@@ -12,7 +12,6 @@ package com.airijko.endlessmarriage.commands.subcommands;
 import com.airijko.endlessleveling.util.OperatorHelper;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractPlayerCommand;
 import com.hypixel.hytale.server.core.entity.entities.Player;
@@ -54,7 +53,7 @@ public class DebugInventoryCommand extends AbstractPlayerCommand {
             @Nonnull World world) {
 
         if (!OperatorHelper.isOperator(senderRef)) {
-            senderRef.sendMessage(Message.raw("[Marriage Debug] You do not have permission to use this command.").color("#ff6666"));
+            senderRef.sendMessage(MarriageMessages.debugLine("You do not have permission to use this command.", "#ff6666"));
             return;
         }
 
@@ -74,6 +73,6 @@ public class DebugInventoryCommand extends AbstractPlayerCommand {
         });
 
         player.getPageManager().setPageWithWindows(ref, store, Page.Bench, true, new ContainerWindow(container));
-        senderRef.sendMessage(Message.raw("[Marriage Debug] Opened dummy inventory (in-memory).").color("#4fd7f7"));
+        senderRef.sendMessage(MarriageMessages.debugLine("Opened dummy inventory (in-memory).", "#4fd7f7"));
     }
 }

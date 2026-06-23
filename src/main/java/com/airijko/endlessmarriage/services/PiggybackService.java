@@ -184,17 +184,19 @@ public final class PiggybackService {
             return MountResult.TOO_FAR;
         }
 
-        // NOTE: we deliberately do NOT attach an engine MountedComponent here.
-        // The only entity-mount controller the engine offers is
-        // MountController.Minecart, which puts the *rider's* client into "driver"
-        // mode: the client simulates the mount's movement locally and anchors the
-        // camera to that local simulation. Because a piggyback carrier is a real
-        // player who walks under their own power (the rider supplies no steering
-        // input), the rider's local sim never moves the "mount", so the rider's
-        // camera froze in place. Instead the rider is carried as an ordinary
-        // player whose position + velocity are slaved to the carrier every tick by
-        // PiggybackFollowSystem — that keeps the rider's normal player camera and
-        // makes it track the carrier smoothly.
+        // No engine MountedComponent is attached. The only entity-mount controller
+        // (MountController.Minecart) makes the *rider* the driver — it locally
+        // simulates the mount and writes the mount target's transform — so a
+        // self-walking carrier never moves on the rider's client and the camera
+        // freezes. Instead the rider is made a passive, server-authoritative seat
+        // (MountController.BlockMount) whose seat position PiggybackSeatStreamSystem
+        // streams to follow the carrier every tick — the carrier drives via normal
+        // player movement, the rider can't steer it, and the rider's camera tracks
+        // the carrier. PiggybackFollowSystem additionally slaves the rider's server
+        // position to the carrier (body co-location for onlookers + keeping the
+        // rider inside nearby viewers' tracking range so the seat stream reaches
+        // them). The rider's box is left full-size — a zero-volume box trips
+        // EntityTrackerSystems.LODCull and re-introduces invisibility.
         riders.put(riderUuid, spouseUuid);
         carriers.put(spouseUuid, riderUuid);
         LOGGER.atInfo().log("Piggyback started: %s riding %s", riderUuid, spouseUuid);
@@ -233,8 +235,8 @@ public final class PiggybackService {
             return MountResult.SPOUSE_ALREADY_CARRYING;
         }
 
-        // See tryMount: no engine MountedComponent — the rider is carried as a
-        // position-slaved ordinary player so its camera tracks the carrier.
+        // See tryMount: no engine MountedComponent — the rider is a passive
+        // BlockMount seat streamed to follow the target by PiggybackSeatStreamSystem.
         riders.put(riderUuid, syntheticCarrierUuid);
         carriers.put(syntheticCarrierUuid, riderUuid);
         LOGGER.atInfo().log("Debug piggyback started: %s riding NPC %s", riderUuid, syntheticCarrierUuid);
@@ -242,18 +244,19 @@ public final class PiggybackService {
     }
 
     /**
-     * Ends the rider's piggyback session and clears in-memory tracking. Returns
-     * true if a session was actually ended. (No ECS component to remove — the
-     * rider is carried purely via PiggybackFollowSystem position-slaving, which
-     * stops as soon as the tracking entry below is gone. The {@code riderRef} /
-     * {@code riderStore} parameters are retained for call-site symmetry and
-     * future use.)
+     * Removes the rider's MountedComponent and clears in-memory tracking.
+     * Returns true if a session was actually ended.
      */
     public boolean dismount(@Nonnull UUID riderUuid,
             @Nonnull Ref<EntityStore> riderRef,
             @Nonnull Store<EntityStore> riderStore) {
         if (!riders.containsKey(riderUuid)) {
             return false;
+        }
+        try {
+            riderStore.tryRemoveComponent(riderRef, MountedComponent.getComponentType());
+        } catch (Exception ex) {
+            LOGGER.atWarning().withCause(ex).log("Failed to remove MountedComponent during dismount for %s.", riderUuid);
         }
         UUID carrierUuid = riders.remove(riderUuid);
         if (carrierUuid != null) {

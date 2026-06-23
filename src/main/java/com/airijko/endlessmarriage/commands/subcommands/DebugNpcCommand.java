@@ -14,7 +14,6 @@ import com.airijko.endlessmarriage.services.DebugNpcService;
 import com.airijko.endlessleveling.util.OperatorHelper;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractPlayerCommand;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
@@ -48,32 +47,31 @@ public class DebugNpcCommand extends AbstractPlayerCommand {
             @Nonnull World world) {
 
         if (!OperatorHelper.isOperator(senderRef)) {
-            senderRef.sendMessage(Message.raw("[Marriage Debug] You do not have permission to use this command.").color("#ff6666"));
+            senderRef.sendMessage(MarriageMessages.debugLine("You do not have permission to use this command.", "#ff6666"));
             return;
         }
 
         UUID senderUuid = senderRef.getUuid();
         DebugNpcService debugNpc = EndlessMarriage.getInstance().getDebugNpcService();
         if (debugNpc == null) {
-            senderRef.sendMessage(Message.raw("[Marriage Debug] Debug NPC service unavailable.").color("#ff6666"));
+            senderRef.sendMessage(MarriageMessages.debugLine("Debug NPC service unavailable.", "#ff6666"));
             return;
         }
 
         if (debugNpc.has(senderUuid)) {
             debugNpc.despawn(senderUuid, store);
-            senderRef.sendMessage(Message.raw("[Marriage Debug] Debug NPC removed.").color("#4fd7f7"));
+            senderRef.sendMessage(MarriageMessages.debugLine("Debug NPC removed.", "#4fd7f7"));
             return;
         }
 
         DebugNpcService.DebugNpc npc = debugNpc.spawnFor(senderUuid, ref, store);
         if (npc == null) {
-            senderRef.sendMessage(Message.raw("[Marriage Debug] Failed to spawn debug NPC. Check server log; "
-                    + "the configured 'debug_npc_role' may be invalid.").color("#ff6666"));
+            senderRef.sendMessage(MarriageMessages.debugLine("Failed to spawn debug NPC. Check server log; "
+                    + "the configured 'debug_npc_role' may be invalid.", "#ff6666"));
             return;
         }
 
-        senderRef.sendMessage(Message.raw("[Marriage Debug] Debug NPC spawned beside you. "
-                + "Use /marry debug kiss or /marry debug piggyback to interact, or run this command again to remove it.")
-                .color("#4fd7f7"));
+        senderRef.sendMessage(MarriageMessages.debugLine("Debug NPC spawned beside you. "
+                + "Use /marry debug kiss or /marry debug piggyback to interact, or run this command again to remove it.", "#4fd7f7"));
     }
 }

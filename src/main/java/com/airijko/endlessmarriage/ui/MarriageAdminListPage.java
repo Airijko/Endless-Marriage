@@ -54,6 +54,18 @@ public class MarriageAdminListPage extends SafeInteractiveCustomUIPage<MarriageP
         MarriageDataManager data = EndlessMarriage.getInstance().getMarriageDataManager();
         List<MarriagePair> marriages = data.getAllMarriages();
 
+        // Make sure in-flight funnel windows are materialized before reading totals.
+        var overflowService = EndlessMarriage.getInstance().getMarriageOverflowService();
+        if (overflowService != null) {
+            overflowService.flushAll();
+        }
+        com.airijko.endlessmarriage.data.MarriageOverflowLog overflowLog =
+                EndlessMarriage.getInstance().getMarriageOverflowLog();
+        double serverTotal = overflowLog != null ? overflowLog.getServerLifetimeTotal() : 0.0D;
+        int trackedCouples = overflowLog != null ? overflowLog.getTrackedCoupleCount() : 0;
+        ui.set("#OverflowTotalLabel.Text", formatXp(serverTotal) + " XP across "
+                + trackedCouples + " couple" + (trackedCouples == 1 ? "" : "s"));
+
         ui.set("#MarriageCountLabel.Text", marriages.size() + " active marriage" + (marriages.size() == 1 ? "" : "s"));
         ui.clear("#MarriageAdminRows");
 
@@ -85,6 +97,12 @@ public class MarriageAdminListPage extends SafeInteractiveCustomUIPage<MarriageP
                 ui.set(base + " #AdminRowOfficiant.Style.TextColor", "#555555");
             }
 
+            double coupleFunneled = overflowLog != null
+                    ? overflowLog.getCoupleLifetimeTotal(pair.player1(), pair.player2())
+                    : 0.0D;
+            ui.set(base + " #AdminRowOverflow.Text", formatXp(coupleFunneled) + " XP funneled");
+            ui.set(base + " #AdminRowOverflow.Style.TextColor", coupleFunneled > 0 ? "#f2a2e8" : "#555555");
+
             index++;
         }
     }
@@ -95,6 +113,11 @@ public class MarriageAdminListPage extends SafeInteractiveCustomUIPage<MarriageP
             @Nonnull MarriagePageData data) {
         super.handleDataEvent(ref, store, data);
         // No interactive elements beyond dismissal.
+    }
+
+    @Nonnull
+    private static String formatXp(double amount) {
+        return String.format(java.util.Locale.US, "%,d", Math.round(amount));
     }
 
     @Nonnull

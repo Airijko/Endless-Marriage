@@ -43,11 +43,30 @@ public class MarriageConfig {
     private double proximityLingerSeconds = 30.0;
     private double disciplineBonusPercent = 25.0;
     private double xpShareMultiplier = 1.0;
+    // Over-cap XP funnel: when one spouse is at their level cap, redirect the XP they
+    // would otherwise burn (mob kills near spouse + raid/boss rewards) to the partner
+    // who can still gain. Master on/off switch.
+    private boolean xpOverflowFunnelEnabled = true;
+    // How often (per capped earner) the funnel coalesces into a single chat message +
+    // ledger entry. Funnels fire per XP grant; this throttles the player-facing noise.
+    private double xpOverflowNotifyIntervalSeconds = 30.0;
+    // How many recent rolled-up overflow events to retain per couple in overflow_log.json.
+    private int xpOverflowLogMaxEntriesPerCouple = 50;
     private double officiateRange = 5.0;
     private String priestClassId = "priest";
     private String magistrateClassId = "magistrate";
     private double piggybackDamageReductionPercent = 25.0;
     private double piggybackMaxRange = 5.0;
+    // Stream a server-authoritative BlockMount "seat" to the rider's client each
+    // tick so the rider's camera follows the carrier (the carrier drives via
+    // normal movement). Kill-switch: false falls back to body-only carry (rider
+    // moves for onlookers but their own camera will not follow).
+    private boolean piggybackSeatStreamEnabled = true;
+    // Vertical offset (blocks) of the streamed seat above the carrier's feet.
+    private double piggybackSeatHeight = 1.0;
+    // Block type id used for the BlockMount seat (affects the client's seated
+    // pose). Resolved via BlockType.getAssetMap(); falls back to index 0 if absent.
+    private String piggybackSeatBlockId = "Chair";
     private double witnessMaxRange = 50.0;
     private double kissRange = 1.0;
     private double kissBuffDisciplinePercent = 10.0;
@@ -88,6 +107,18 @@ public class MarriageConfig {
         return xpShareMultiplier;
     }
 
+    public boolean isXpOverflowFunnelEnabled() {
+        return xpOverflowFunnelEnabled;
+    }
+
+    public double getXpOverflowNotifyIntervalSeconds() {
+        return xpOverflowNotifyIntervalSeconds;
+    }
+
+    public int getXpOverflowLogMaxEntriesPerCouple() {
+        return xpOverflowLogMaxEntriesPerCouple;
+    }
+
     public double getOfficiateRange() {
         return officiateRange;
     }
@@ -106,6 +137,18 @@ public class MarriageConfig {
 
     public double getPiggybackMaxRange() {
         return piggybackMaxRange;
+    }
+
+    public boolean isPiggybackSeatStreamEnabled() {
+        return piggybackSeatStreamEnabled;
+    }
+
+    public double getPiggybackSeatHeight() {
+        return piggybackSeatHeight;
+    }
+
+    public String getPiggybackSeatBlockId() {
+        return piggybackSeatBlockId;
     }
 
     public double getWitnessMaxRange() {
@@ -186,6 +229,15 @@ public class MarriageConfig {
             }
             if (root.has("xp_share_multiplier")) {
                 xpShareMultiplier = root.get("xp_share_multiplier").getAsDouble();
+            }
+            if (root.has("xp_overflow_funnel_enabled")) {
+                xpOverflowFunnelEnabled = root.get("xp_overflow_funnel_enabled").getAsBoolean();
+            }
+            if (root.has("xp_overflow_notify_interval_seconds")) {
+                xpOverflowNotifyIntervalSeconds = root.get("xp_overflow_notify_interval_seconds").getAsDouble();
+            }
+            if (root.has("xp_overflow_log_max_entries_per_couple")) {
+                xpOverflowLogMaxEntriesPerCouple = root.get("xp_overflow_log_max_entries_per_couple").getAsInt();
             }
             if (root.has("officiate_range")) {
                 officiateRange = root.get("officiate_range").getAsDouble();

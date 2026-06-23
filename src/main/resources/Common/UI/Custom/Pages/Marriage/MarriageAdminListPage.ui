@@ -59,6 +59,37 @@ $C.@PageOverlay {
 
             Group { Anchor: (Height: 6); }
 
+            // ---- XP overflow summary ----
+            Group {
+                LayoutMode: Top;
+                Background: #0b141f(0.88);
+                Padding: (Full: 14);
+
+                Group {
+                    Anchor: (Width: 3, Top: 0, Left: 0, Bottom: 0);
+                    Background: #f2a2e8;
+                }
+
+                Group {
+                    LayoutMode: Left;
+                    Padding: (Left: 12);
+
+                    Label {
+                        Text: "XP OVERFLOW FUNNELED";
+                        Style: (FontSize: 10, TextColor: #f2a2e8, RenderBold: true, LetterSpacing: 2, VerticalAlignment: Center);
+                    }
+
+                    Group { FlexWeight: 1; }
+
+                    Label #OverflowTotalLabel {
+                        Text: "0 XP";
+                        Style: (FontSize: 11, TextColor: #ffffff, RenderBold: true, VerticalAlignment: Center);
+                    }
+                }
+            }
+
+            Group { Anchor: (Height: 6); }
+
             // ---- Empty state ----
             Label #EmptyLabel {
                 Text: "No active marriages.";

@@ -15,7 +15,6 @@ import com.airijko.endlessleveling.util.OperatorHelper;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
-import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractPlayerCommand;
 import com.hypixel.hytale.server.core.entity.entities.Player;
@@ -55,7 +54,7 @@ public class DebugMenuCommand extends AbstractPlayerCommand {
             @Nonnull World world) {
 
         if (!OperatorHelper.isOperator(senderRef)) {
-            senderRef.sendMessage(Message.raw("[Marriage Debug] You do not have permission to use this command.").color("#ff6666"));
+            senderRef.sendMessage(MarriageMessages.debugLine("You do not have permission to use this command.", "#ff6666"));
             return;
         }
 
@@ -67,8 +66,8 @@ public class DebugMenuCommand extends AbstractPlayerCommand {
         UUID senderUuid = senderRef.getUuid();
         MarriagePair fakePair = new MarriagePair(senderUuid, DEBUG_SPOUSE_UUID, null, System.currentTimeMillis());
 
-        senderRef.sendMessage(Message.raw("[Marriage Debug] Opening menu in fake-married preview mode. "
-                + "Spawn a debug NPC with /marry debug npc to test kiss / piggyback buttons.").color("#4fd7f7"));
+        senderRef.sendMessage(MarriageMessages.debugLine("Opening menu in fake-married preview mode. "
+                + "Spawn a debug NPC with /marry debug npc to test kiss / piggyback buttons.", "#4fd7f7"));
 
         CompletableFuture.runAsync(() -> {
             MarriageMainPage page = new MarriageMainPage(senderRef, CustomPageLifetime.CanDismiss, ref, store, fakePair);

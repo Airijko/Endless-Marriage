@@ -31,7 +31,6 @@ import javax.annotation.Nullable;
 public final class MarriageAnnouncer {
 
     private static final String WEDDING_MARCH_SOUND_ID = "SFX_EM_Ceremony_WeddingMarch";
-    private static final String COLOR_SUCCESS = "#66ff66";
 
     private MarriageAnnouncer() {
     }
@@ -68,12 +67,16 @@ public final class MarriageAnnouncer {
                     Lang.tr(player.getUuid(), MarriageMessages.ANNOUNCE_SUBTITLE,
                             "{0} & {1} are now married!", spouse1, spouse2));
 
-            Message chatAnnouncement = Message.raw(
-                    Lang.tr(player.getUuid(), MarriageMessages.PREFIX, "[Endless Marriage] ")
-                            + Lang.tr(player.getUuid(), MarriageMessages.ANNOUNCE_CHAT,
-                                    "Congratulations to {0} and {1} on their marriage!{2} Wishing the newlyweds a lifetime of happiness!",
-                                    spouse1, spouse2, officiantSuffix))
-                    .color(COLOR_SUCCESS);
+            String prefixTag = Lang.tr(player.getUuid(), MarriageMessages.PREFIX, "[Endless Marriage] ");
+            if (!prefixTag.endsWith(" ")) {
+                prefixTag = prefixTag + " ";
+            }
+            Message chatAnnouncement = Message.join(
+                    Message.raw(prefixTag).color(MarriageMessages.Color.PREFIX_BRAND),
+                    Message.raw(Lang.tr(player.getUuid(), MarriageMessages.ANNOUNCE_CHAT,
+                            "Congratulations to {0} and {1} on their marriage!{2} Wishing the newlyweds a lifetime of happiness!",
+                            spouse1, spouse2, officiantSuffix))
+                            .color(MarriageMessages.Color.SUCCESS));
 
             EventTitleUtil.showEventTitleToPlayer(player, titlePrimary, titleSecondary, true);
             player.sendMessage(chatAnnouncement);

@@ -11,5 +11,5 @@
       }
     }
   ],
-  "Parent": "SFX_Attn_Loud"
+  "Parent": "SFX_Attn_VeryQuiet"
 }

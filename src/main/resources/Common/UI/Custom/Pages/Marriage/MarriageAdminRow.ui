@@ -36,10 +36,21 @@ Group {
 
             Group { Anchor: (Height: 4); }
 
-            Label #AdminRowOfficiant {
-                Text: "No officiant";
-                Style: (FontSize: 11, TextColor: #555555);
+            Group {
+                LayoutMode: Left;
                 Anchor: (Height: 14);
+
+                Label #AdminRowOfficiant {
+                    Text: "No officiant";
+                    Style: (FontSize: 11, TextColor: #555555, VerticalAlignment: Center);
+                    FlexWeight: 1;
+                }
+
+                Label #AdminRowOverflow {
+                    Text: "0 XP funneled";
+                    Style: (FontSize: 11, TextColor: #f2a2e8, VerticalAlignment: Center, HorizontalAlignment: End);
+                    Anchor: (Width: 180);
+                }
             }
         }
     }

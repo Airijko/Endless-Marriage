@@ -14,7 +14,6 @@ import com.airijko.endlessmarriage.ui.MarriageProposePage;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
-import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.arguments.system.RequiredArg;
 import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
@@ -61,12 +60,12 @@ public class ProposeCommand extends AbstractPlayerCommand {
         String targetName = targetArg.get(context);
 
         if (data.isMarried(senderUuid)) {
-            senderRef.sendMessage(Message.raw(PREFIX + "You are already married!").color(COLOR_ERROR));
+            senderRef.sendMessage(msg("You are already married!", COLOR_ERROR));
             return;
         }
 
         if (data.hasPendingProposal(senderUuid)) {
-            senderRef.sendMessage(Message.raw(PREFIX + "You already have a pending proposal.").color(COLOR_ERROR));
+            senderRef.sendMessage(msg("You already have a pending proposal.", COLOR_ERROR));
             return;
         }
 
@@ -76,27 +75,26 @@ public class ProposeCommand extends AbstractPlayerCommand {
             long elapsed = System.currentTimeMillis() - senderDivorceTime;
             if (elapsed < HOURS_72_MS) {
                 long remaining = HOURS_72_MS - elapsed;
-                senderRef.sendMessage(Message.raw(PREFIX
-                        + "You must wait 72 hours after a divorce before remarrying. "
-                        + "Time remaining: " + formatDuration(remaining) + ".").color(COLOR_ERROR));
+                senderRef.sendMessage(msg("You must wait 72 hours after a divorce before remarrying. "
+                        + "Time remaining: " + formatDuration(remaining) + ".", COLOR_ERROR));
                 return;
             }
         }
 
         PlayerRef targetRef = findPlayerByName(targetName);
         if (targetRef == null) {
-            senderRef.sendMessage(Message.raw(PREFIX + "Player '" + targetName + "' is not online.").color(COLOR_ERROR));
+            senderRef.sendMessage(msg("Player '" + targetName + "' is not online.", COLOR_ERROR));
             return;
         }
 
         UUID targetUuid = targetRef.getUuid();
         if (targetUuid.equals(senderUuid)) {
-            senderRef.sendMessage(Message.raw(PREFIX + "You cannot propose to yourself.").color(COLOR_ERROR));
+            senderRef.sendMessage(msg("You cannot propose to yourself.", COLOR_ERROR));
             return;
         }
 
         if (data.isMarried(targetUuid)) {
-            senderRef.sendMessage(Message.raw(PREFIX + targetName + " is already married.").color(COLOR_ERROR));
+            senderRef.sendMessage(msg(targetName + " is already married.", COLOR_ERROR));
             return;
         }
 
@@ -106,17 +104,16 @@ public class ProposeCommand extends AbstractPlayerCommand {
             long elapsed = System.currentTimeMillis() - targetDivorceTime;
             if (elapsed < HOURS_72_MS) {
                 long remaining = HOURS_72_MS - elapsed;
-                senderRef.sendMessage(Message.raw(PREFIX
-                        + targetName + " recently divorced and must wait before remarrying. "
-                        + "Time remaining: " + formatDuration(remaining) + ".").color(COLOR_ERROR));
+                senderRef.sendMessage(msg(targetName + " recently divorced and must wait before remarrying. "
+                        + "Time remaining: " + formatDuration(remaining) + ".", COLOR_ERROR));
                 return;
             }
         }
 
         data.addProposal(senderUuid, targetUuid);
-        senderRef.sendMessage(Message.raw(PREFIX + "You proposed to " + targetName + "!").color(COLOR_SUCCESS));
-        targetRef.sendMessage(Message.raw(PREFIX + resolvePlayerName(senderUuid)
-                + " has proposed to you! Use /marry to accept or deny.").color(COLOR_INFO));
+        senderRef.sendMessage(msg("You proposed to " + targetName + "!", COLOR_SUCCESS));
+        targetRef.sendMessage(msg(resolvePlayerName(senderUuid)
+                + " has proposed to you! Use /marry to accept or deny.", COLOR_INFO));
     }
 
     /**
@@ -144,7 +141,7 @@ public class ProposeCommand extends AbstractPlayerCommand {
             MarriageDataManager data = dataManager();
 
             if (data.isMarried(senderUuid)) {
-                senderRef.sendMessage(Message.raw(PREFIX + "You are already married!").color(COLOR_ERROR));
+                senderRef.sendMessage(msg("You are already married!", COLOR_ERROR));
                 return;
             }
 

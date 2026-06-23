@@ -14,7 +14,6 @@ import com.airijko.endlessmarriage.data.MarriageDataManager;
 import com.airijko.endlessmarriage.data.MarriagePair;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractPlayerCommand;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
@@ -50,7 +49,7 @@ public class DivorceCommand extends AbstractPlayerCommand {
         MarriageConfig config = config();
 
         if (!data.isMarried(senderUuid)) {
-            senderRef.sendMessage(Message.raw(PREFIX + "You are not married.").color(COLOR_ERROR));
+            senderRef.sendMessage(msg("You are not married.", COLOR_ERROR));
             return;
         }
 
@@ -60,9 +59,8 @@ public class DivorceCommand extends AbstractPlayerCommand {
             long elapsed = System.currentTimeMillis() - pair.timestamp();
             if (elapsed < HOURS_72_MS) {
                 long remaining = HOURS_72_MS - elapsed;
-                senderRef.sendMessage(Message.raw(PREFIX
-                        + "You must be married for at least 72 hours before divorcing. "
-                        + "Time remaining: " + formatDuration(remaining) + ".").color(COLOR_ERROR));
+                senderRef.sendMessage(msg("You must be married for at least 72 hours before divorcing. "
+                        + "Time remaining: " + formatDuration(remaining) + ".", COLOR_ERROR));
                 return;
             }
         }
@@ -72,24 +70,22 @@ public class DivorceCommand extends AbstractPlayerCommand {
         if (!config.isRequireMagistrateForDivorce()) {
             // Divorce immediately
             data.divorce(senderUuid, spouseUuid, null);
-            senderRef.sendMessage(Message.raw(PREFIX + "You are now divorced from "
-                    + resolvePlayerName(spouseUuid) + ".").color(COLOR_WARN));
+            senderRef.sendMessage(msg("You are now divorced from "
+                    + resolvePlayerName(spouseUuid) + ".", COLOR_WARN));
             PlayerRef spouseRef = spouseUuid != null ? Universe.get().getPlayer(spouseUuid) : null;
             if (spouseRef != null) {
-                spouseRef.sendMessage(Message.raw(PREFIX + resolvePlayerName(senderUuid)
-                        + " has divorced you.").color(COLOR_WARN));
+                spouseRef.sendMessage(msg(resolvePlayerName(senderUuid)
+                        + " has divorced you.", COLOR_WARN));
             }
         } else {
             // Stage pending divorce
             data.addPendingDivorce(senderUuid);
-            senderRef.sendMessage(Message.raw(PREFIX
-                    + "Divorce requested. A Magistrate must finalize it.").color(COLOR_WARN));
-            senderRef.sendMessage(Message.raw(PREFIX
-                    + "Ask a player with the Magistrate class to use /marry to grant the divorce.").color(COLOR_INFO));
+            senderRef.sendMessage(msg("Divorce requested. A Magistrate must finalize it.", COLOR_WARN));
+            senderRef.sendMessage(msg("Ask a player with the Magistrate class to use /marry to grant the divorce.", COLOR_INFO));
             PlayerRef spouseRef = spouseUuid != null ? Universe.get().getPlayer(spouseUuid) : null;
             if (spouseRef != null) {
-                spouseRef.sendMessage(Message.raw(PREFIX + resolvePlayerName(senderUuid)
-                        + " has requested a divorce.").color(COLOR_WARN));
+                spouseRef.sendMessage(msg(resolvePlayerName(senderUuid)
+                        + " has requested a divorce.", COLOR_WARN));
             }
         }
     }

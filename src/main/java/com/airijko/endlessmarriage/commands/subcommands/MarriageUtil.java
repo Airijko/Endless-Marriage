@@ -13,6 +13,7 @@ import com.airijko.endlessleveling.api.EndlessLevelingAPI;
 import com.airijko.endlessmarriage.EndlessMarriage;
 import com.airijko.endlessmarriage.config.MarriageConfig;
 import com.airijko.endlessmarriage.data.MarriageDataManager;
+import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
@@ -26,11 +27,10 @@ import java.util.UUID;
  */
 final class MarriageUtil {
 
-    static final String COLOR_SUCCESS = "#66ff66";
-    static final String COLOR_ERROR = "#ff6666";
-    static final String COLOR_INFO = "#4fd7f7";
-    static final String COLOR_WARN = "#ff9900";
-    static final String PREFIX = "[Endless Marriage] ";
+    static final String COLOR_SUCCESS = MarriageMessages.Color.SUCCESS;
+    static final String COLOR_ERROR = MarriageMessages.Color.ERROR;
+    static final String COLOR_INFO = MarriageMessages.Color.INFO;
+    static final String COLOR_WARN = MarriageMessages.Color.WARN;
 
     /** 72 hours in milliseconds. */
     static final long HOURS_72_MS = 72L * 60L * 60L * 1000L;
@@ -42,6 +42,14 @@ final class MarriageUtil {
     static final String PERM_DIVORCE_GRANT = "endlessmarriage.divorce.grant";
 
     private MarriageUtil() {
+    }
+
+    /**
+     * Builds a brand-prefixed chat line for inline (non-localized) command feedback, matching the
+     * split-color {@code [Endless Marriage]} prefix used by {@link MarriageMessages}.
+     */
+    static Message msg(@Nonnull String body, @Nonnull String color) {
+        return MarriageMessages.prefixedLine(body, color);
     }
 
     static MarriageDataManager dataManager() {

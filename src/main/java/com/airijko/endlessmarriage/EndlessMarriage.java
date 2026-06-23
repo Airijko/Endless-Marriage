@@ -47,6 +47,8 @@ public class EndlessMarriage extends JavaPlugin {
     private MarriageConfig marriageConfig;
     private MarriageDataManager marriageDataManager;
     private TieredRingDataManager tieredRingDataManager;
+    private com.airijko.endlessmarriage.data.MarriageOverflowLog marriageOverflowLog;
+    private com.airijko.endlessmarriage.services.MarriageOverflowService marriageOverflowService;
     private MarriageProximitySystem proximitySystem;
     private PiggybackService piggybackService;
     private KissBuffService kissBuffService;
@@ -54,10 +56,13 @@ public class EndlessMarriage extends JavaPlugin {
     private DebugNpcService debugNpcService;
     private SpouseProtectionSystem spouseProtectionSystem;
     private PiggybackFollowSystem piggybackFollowSystem;
+    private com.airijko.endlessmarriage.systems.PiggybackSeatStreamSystem piggybackSeatStreamSystem;
     private MarriageInteractListener marriageInteractListener;
     private BiConsumer<UUID, Double> xpGrantListener;
+    private EndlessLevelingAPI.XpOverflowListener xpOverflowListener;
     private Function<UUID, Double> disciplineBonusProvider;
     private Consumer<UUID> preTeleportListener;
+    private Consumer<EndlessLevelingAPI.AugmentSelectionChangedEvent> augmentSelectionListener;
 
     public static EndlessMarriage getInstance() {
         return INSTANCE;
@@ -73,6 +78,14 @@ public class EndlessMarriage extends JavaPlugin {
 
     public TieredRingDataManager getTieredRingDataManager() {
         return tieredRingDataManager;
+    }
+
+    public com.airijko.endlessmarriage.data.MarriageOverflowLog getMarriageOverflowLog() {
+        return marriageOverflowLog;
+    }
+
+    public com.airijko.endlessmarriage.services.MarriageOverflowService getMarriageOverflowService() {
+        return marriageOverflowService;
     }
 
     public MarriageProximitySystem getProximitySystem() {
@@ -196,14 +209,23 @@ public class EndlessMarriage extends JavaPlugin {
         spouseProtectionSystem = new SpouseProtectionSystem(piggybackService, marriageDataManager, marriageConfig);
         this.getEntityStoreRegistry().registerSystem(spouseProtectionSystem);
 
-        // Piggyback follow: each tick, copy the carrier's TransformComponent
-        // position into the rider's so the rider's camera actually moves with
-        // the carrier (the engine's MountedComponent only affects client-side
-        // visual rendering — it never updates the rider's server position, so
-        // without this system the rider's screen stays glued to the spot
-        // where they pressed the use key).
+        // Piggyback follow: each tick, slave the rider's server position +
+        // velocity to the carrier. This keeps the rider's body co-located for
+        // onlookers, prevents the rider wandering off, and keeps the rider inside
+        // the tracking range of players near the carrier so the seat stream below
+        // reaches them. (It does NOT drive the rider's own camera — a player's
+        // client owns its position; see PiggybackSeatStreamSystem for the camera.)
         piggybackFollowSystem = new PiggybackFollowSystem(piggybackService);
         this.getEntityStoreRegistry().registerSystem(piggybackFollowSystem);
+
+        // Piggyback seat stream: each tick, push a server-authoritative
+        // BlockMount "seat" to the rider's client positioned on the carrier, so
+        // the rider's camera follows the carrier (who drives via normal movement)
+        // without the rider being able to steer them. Runs in the tracker's
+        // QUEUE_UPDATE_GROUP so per-viewer visibility is populated.
+        piggybackSeatStreamSystem =
+                new com.airijko.endlessmarriage.systems.PiggybackSeatStreamSystem(piggybackService, marriageConfig);
+        this.getEntityStoreRegistry().registerSystem(piggybackSeatStreamSystem);
 
         // Interact-key piggyback toggle on a spouse player
         marriageInteractListener = new MarriageInteractListener(marriageDataManager, piggybackService);
@@ -218,9 +240,27 @@ public class EndlessMarriage extends JavaPlugin {
         //  for this player after a server restart).
         this.getEventRegistry().registerGlobal(PlayerReadyEvent.class, this::onPlayerReady);
 
+        // XP-overflow funnel: ledger + service. The ledger persists how much over-cap
+        // XP each couple has redirected; the service holds the funnel policy and the
+        // throttled chat / ledger flush.
+        marriageOverflowLog = new com.airijko.endlessmarriage.data.MarriageOverflowLog(
+                filesManager.getDataFolder(), marriageConfig.getXpOverflowLogMaxEntriesPerCouple());
+        marriageOverflowLog.load();
+        marriageOverflowService = new com.airijko.endlessmarriage.services.MarriageOverflowService(
+                marriageDataManager, marriageConfig, proximitySystem, marriageOverflowLog);
+
         // Register XP grant listener for marriage XP sharing and Discipline bonus
         xpGrantListener = createXpGrantListener();
         EndlessLevelingAPI.get().addXpGrantListener(xpGrantListener);
+
+        // Register XP-overflow listener: EL core notifies us when a married player's XP
+        // grant is discarded at the level cap, so we can funnel it to their partner.
+        xpOverflowListener = (uuid, overflowAmount, sourceName) -> {
+            if (marriageOverflowService != null) {
+                marriageOverflowService.handleOverflow(uuid, overflowAmount, sourceName);
+            }
+        };
+        EndlessLevelingAPI.get().addXpOverflowListener(xpOverflowListener);
 
         // Expose the live marriage Discipline bonus to EL core so the profile UI
         // can show it in the player's Discipline row while it is active (near
@@ -238,6 +278,25 @@ public class EndlessMarriage extends JavaPlugin {
         };
         EndlessLevelingAPI.get().addPreTeleportListener(preTeleportListener);
 
+        // EL wipes all permanent attribute bonuses on every augment-selection
+        // change (loadout/profile swap, and the first post-join reconcile),
+        // re-deriving only its own augment passives. Our tiered-ring bonus is a
+        // permanent external source, so without re-applying here it gets wiped
+        // and the equipped ring stops contributing stats. Re-inject it whenever
+        // EL signals a selection change. (See TieredRingDataManager
+        // #reapplyOnAugmentSelectionChanged.)
+        augmentSelectionListener = event -> {
+            if (tieredRingDataManager == null || event == null) {
+                return;
+            }
+            UUID uuid = event.playerUuid();
+            if (uuid == null) {
+                return;
+            }
+            tieredRingDataManager.reapplyOnAugmentSelectionChanged(uuid);
+        };
+        EndlessLevelingAPI.get().addAugmentSelectionChangedListener(augmentSelectionListener);
+
         // Register commands
         MarriageCommandRegistrar.registerCommands(this.getCommandRegistry());
 
@@ -252,9 +311,23 @@ public class EndlessMarriage extends JavaPlugin {
             EndlessLevelingAPI.get().removePreTeleportListener(preTeleportListener);
         }
 
+        // Unregister augment-selection-changed listener (ring bonus re-apply)
+        if (augmentSelectionListener != null) {
+            EndlessLevelingAPI.get().removeAugmentSelectionChangedListener(augmentSelectionListener);
+        }
+
         // Unregister XP listener
         if (xpGrantListener != null) {
             EndlessLevelingAPI.get().removeXpGrantListener(xpGrantListener);
+        }
+
+        // Unregister XP-overflow listener and flush any pending funnel windows so the
+        // last partial window is recorded before the process exits.
+        if (xpOverflowListener != null) {
+            EndlessLevelingAPI.get().removeXpOverflowListener(xpOverflowListener);
+        }
+        if (marriageOverflowService != null) {
+            marriageOverflowService.flushAll();
         }
 
         // Unregister profile-UI Discipline bonus provider
@@ -336,6 +409,11 @@ public class EndlessMarriage extends JavaPlugin {
             UUID uuid = playerRef.getUuid();
             if (uuid != null && piggybackService != null) {
                 piggybackService.clearForPlayer(uuid);
+            }
+            // Materialize any pending overflow window for the leaving player so its
+            // ledger entry + chat aren't stranded mid-window until the next funnel.
+            if (uuid != null && marriageOverflowService != null) {
+                marriageOverflowService.flushForPlayer(uuid);
             }
         } catch (Exception ex) {
             LOGGER.atWarning().withCause(ex).log("Failed to clean up piggyback state on disconnect.");
@@ -438,18 +516,32 @@ public class EndlessMarriage extends JavaPlugin {
                     if (spouseUuid != null) {
                         double halfXp = adjustedXp / 2.0;
 
-                        // Earner already received full adjustedXp from the
-                        // pipeline — subtract half so they keep only their
-                        // share. Grant the other half to the spouse using
-                        // raw XP (no bonuses, no listener re-fire).
-                        EndlessLevelingAPI.get().adjustRawXp(uuid, -halfXp);
-                        EndlessLevelingAPI.get().adjustRawXp(spouseUuid, halfXp);
+                        // Funnel-aware even-split: only hand the spouse what they can
+                        // still absorb before their own cap. When the spouse is maxed
+                        // (or near it), the earner keeps the un-absorbable remainder
+                        // instead of burning it — the 50/50 split collapses toward
+                        // 100/0 in favour of whoever can still gain. (The mirror case,
+                        // where the EARNER is the capped one, is handled by the
+                        // XP-overflow listener, which fires only when this listener
+                        // cannot — the earner's grant is discarded before it reaches
+                        // here.) Earner already received the full adjustedXp from the
+                        // pipeline, so we only move the transferable portion across.
+                        double spouseRoom = marriageConfig != null && marriageConfig.isXpOverflowFunnelEnabled()
+                                ? api.xpToReachCapForProfile(spouseUuid, -1)
+                                : Double.POSITIVE_INFINITY;
+                        double transfer = Math.min(halfXp, Math.max(0.0D, spouseRoom));
+
+                        if (transfer > 0.0D) {
+                            EndlessLevelingAPI.get().adjustRawXp(uuid, -transfer);
+                            EndlessLevelingAPI.get().adjustRawXp(spouseUuid, transfer);
+                        }
 
                         // Positive handshake to EL core: the couple-only split
                         // ran for this kill, so PartyManager must skip its
                         // party-share loop (otherwise the spouse is paid twice).
-                        // Only meaningful for a couple-only party — when not
-                        // partied there is no party loop to suppress.
+                        // Stands even when the spouse was capped and got no transfer —
+                        // a capped spouse must not be paid (and wasted) by the party
+                        // loop either. Only meaningful for a couple-only party.
                         if (coupleOnlyParty) {
                             api.markCoupleEvenSplitApplied();
                         }

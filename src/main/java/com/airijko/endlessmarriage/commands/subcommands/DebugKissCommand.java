@@ -15,7 +15,6 @@ import com.airijko.endlessmarriage.services.KissService;
 import com.airijko.endlessleveling.util.OperatorHelper;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractPlayerCommand;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
@@ -48,7 +47,7 @@ public class DebugKissCommand extends AbstractPlayerCommand {
             @Nonnull World world) {
 
         if (!OperatorHelper.isOperator(senderRef)) {
-            senderRef.sendMessage(Message.raw("[Marriage Debug] You do not have permission to use this command.").color("#ff6666"));
+            senderRef.sendMessage(MarriageMessages.debugLine("You do not have permission to use this command.", "#ff6666"));
             return;
         }
 
@@ -56,17 +55,16 @@ public class DebugKissCommand extends AbstractPlayerCommand {
         DebugNpcService debugNpc = EndlessMarriage.getInstance().getDebugNpcService();
         DebugNpcService.DebugNpc npc = debugNpc != null ? debugNpc.get(senderUuid) : null;
         if (npc == null) {
-            senderRef.sendMessage(Message.raw("[Marriage Debug] No debug NPC active. Run /marry debug npc first.")
-                    .color("#ff9900"));
+            senderRef.sendMessage(MarriageMessages.debugLine("No debug NPC active. Run /marry debug npc first.", "#ff9900"));
             return;
         }
 
         KissService kissService = EndlessMarriage.getInstance().getKissService();
         KissService.KissResult result = kissService.tryKissTarget(senderUuid, ref, store, npc.ref());
         if (result == KissService.KissResult.SUCCESS) {
-            senderRef.sendMessage(Message.raw("[Marriage Debug] You kiss the debug NPC.").color("#f2a2e8"));
+            senderRef.sendMessage(MarriageMessages.debugLine("You kiss the debug NPC.", "#f2a2e8"));
         } else {
-            senderRef.sendMessage(Message.raw("[Marriage Debug] Could not kiss debug NPC: " + result).color("#ff6666"));
+            senderRef.sendMessage(MarriageMessages.debugLine("Could not kiss debug NPC: " + result, "#ff6666"));
         }
     }
 }

@@ -310,21 +310,11 @@ $C.@PageOverlay {
 
                                 Group { Anchor: (Width: 8); }
 
-                                // Action buttons column — both buttons always visible,
-                                // upgrade button toggles Enabled instead of Visible so the
-                                // layout stays stable across states.
+                                // Action buttons column — single button that opens the
+                                // Rings page (tier -> variation picker).
                                 Group {
                                     LayoutMode: Top;
                                     Anchor: (Width: 170);
-
-                                    $C.@TextButton #RingUpgradeButton {
-                                        Text: "LOCKED";
-                                        Anchor: (Height: 26);
-                                        Padding: (Horizontal: 8);
-                                        Style: @CustomStyle;
-                                    }
-
-                                    Group { Anchor: (Height: 4); }
 
                                     $C.@TextButton #RingsButton {
                                         Text: "BROWSE RINGS";
@@ -391,6 +381,16 @@ $C.@PageOverlay {
 
                         $C.@TextButton #StatusButton {
                             Text: "STATUS";
+                            Anchor: (Height: 36);
+                            Padding: (Horizontal: 12);
+                            FlexWeight: 1;
+                            Style: @CustomStyle;
+                        }
+
+                        Group { Anchor: (Width: 6); }
+
+                        $C.@TextButton #OverflowLogButton {
+                            Text: "EXP OVERFLOW";
                             Anchor: (Height: 36);
                             Padding: (Horizontal: 12);
                             FlexWeight: 1;

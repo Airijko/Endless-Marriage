@@ -1,5 +1,50 @@
 # Endless Marriage - Update Log
 
+## 2026-06-23 — 2.11.5
+
+### Chat feedback modernized to match EndlessLeveling core (split-color prefix + named palette)
+
+Brought all player-facing chat in line with EL core's `PlayerChatNotifier`/`ChatMessageStrings` style: the prefix tag now renders in its **own** color, joined (`Message.join`) to a separately-colored body — instead of the whole line being flat-tinted with the body color.
+
+- **`MarriageMessages`**: added a centralized `MarriageMessages.Color` palette (mirrors core's `ChatMessageStrings.Color`) — `SUCCESS`/`ERROR`/`INFO`/`WARN`/`ROMANCE`/`MUTED` plus brand prefix colors. The `[Endless Marriage]` / `[Marriage]` / `[Rings]` tags now render in romance-rose `PREFIX_BRAND` (`#ff7fb0`); `[Marriage Debug]` / `[Marriage Admin]` in slate `PREFIX_MUTED` (`#9fb6d3`). The 4 localized helpers (`chat`/`shortChat`/`debugChat`/`ringsChat`) were rewritten to join the brand prefix to the body, so **all ~200 helper call sites pick up the new look automatically**. Added raw-text builders `prefixedLine`/`shortLine`/`debugLine`/`adminLine` for inline call sites that compose their own strings.
+- **`MarriageUtil`**: `COLOR_*` constants now delegate to the palette (single source of truth); added `msg(body, color)` so inline command feedback gets the same split-color prefix. Dropped the baked-in `PREFIX` literal.
+- **Migrated inline sites**: `ProposeCommand`/`AcceptCommand`/`DivorceCommand`/`DenyCommand` (`Message.raw(PREFIX + …)` → `msg(…)`), the 8 debug/admin commands (`Message.raw("[Marriage Debug/Admin] …")` → `debugLine`/`adminLine`), `MarriageInteractListener` (→ `shortLine`), and `MarriageAnnouncer` (wedding broadcast now joins a rose prefix to the green body, per-locale preserved).
+
+No lang changes required — prefix text still resolves from `endlessleveling.lang`; only the rendering split + colors changed. Build target jar: `EndlessMarriage-2.11.5.jar`.
+
+---
+
+## 2026-06-23 — 2.11.4
+
+### Piggyback: rider camera follows via a server-authoritative BlockMount seat (carrier is the driver)
+
+Replaces the 2.11.3 `Minecart` mount, which the source shows can't work for this: `MountController` has only `Minecart` and `BlockMount`, and **`Minecart` makes the rider the driver** (the rider's client locally simulates the mount and writes the mount target's transform — `MountSystems.HandleMountInput` / `GamePacketHandler.handleMountMovement`), so a self-walking carrier never moves on the rider's client and the camera freezes. `BlockMount` is the opposite: a **server-authoritative** seat the rider rides passively. So the design is now:
+
+- **Carrier = driver:** unchanged — the carrier is an ordinary player moving under its own control.
+- **Rider = passive BlockMount seat:** new `PiggybackSeatStreamSystem` streams a `MountedUpdate{controller = BlockMount, block.position = carrier position + seat height}` to the rider's viewers — **including the rider itself** (a player is a viewer of itself at distance 0, so it gets the seat and therefore the camera). Runs in `EntityTrackerSystems.QUEUE_UPDATE_GROUP` (mirroring the engine's own `MountSystems.TrackerUpdate`) so per-viewer visibility is populated and `EntityViewer.queueUpdate` is safe. No `MountedComponent` is attached, so the rider is never put in driver mode and can't steer the carrier.
+- **`PiggybackFollowSystem` retained, role narrowed:** it slaves the rider's *server* position/velocity to the carrier — for onlooker body co-location, anti-wander, and to keep the rider inside the tracking range of players near the carrier so the seat stream reaches them. It does not (and cannot) drive the rider's own camera.
+- Session end sends a `queueRemove(Mounted)` so the seat clears on clients.
+- New config: `piggybackSeatStreamEnabled` (kill-switch, default true), `piggybackSeatHeight` (default 1.0), `piggybackSeatBlockId` (default `Chair`, resolved via `BlockType.getAssetMap()`, falls back to index 0).
+
+> **Needs in-game testing.** `BlockMount` was designed for a *static* chair; whether the client smoothly interpolates a seat whose position changes every tick (vs. snapping, or latching the first value) is client-side behavior the server source can't confirm. If it snaps/jitters or doesn't follow, that's the signal to revisit (and `piggybackSeatStreamEnabled=false` is the kill-switch back to body-only carry). Build target jar: `EndlessMarriage-2.11.4.jar`.
+
+---
+
+## 2026-06-22 — 2.11.3
+
+### Piggyback: rider camera now follows the carrier (mount re-added on top of the visibility fix)
+
+Follow-up to 2.11.2. The 2.11.2 build fixed the rider invisibility but the rider's camera still didn't move when the carrier walked around. Root cause of that: 2.11.2 carried the rider purely by writing its server-side `TransformComponent` every tick — but **a player's client owns its own position**, so the server cannot move the rider's camera that way (the body moved for onlookers, but the rider's own view stayed put).
+
+- Re-attached the engine `MountedComponent` (`MountController.Minecart`) to the rider — **with the 2.11.2 bounding-box fix kept in place** (this combination was never actually tested before; the original frozen-camera report was under the zero-volume-box/invisible condition). A player's camera follows an external anchor only when the client is in mount mode, and then the camera tracks the *mount entity* (the carrier), whose position the client already receives via normal entity tracking — so it follows.
+- We never set the rider's `Player.mountEntityId`, so the rider's `MountMovement` packets are ignored server-side (`GamePacketHandler` keys on `mountEntityId`). The rider therefore **cannot steer/hijack the carrier** — the carrier keeps walking under their own control, matching the intended "carrier walks, rider is passive" model.
+- `PiggybackFollowSystem` is retained but its role is now purely **spatial co-location**: it slaves the rider's server position (and velocity, for smooth onlooker interpolation) to the carrier so the rider stays in the tracking range of players near the carrier as it moves away from the mount point — otherwise the rider's `MountedUpdate` would stop reaching them and the rider would vanish for onlookers. `RIDE_OFFSET_Y` is now `0`; the visible seat offset comes from the MountedComponent attachment offset (`DEFAULT_OFFSET`, 1.5 blocks).
+- `dismount` now uses `tryRemoveComponent` for the rider's MountedComponent (no warning if already gone).
+
+> The bounding-box fix from 2.11.2 (below) is unchanged and still required: a zero-volume box trips `EntityTrackerSystems.LODCull` and makes the rider invisible.
+
+---
+
 ## 2026-06-22 — 2.11.2
 
 ### Piggyback: rider no longer invisible + camera follows the carrier

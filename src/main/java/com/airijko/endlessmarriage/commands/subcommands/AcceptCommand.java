@@ -15,7 +15,6 @@ import com.airijko.endlessmarriage.data.MarriageDataManager;
 import com.airijko.endlessleveling.util.OperatorHelper;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractPlayerCommand;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
@@ -52,7 +51,7 @@ public class AcceptCommand extends AbstractPlayerCommand {
 
         UUID proposer = data.getProposer(senderUuid);
         if (proposer == null) {
-            senderRef.sendMessage(Message.raw(PREFIX + "You have no pending proposals.").color(COLOR_ERROR));
+            senderRef.sendMessage(msg("You have no pending proposals.", COLOR_ERROR));
             return;
         }
 
@@ -62,9 +61,8 @@ public class AcceptCommand extends AbstractPlayerCommand {
             long elapsed = System.currentTimeMillis() - senderDivorceTime;
             if (elapsed < HOURS_72_MS) {
                 long remaining = HOURS_72_MS - elapsed;
-                senderRef.sendMessage(Message.raw(PREFIX
-                        + "You must wait 72 hours after a divorce before remarrying. "
-                        + "Time remaining: " + formatDuration(remaining) + ".").color(COLOR_ERROR));
+                senderRef.sendMessage(msg("You must wait 72 hours after a divorce before remarrying. "
+                        + "Time remaining: " + formatDuration(remaining) + ".", COLOR_ERROR));
                 return;
             }
         }
@@ -73,9 +71,8 @@ public class AcceptCommand extends AbstractPlayerCommand {
             long elapsed = System.currentTimeMillis() - proposerDivorceTime;
             if (elapsed < HOURS_72_MS) {
                 long remaining = HOURS_72_MS - elapsed;
-                senderRef.sendMessage(Message.raw(PREFIX
-                        + "The proposer recently divorced and must wait before remarrying. "
-                        + "Time remaining: " + formatDuration(remaining) + ".").color(COLOR_ERROR));
+                senderRef.sendMessage(msg("The proposer recently divorced and must wait before remarrying. "
+                        + "Time remaining: " + formatDuration(remaining) + ".", COLOR_ERROR));
                 return;
             }
         }
@@ -89,26 +86,24 @@ public class AcceptCommand extends AbstractPlayerCommand {
             data.marry(proposer, senderUuid, null);
             String senderName = resolvePlayerName(senderUuid);
             String proposerName = resolvePlayerName(proposer);
-            senderRef.sendMessage(Message.raw(PREFIX + "You are now married to "
-                    + proposerName + "!").color(COLOR_SUCCESS));
+            senderRef.sendMessage(msg("You are now married to "
+                    + proposerName + "!", COLOR_SUCCESS));
             PlayerRef proposerRef = Universe.get().getPlayer(proposer);
             if (proposerRef != null) {
-                proposerRef.sendMessage(Message.raw(PREFIX + senderName
-                        + " accepted your proposal! You are now married!").color(COLOR_SUCCESS));
+                proposerRef.sendMessage(msg(senderName
+                        + " accepted your proposal! You are now married!", COLOR_SUCCESS));
             }
             // Global wedding announcement: title, chat broadcast, wedding march SFX
             MarriageAnnouncer.announceMarriage(proposerName, senderName, null);
         } else {
             // Stage pending marriage awaiting priest
             data.addPendingMarriage(proposer, senderUuid);
-            senderRef.sendMessage(Message.raw(PREFIX
-                    + "Proposal accepted! A Priest must now officiate your marriage.").color(COLOR_SUCCESS));
-            senderRef.sendMessage(Message.raw(PREFIX
-                    + "Ask a player with the Priest class to use /marry to officiate.").color(COLOR_INFO));
+            senderRef.sendMessage(msg("Proposal accepted! A Priest must now officiate your marriage.", COLOR_SUCCESS));
+            senderRef.sendMessage(msg("Ask a player with the Priest class to use /marry to officiate.", COLOR_INFO));
             PlayerRef proposerRef = Universe.get().getPlayer(proposer);
             if (proposerRef != null) {
-                proposerRef.sendMessage(Message.raw(PREFIX + resolvePlayerName(senderUuid)
-                        + " accepted! Find a Priest to officiate.").color(COLOR_SUCCESS));
+                proposerRef.sendMessage(msg(resolvePlayerName(senderUuid)
+                        + " accepted! Find a Priest to officiate.", COLOR_SUCCESS));
             }
         }
     }

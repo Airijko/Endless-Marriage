@@ -12,7 +12,6 @@ package com.airijko.endlessmarriage.commands.subcommands;
 import com.airijko.endlessmarriage.data.MarriageDataManager;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractPlayerCommand;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
@@ -48,16 +47,16 @@ public class DenyCommand extends AbstractPlayerCommand {
 
         UUID proposer = data.getProposer(senderUuid);
         if (proposer == null) {
-            senderRef.sendMessage(Message.raw(PREFIX + "You have no pending proposals.").color(COLOR_ERROR));
+            senderRef.sendMessage(msg("You have no pending proposals.", COLOR_ERROR));
             return;
         }
 
         data.removeProposal(proposer);
-        senderRef.sendMessage(Message.raw(PREFIX + "You denied the proposal.").color(COLOR_WARN));
+        senderRef.sendMessage(msg("You denied the proposal.", COLOR_WARN));
         PlayerRef proposerRef = Universe.get().getPlayer(proposer);
         if (proposerRef != null) {
-            proposerRef.sendMessage(Message.raw(PREFIX + resolvePlayerName(senderUuid)
-                    + " denied your proposal.").color(COLOR_ERROR));
+            proposerRef.sendMessage(msg(resolvePlayerName(senderUuid)
+                    + " denied your proposal.", COLOR_ERROR));
         }
     }
 }
