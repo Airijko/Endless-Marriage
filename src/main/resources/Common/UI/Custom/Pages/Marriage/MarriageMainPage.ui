@@ -379,18 +379,8 @@ $C.@PageOverlay {
 
                         Group { Anchor: (Width: 6); }
 
-                        $C.@TextButton #StatusButton {
-                            Text: "STATUS";
-                            Anchor: (Height: 36);
-                            Padding: (Horizontal: 12);
-                            FlexWeight: 1;
-                            Style: @CustomStyle;
-                        }
-
-                        Group { Anchor: (Width: 6); }
-
                         $C.@TextButton #OverflowLogButton {
-                            Text: "EXP OVERFLOW";
+                            Text: "BOND STATUS";
                             Anchor: (Height: 36);
                             Padding: (Horizontal: 12);
                             FlexWeight: 1;
@@ -735,6 +725,15 @@ $C.@PageOverlay {
 
                         Group { Anchor: (Height: 4); }
 
+                        $C.@TextButton #CarryButton {
+                            Text: "CARRY";
+                            Anchor: (Height: 32);
+                            Padding: (Horizontal: 8);
+                            Style: @CustomStyle;
+                        }
+
+                        Group { Anchor: (Height: 4); }
+
                         $C.@TextButton #DismountButton {
                             Text: "DISMOUNT";
                             Anchor: (Height: 28);
@@ -774,6 +773,14 @@ $C.@PageOverlay {
                         Label #KissStatusLabel {
                             Text: "Stand close to your spouse.";
                             Style: (FontSize: 11, TextColor: #c0cee5, Wrap: true);
+                            Anchor: (Height: 28);
+                        }
+
+                        Group { Anchor: (Height: 4); }
+
+                        Label #KissBuffLabel {
+                            Text: "";
+                            Style: (FontSize: 11, TextColor: #9fe0ff, Wrap: true);
                             Anchor: (Height: 28);
                         }
 

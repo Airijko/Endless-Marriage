@@ -65,15 +65,28 @@ public class MarriageOverflowLogPage extends SafeInteractiveCustomUIPage<Marriag
         }
 
         MarriageOverflowLog log = EndlessMarriage.getInstance().getMarriageOverflowLog();
-        MarriageOverflowLog.CoupleLog coupleLog =
-                (log != null && spouse != null) ? log.getCoupleLog(self, spouse) : null;
+        double lifetime = (log != null && spouse != null) ? log.getCoupleLifetimeTotal(self, spouse) : 0.0D;
+        java.util.List<OverflowEvent> recentEvents = (log != null && spouse != null)
+                ? log.snapshotRecent(self, spouse)
+                : java.util.Collections.emptyList();
 
         ui.clear("#OverflowRows");
-
-        double lifetime = coupleLog != null ? coupleLog.lifetimeTotal : 0.0D;
         ui.set("#OverflowTotalLabel.Text", formatXp(lifetime) + " XP");
 
-        if (coupleLog == null || coupleLog.recent.isEmpty()) {
+        // Live kiss-buff status (active countdown / cooldown / ready), shared with
+        // the main marriage page so both surfaces report the same state.
+        KissBuffStatus.Display kissBuff = KissBuffStatus.describe(self);
+        ui.set("#KissBuffStatusLabel.Text", kissBuff.text());
+        ui.set("#KissBuffStatusLabel.Style.TextColor", kissBuff.color());
+
+        // Full lifecycle breakdown: when the buff activated, when it expires, and
+        // when it comes off cooldown (absolute server time + relative countdown).
+        KissBuffStatus.Lifecycle lifecycle = KissBuffStatus.describeLifecycle(self);
+        ui.set("#KissActivatedLabel.Text", lifecycle.activated());
+        ui.set("#KissExpiresLabel.Text", lifecycle.expires());
+        ui.set("#KissReadyLabel.Text", lifecycle.offCooldown());
+
+        if (recentEvents.isEmpty()) {
             ui.set("#EmptyLabel.Visible", true);
             return;
         }
@@ -81,7 +94,7 @@ public class MarriageOverflowLogPage extends SafeInteractiveCustomUIPage<Marriag
 
         SimpleDateFormat dateFmt = new SimpleDateFormat("yyyy-MM-dd HH:mm");
         int index = 0;
-        for (OverflowEvent event : coupleLog.recent) {
+        for (OverflowEvent event : recentEvents) {
             ui.append("#OverflowRows", ROW_TEMPLATE);
             String base = "#OverflowRows[" + index + "]";
 

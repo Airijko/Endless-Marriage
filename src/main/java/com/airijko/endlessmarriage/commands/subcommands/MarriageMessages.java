@@ -181,6 +181,14 @@ public final class MarriageMessages {
     public static final String PIGGYBACK_SPOUSE_BUSY = "ui.marriage.piggyback.spouse_busy";
     public static final String PIGGYBACK_ERROR = "ui.marriage.piggyback.error";
 
+    // Carry (piggyback in reverse — you pick up your spouse)
+    public static final String CARRY_SUCCESS_SELF = "ui.marriage.carry.success_self";
+    public static final String CARRY_SPOUSE_CARRIED = "ui.marriage.carry.spouse_carried";
+    public static final String CARRY_PUT_DOWN_SELF = "ui.marriage.carry.put_down_self";
+    public static final String CARRY_TOO_FAR = "ui.marriage.carry.too_far";
+    public static final String CARRY_ALREADY_CARRYING = "ui.marriage.carry.already_carrying";
+    public static final String CARRY_SELF_RIDING = "ui.marriage.carry.self_riding";
+
     // Dismount
     public static final String DISMOUNT_NOT_IN_SESSION = "ui.marriage.dismount.not_in_session";
 

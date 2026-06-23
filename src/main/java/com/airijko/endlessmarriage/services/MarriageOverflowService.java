@@ -51,22 +51,51 @@ public class MarriageOverflowService {
     /** Affection-pink accent shared with the rest of the marriage chat palette. */
     private static final String COLOR = MarriageMessages.Color.ROMANCE;
 
-    /**
-     * Sources that represent the proximity-gated 50/50 even-split channel (direct mob
-     * kills). For these the funnel only runs when the couple is near each other, mirroring
-     * the even-split. Everything else (raid / boss / claim / API reward payouts) is funneled
-     * regardless of distance — those rewards are not proximity-based.
-     */
-    private static final Set<String> PROXIMITY_GATED_SOURCES = Set.of(
+    /** How an XP-overflow source is allowed to funnel (if at all). */
+    private enum Channel {
+        /** Direct combat XP — funnels only when the couple is near each other (mirrors the
+         *  proximity-gated 50/50 even-split). */
+        COMBAT,
+        /** Raid / boss reward payouts — no distance requirement, but both spouses must be
+         *  present (receiving spouse online). "Raids just need both players present." */
+        RAID,
+        /** Everything else (quest/dungeon/outlander claims, generic API grants, raw
+         *  adjustments, the marriage redistribution source itself, temp-profile, unknown):
+         *  NEVER auto-funnels. These are individual rewards/claims that must not silently
+         *  transfer to a spouse — a deliberate allow-list, not a deny-list, so a new XP
+         *  source can't accidentally become a funnel vector. */
+        IGNORE
+    }
+
+    /** Combat sources = the proximity-gated even-split channel. */
+    private static final Set<String> COMBAT_SOURCES = Set.of(
             "MOB_KILL", "PARTY_KILL", "PARTY_SHARE", "MATCHMAKING_SHARE");
+    /** Raid / boss reward sources = the "both present" channel. */
+    private static final Set<String> RAID_SOURCES = Set.of("BOSS_REWARD");
+
+    private static Channel classify(@Nonnull String sourceName) {
+        if (COMBAT_SOURCES.contains(sourceName)) {
+            return Channel.COMBAT;
+        }
+        if (RAID_SOURCES.contains(sourceName)) {
+            return Channel.RAID;
+        }
+        return Channel.IGNORE;
+    }
 
     private final MarriageDataManager dataManager;
     private final MarriageConfig config;
     private final MarriageProximitySystem proximitySystem;
     private final MarriageOverflowLog overflowLog;
 
-    /** Recursion guard: the funnel grant must never re-enter the overflow path. */
-    private final ThreadLocal<Boolean> inFunnel = ThreadLocal.withInitial(() -> false);
+    /**
+     * Recursion / re-entrancy guard for any marriage-driven XP redistribution (the
+     * over-cap funnel AND the even-split's spouse credit). While set, the overflow
+     * listener is a no-op, so a redistributed grant that itself overflows the recipient's
+     * cap can never bounce back into another funnel (no loops, no double-credit, no
+     * double chat/ledger entry). Per-thread.
+     */
+    private final ThreadLocal<Boolean> inRedistribution = ThreadLocal.withInitial(() -> false);
 
     /** Pending (un-flushed) funnel accumulation, keyed by the capped earner's UUID. */
     private final Map<UUID, Pending> pending = new ConcurrentHashMap<>();
@@ -93,10 +122,6 @@ public class MarriageOverflowService {
         return overflowLog;
     }
 
-    private static boolean isProximityGatedSource(@Nonnull String sourceName) {
-        return PROXIMITY_GATED_SOURCES.contains(sourceName);
-    }
-
     /**
      * Called by EL core's overflow listener when {@code uuid}'s XP grant of
      * {@code overflowAmount} (from source-channel {@code sourceName}) was discarded
@@ -107,7 +132,7 @@ public class MarriageOverflowService {
         if (overflowAmount <= 0.0D || !config.isXpOverflowFunnelEnabled()) {
             return;
         }
-        if (inFunnel.get()) {
+        if (inRedistribution.get()) {
             return;
         }
         if (!dataManager.isMarried(uuid)) {
@@ -118,9 +143,27 @@ public class MarriageOverflowService {
             return;
         }
 
-        boolean proximityGated = isProximityGatedSource(sourceName);
-        if (proximityGated && !proximitySystem.isNearSpouse(uuid)) {
+        // Allow-list the sources that may funnel; everything else (quest/dungeon/outlander
+        // claims, generic API grants, raw adjusts, our own MARRIAGE_SHARE, temp-profile,
+        // unknown) is ignored so reward/claim XP can never silently transfer to a spouse.
+        Channel channel = classify(sourceName);
+        if (channel == Channel.IGNORE) {
             return;
+        }
+        if (channel == Channel.COMBAT) {
+            // Combat even-split channel: the couple must be near each other (mirrors the
+            // 50/50 proximity gate).
+            if (!proximitySystem.isNearSpouse(uuid)) {
+                return;
+            }
+        } else {
+            // RAID channel: no distance requirement, but both spouses must be present for
+            // the rewards — the receiving spouse has to be online. (The earner is inherently
+            // present: they just received the grant.)
+            PlayerRef spouseRef = Universe.get() != null ? Universe.get().getPlayer(spouse) : null;
+            if (spouseRef == null || !spouseRef.isValid()) {
+                return;
+            }
         }
 
         EndlessLevelingAPI api = EndlessLevelingAPI.get();
@@ -138,14 +181,14 @@ public class MarriageOverflowService {
 
         // Raw credit to the spouse's active profile: no bonuses, no XP-grant listeners,
         // and (since they have room) no recursion into this overflow path.
-        inFunnel.set(true);
+        inRedistribution.set(true);
         try {
             api.adjustRawXp(spouse, fundable);
         } finally {
-            inFunnel.set(false);
+            inRedistribution.set(false);
         }
 
-        boolean isRaid = !proximityGated; // reward/raid channels
+        boolean isRaid = channel == Channel.RAID;
         long now = System.currentTimeMillis();
         final UUID spouseFinal = spouse;
         pending.compute(uuid, (k, p) -> {
@@ -166,6 +209,41 @@ public class MarriageOverflowService {
         maybeFlush(uuid, now);
     }
 
+    /**
+     * Credit a spouse their half of an even-split through THEIR OWN bonus pipeline:
+     * {@code baseShare} is the pre-personal-bonus base kill XP (already past the EARNER's
+     * level-range rule, which is applied once upstream and is NOT re-applied here — that's
+     * what lets a high-level partner boost a way-underleveled spouse). It is granted with
+     * <b>bonuses applied but the per-kill gain cap bypassed</b>, so:
+     * <ul>
+     *   <li>the spouse's Discipline / Luck / passive XP multipliers DO apply to their share
+     *       (mirrors party-share per-member bonuses), and</li>
+     *   <li>the boost is NOT throttled by the spouse's own per-kill gain cap — an
+     *       underleveled spouse has the smallest cap, so applying it would gut the boost.
+     *       The old even-split used {@code adjustRawXp} (cap-free); preserving that.</li>
+     * </ul>
+     * The spouse's level cap is still honored by {@code addXp}. Guarded by
+     * {@link #inRedistribution} so that if the bonused share spills over the spouse's level
+     * cap, the resulting overflow is NOT re-funneled back (no loop / double pay / double
+     * log) — the small spill is dropped, exactly like any normal at-cap grant.
+     *
+     * <p>This is NOT an over-cap funnel and is never logged as one: mob-kill even-split XP
+     * isn't tracked as "passed over" — only a fully-capped earner's salvaged XP is.
+     */
+    public void creditSpouseEvenSplitShare(@Nonnull UUID spouse, double baseShare) {
+        if (baseShare <= 0.0D) {
+            return;
+        }
+        inRedistribution.set(true);
+        try {
+            EndlessLevelingAPI.get().grantXp(spouse, baseShare,
+                    com.airijko.endlessleveling.xpstats.XpSource.MARRIAGE_SHARE,
+                    /* bypassGainCap */ true, /* bypassBonuses */ false);
+        } finally {
+            inRedistribution.set(false);
+        }
+    }
+
     private long intervalMs() {
         double seconds = config.getXpOverflowNotifyIntervalSeconds();
         if (seconds < 1.0D) {
@@ -182,50 +260,60 @@ public class MarriageOverflowService {
         }
         Pending due = pending.remove(from);
         if (due != null) {
-            emit(from, due);
+            emit(from, due, true);
         }
     }
 
     /**
      * Materialize any pending window touching this player (as earner or receiver) — used
      * on disconnect and when opening the overflow-log UI so the numbers shown / persisted
-     * are current rather than stuck mid-window.
+     * are current rather than stuck mid-window. Batched: append all, save once.
      */
     public void flushForPlayer(@Nonnull UUID uuid) {
+        boolean any = false;
         for (Map.Entry<UUID, Pending> e : pending.entrySet()) {
             if (e.getKey().equals(uuid) || uuid.equals(e.getValue().to)) {
                 Pending due = pending.remove(e.getKey());
                 if (due != null) {
-                    emit(e.getKey(), due);
+                    any |= emit(e.getKey(), due, false);
                 }
             }
         }
-    }
-
-    /** Flush every pending window (server shutdown). */
-    public void flushAll() {
-        for (UUID from : pending.keySet()) {
-            Pending due = pending.remove(from);
-            if (due != null) {
-                emit(from, due);
-            }
+        if (any) {
+            overflowLog.save();
         }
     }
 
-    private void emit(@Nonnull UUID from, @Nonnull Pending p) {
+    /** Flush every pending window (server shutdown / admin view). Batched: append all, save once. */
+    public void flushAll() {
+        boolean any = false;
+        for (UUID from : pending.keySet()) {
+            Pending due = pending.remove(from);
+            if (due != null) {
+                any |= emit(from, due, false);
+            }
+        }
+        if (any) {
+            overflowLog.save();
+        }
+    }
+
+    /** @return true if an event was actually recorded (amount &gt; 0). */
+    private boolean emit(@Nonnull UUID from, @Nonnull Pending p, boolean persist) {
         if (p.amount <= 0.0D || p.to == null) {
-            return;
+            return false;
         }
         String kind = (p.sawRaid && p.sawCombat) ? OverflowEvent.KIND_MIXED
                 : p.sawRaid ? OverflowEvent.KIND_RAID : OverflowEvent.KIND_COMBAT;
 
         try {
-            overflowLog.record(from, p.to, p.amount, kind);
+            overflowLog.record(from, p.to, p.amount, kind, persist);
         } catch (Exception ex) {
             LOGGER.atWarning().withCause(ex).log("Failed to record overflow event.");
         }
 
         sendNotifications(from, p.to, p.amount, kind);
+        return true;
     }
 
     private void sendNotifications(@Nonnull UUID from, @Nonnull UUID to, double amount, @Nonnull String kind) {

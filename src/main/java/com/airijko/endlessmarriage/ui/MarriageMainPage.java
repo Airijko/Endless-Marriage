@@ -201,7 +201,6 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         events.addEventBinding(Activating, "#SetHomeButton", of("Action", "marry:sethome"), false);
         events.addEventBinding(Activating, "#InventoryButton", of("Action", "marry:inventory"), false);
         events.addEventBinding(Activating, "#DivorceButton", of("Action", "marry:divorce"), false);
-        events.addEventBinding(Activating, "#StatusButton", of("Action", "marry:status"), false);
         events.addEventBinding(Activating, "#OverflowLogButton", of("Action", "marry:overflow_log"), false);
         events.addEventBinding(Activating, "#RingsButton", of("Action", "marry:rings_ui"), false);
 
@@ -298,18 +297,21 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         ui.set("#PiggybackStatusLabel.Text", statusText);
         ui.set("#PiggybackStatusLabel.Style.TextColor", statusColor);
 
-        // Piggyback button label flips between actions when already in a session.
+        // While in a session only DISMOUNT is actionable; PIGGYBACK and CARRY are
+        // disabled. Otherwise both mount actions are available (when the spouse is
+        // online) and DISMOUNT is greyed out.
         if (inSession) {
-            ui.set("#PiggybackButton.Text", "DISMOUNT");
-            ui.set("#PiggybackButton.Disabled", false);
+            ui.set("#PiggybackButton.Disabled", true);
+            ui.set("#CarryButton.Disabled", true);
             ui.set("#DismountButton.Disabled", false);
         } else {
-            ui.set("#PiggybackButton.Text", "PIGGYBACK");
             ui.set("#PiggybackButton.Disabled", !spouseOnline);
+            ui.set("#CarryButton.Disabled", !spouseOnline);
             ui.set("#DismountButton.Disabled", true);
         }
 
         events.addEventBinding(Activating, "#PiggybackButton", of("Action", "marry:piggyback"), false);
+        events.addEventBinding(Activating, "#CarryButton", of("Action", "marry:carry"), false);
         events.addEventBinding(Activating, "#DismountButton", of("Action", "marry:dismount"), false);
 
         // Kiss card
@@ -322,6 +324,13 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
             ui.set("#KissStatusLabel.Style.TextColor", "#ff9999");
             ui.set("#KissButton.Disabled", true);
         }
+
+        // Live kiss-buff status (active countdown / cooldown / ready), shared with
+        // the overflow-log page so both surfaces report the same state.
+        KissBuffStatus.Display kissBuff = KissBuffStatus.describe(senderUuid);
+        ui.set("#KissBuffLabel.Text", kissBuff.text());
+        ui.set("#KissBuffLabel.Style.TextColor", kissBuff.color());
+
         events.addEventBinding(Activating, "#KissButton", of("Action", "marry:kiss"), false);
     }
 
@@ -419,13 +428,13 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
             case "marry:deny" -> handleDeny();
             case "marry:propose_ui" -> handleOpenProposePage(ref, store);
             case "marry:find_priest" -> handleOpenFindPriestPage(ref, store);
-            case "marry:status" -> handleStatus();
             case "marry:overflow_log" -> handleOpenOverflowLogPage(ref, store);
             case "marry:records" -> handleRecords();
             case "marry:officiate_ui" -> handleOpenOfficiatePage(ref, store);
             case "marry:rings_ui" -> handleOpenRingPage(ref, store);
             case "marry:ring_upgrade" -> handleRingUpgrade();
             case "marry:piggyback" -> handlePiggyback(ref, store);
+            case "marry:carry" -> handleCarry(ref, store);
             case "marry:dismount" -> handleDismount(ref, store);
             case "marry:kiss" -> handleKiss(ref, store);
         }
@@ -490,7 +499,59 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
                 playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.PIGGYBACK_ALREADY_MOUNTED, "#ff9900"));
             case SPOUSE_ALREADY_CARRYING, SPOUSE_IS_RIDING ->
                 playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.PIGGYBACK_SPOUSE_BUSY, "#ff9900"));
-            case ERROR ->
+            default ->
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.PIGGYBACK_ERROR, "#ff6666"));
+        }
+    }
+
+    private void handleCarry(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store) {
+        UUID senderUuid = playerRef.getUuid();
+        PiggybackService piggyback = EndlessMarriage.getInstance().getPiggybackService();
+
+        // Toggle off: already carrying our spouse -> set them down.
+        if (piggyback.isCarrying(senderUuid)) {
+            piggyback.dismountAny(senderUuid);
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.CARRY_PUT_DOWN_SELF, "#4fd7f7"));
+            return;
+        }
+        // If we are currently being carried, /carry hops us down instead.
+        if (piggyback.isRiding(senderUuid)) {
+            piggyback.dismount(senderUuid, ref, store);
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.PIGGYBACK_DISMOUNT_SELF, "#4fd7f7"));
+            return;
+        }
+
+        PiggybackService.MountResult result = piggyback.tryCarry(senderUuid, ref, store);
+        switch (result) {
+            case SUCCESS -> {
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.CARRY_SUCCESS_SELF, "#f2a2e8"));
+                MarriageDataManager data = EndlessMarriage.getInstance().getMarriageDataManager();
+                UUID spouseUuid = data.getSpouse(senderUuid);
+                if (spouseUuid != null) {
+                    PlayerRef spouseRef = Universe.get().getPlayer(spouseUuid);
+                    if (spouseRef != null && spouseRef.isValid()) {
+                        spouseRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.CARRY_SPOUSE_CARRIED,
+                                "#f2a2e8", resolvePlayerName(senderUuid)));
+                    }
+                }
+            }
+            case NOT_MARRIED ->
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.NOT_MARRIED, "#ff6666"));
+            case SPOUSE_OFFLINE ->
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.SPOUSE_NOT_ONLINE, "#ff6666"));
+            case SPOUSE_NOT_IN_WORLD ->
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.SPOUSE_NOT_IN_WORLD, "#ff6666"));
+            case SPOUSE_DIFFERENT_WORLD ->
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.SPOUSE_DIFFERENT_WORLD, "#ff6666"));
+            case TOO_FAR ->
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.CARRY_TOO_FAR, "#ff9900"));
+            case ALREADY_CARRYING ->
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.CARRY_ALREADY_CARRYING, "#ff9900"));
+            case SELF_IS_RIDING ->
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.CARRY_SELF_RIDING, "#ff9900"));
+            case SPOUSE_ALREADY_CARRYING, SPOUSE_IS_RIDING ->
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.PIGGYBACK_SPOUSE_BUSY, "#ff9900"));
+            default ->
                 playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.PIGGYBACK_ERROR, "#ff6666"));
         }
     }
@@ -921,28 +982,6 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         }
         MarriageOfficiatePage page = new MarriageOfficiatePage(playerRef, CustomPageLifetime.CanDismiss);
         player.getPageManager().openCustomPage(ref, store, page);
-    }
-
-    private void handleStatus() {
-        UUID senderUuid = playerRef.getUuid();
-        MarriageDataManager data = EndlessMarriage.getInstance().getMarriageDataManager();
-
-        if (!data.isMarried(senderUuid)) {
-            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.STATUS_NOT_MARRIED, "#4fd7f7"));
-            return;
-        }
-
-        MarriagePair pair = data.getMarriage(senderUuid);
-        UUID spouseUuid = pair.getSpouse(senderUuid);
-        String date = new SimpleDateFormat("yyyy-MM-dd").format(new Date(pair.timestamp()));
-
-        playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.STATUS_MARRIED_TO, "#66ff66",
-                resolvePlayerName(spouseUuid)));
-        playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.STATUS_SINCE, "#4fd7f7", date));
-        if (pair.officiant() != null) {
-            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.STATUS_OFFICIATED_BY, "#4fd7f7",
-                    resolvePlayerName(pair.officiant())));
-        }
     }
 
     private void handleRecords() {

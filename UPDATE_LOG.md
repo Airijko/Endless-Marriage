@@ -1,5 +1,22 @@
 # Endless Marriage - Update Log
 
+## 2026-06-23 — 2.13.0
+
+### Carry your partner (piggyback, reversed) + note on the existing XP-overflow toggle
+
+**Carry partner.** Added the mirror of piggyback: instead of hopping onto your spouse, you pick *them* up and carry them on your back. It reuses the entire piggyback session machinery — the spouse becomes the passive `BlockMount` rider and the sender is the carrier/driver — so the seat-stream camera, follow/anti-wander, damage-reduction and dismount logic all apply unchanged (they key off the rider→carrier maps, not on who initiated).
+
+- **`PiggybackService.tryCarry(carrier, ref, store)`**: resolves the sender's spouse as the rider and registers the session with the sender as carrier — the exact inverse of `tryMount`. Same engine `MountedComponent` clone()-corruption guard, same proximity (`piggyback_max_range`) check. New `MountResult` codes `ALREADY_CARRYING` / `SELF_IS_RIDING` for the carry-side occupancy cases.
+- **`/carry` command** (top-level, mirrors `/piggyback`): toggles — picks the spouse up, or sets them down if already carrying; hops you off if you're the one being carried. Registered in `MarriageCommandRegistrar`.
+- **UI**: new `CARRY` button in the Companion → Piggyback card on the `/marry` main page (`marry:carry` → `handleCarry`). While in any session, `PIGGYBACK`/`CARRY` disable and only `DISMOUNT` is actionable.
+- **Lang**: new `ui.marriage.carry.*` keys (`success_self`, `spouse_carried`, `put_down_self`, `too_far`, `already_carrying`, `self_riding`) added to all 8 shipped locales in EL core's `endlessleveling.lang` (en-US is the fallback). **Requires EL Core redeploy** for the new strings, same as prior marriage features.
+
+**XP-overflow toggle (already shipped).** The requested "enable/disable XP Overflow for Marriage" config already exists as `xp_overflow_funnel_enabled` (default `true`) in `config.json` — added in 2.12.0, fully gating both funnel paths (`MarriageOverflowService.handleOverflow` and the capped-spouse branch in the even-split listener). Servers that don't want it set it to `false`. No code change needed; documented here for discoverability.
+
+Build target jar: `EndlessMarriage-2.13.0.jar` (+ EL Core for the lang keys).
+
+---
+
 ## 2026-06-23 — 2.11.5
 
 ### Chat feedback modernized to match EndlessLeveling core (split-color prefix + named palette)

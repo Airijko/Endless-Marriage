@@ -96,7 +96,7 @@ public final class PiggybackService {
         return riders;
     }
 
-    /** Result codes for {@link #tryMount}. */
+    /** Result codes for {@link #tryMount} / {@link #tryCarry}. */
     public enum MountResult {
         SUCCESS,
         NOT_MARRIED,
@@ -105,6 +105,10 @@ public final class PiggybackService {
         SPOUSE_DIFFERENT_WORLD,
         TOO_FAR,
         ALREADY_MOUNTED,
+        /** (carry) the sender is already carrying someone. */
+        ALREADY_CARRYING,
+        /** (carry) the sender is currently being carried and cannot carry. */
+        SELF_IS_RIDING,
         SPOUSE_ALREADY_CARRYING,
         SPOUSE_IS_RIDING,
         ERROR
@@ -200,6 +204,85 @@ public final class PiggybackService {
         riders.put(riderUuid, spouseUuid);
         carriers.put(spouseUuid, riderUuid);
         LOGGER.atInfo().log("Piggyback started: %s riding %s", riderUuid, spouseUuid);
+        return MountResult.SUCCESS;
+    }
+
+    /**
+     * Attempts to pick up the sender's spouse and carry them — the mirror image
+     * of {@link #tryMount}. Here the sender is the <i>carrier</i> and their spouse
+     * becomes the passive <i>rider</i> seated on the sender's back. The session is
+     * registered under the same rider→carrier indexes, so the existing seat-stream,
+     * follow, damage-reduction and dismount logic all apply unchanged (they key off
+     * the maps, not on who initiated).
+     */
+    @Nonnull
+    public MountResult tryCarry(@Nonnull UUID carrierUuid,
+            @Nonnull Ref<EntityStore> carrierRef,
+            @Nonnull Store<EntityStore> carrierStore) {
+
+        if (!dataManager.isMarried(carrierUuid)) {
+            return MountResult.NOT_MARRIED;
+        }
+        UUID spouseUuid = dataManager.getSpouse(carrierUuid);
+        if (spouseUuid == null) {
+            return MountResult.NOT_MARRIED;
+        }
+
+        // Sender (carrier) must be free.
+        if (carriers.containsKey(carrierUuid)) {
+            return MountResult.ALREADY_CARRYING;
+        }
+        if (riders.containsKey(carrierUuid)) {
+            // Sender is currently being carried — can't carry while riding.
+            return MountResult.SELF_IS_RIDING;
+        }
+        // Spouse (would-be rider) must be free.
+        if (riders.containsKey(spouseUuid) || carriers.containsKey(spouseUuid)) {
+            return MountResult.SPOUSE_ALREADY_CARRYING;
+        }
+
+        PlayerRef spousePlayer = Universe.get().getPlayer(spouseUuid);
+        if (spousePlayer == null || !spousePlayer.isValid()) {
+            return MountResult.SPOUSE_OFFLINE;
+        }
+        Ref<EntityStore> spouseRef = spousePlayer.getReference();
+        if (spouseRef == null) {
+            return MountResult.SPOUSE_NOT_IN_WORLD;
+        }
+        Store<EntityStore> spouseStore = spouseRef.getStore();
+        if (spouseStore != carrierStore) {
+            return MountResult.SPOUSE_DIFFERENT_WORLD;
+        }
+
+        // Same engine clone()-corruption guard as tryMount: refuse if either party
+        // already holds a MountedComponent, else the archetype change crashes the world.
+        if (carrierStore.getComponent(carrierRef, MountedComponent.getComponentType()) != null) {
+            return MountResult.ALREADY_CARRYING;
+        }
+        if (spouseStore.getComponent(spouseRef, MountedComponent.getComponentType()) != null) {
+            return MountResult.SPOUSE_ALREADY_CARRYING;
+        }
+
+        Vector3d carrierPos = positionOf(carrierRef, carrierStore);
+        Vector3d spousePos = positionOf(spouseRef, spouseStore);
+        if (carrierPos == null || spousePos == null) {
+            return MountResult.ERROR;
+        }
+        double dx = carrierPos.x() - spousePos.x();
+        double dy = carrierPos.y() - spousePos.y();
+        double dz = carrierPos.z() - spousePos.z();
+        double distSq = (dx * dx) + (dy * dy) + (dz * dz);
+        double maxRange = config.getPiggybackMaxRange();
+        if (distSq > maxRange * maxRange) {
+            return MountResult.TOO_FAR;
+        }
+
+        // Spouse is the rider seated on the sender (carrier). See tryMount for why
+        // no engine MountedComponent is attached (PiggybackSeatStreamSystem streams a
+        // server-authoritative BlockMount seat to the rider instead).
+        riders.put(spouseUuid, carrierUuid);
+        carriers.put(carrierUuid, spouseUuid);
+        LOGGER.atInfo().log("Carry started: %s carrying %s", carrierUuid, spouseUuid);
         return MountResult.SUCCESS;
     }
 

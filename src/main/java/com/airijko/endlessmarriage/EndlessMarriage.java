@@ -100,6 +100,10 @@ public class EndlessMarriage extends JavaPlugin {
         return kissService;
     }
 
+    public KissBuffService getKissBuffService() {
+        return kissBuffService;
+    }
+
     public DebugNpcService getDebugNpcService() {
         return debugNpcService;
     }
@@ -482,6 +486,13 @@ public class EndlessMarriage extends JavaPlugin {
 
             boolean nearSpouse = proximitySystem.isNearSpouse(uuid);
 
+            // Pre-bonus base of THIS grant, captured before any re-entrant grant below
+            // (the discipline-bonus grantXp) can change the core's per-thread base value.
+            // Used by the even-split so each partner's share runs through their own
+            // bonuses. NaN when the core didn't supply a base (legacy path) — handled
+            // by falling back to the raw split below.
+            double baseXp = EndlessLevelingAPI.get().getCurrentGrantBaseXp();
+
             // Total Discipline bonus: proximity bonus + kiss buff (additive).
             // Single source of truth shared with the profile-UI provider so the
             // bonus the player sees always matches the bonus actually granted.
@@ -514,33 +525,46 @@ public class EndlessMarriage extends JavaPlugin {
                 if (nearSpouse && (!inParty || coupleOnlyParty)) {
                     UUID spouseUuid = marriageDataManager.getSpouse(uuid);
                     if (spouseUuid != null) {
-                        double halfXp = adjustedXp / 2.0;
-
-                        // Funnel-aware even-split: only hand the spouse what they can
-                        // still absorb before their own cap. When the spouse is maxed
-                        // (or near it), the earner keeps the un-absorbable remainder
-                        // instead of burning it — the 50/50 split collapses toward
-                        // 100/0 in favour of whoever can still gain. (The mirror case,
-                        // where the EARNER is the capped one, is handled by the
-                        // XP-overflow listener, which fires only when this listener
-                        // cannot — the earner's grant is discarded before it reaches
-                        // here.) Earner already received the full adjustedXp from the
-                        // pipeline, so we only move the transferable portion across.
-                        double spouseRoom = marriageConfig != null && marriageConfig.isXpOverflowFunnelEnabled()
+                        // EVEN SPLIT OF THE BASE KILL XP, then each partner's own bonuses
+                        // apply (mirrors party-share semantics):
+                        //   - the earner already received the full adjustedXp (= base *
+                        //     earnerBonus) from the pipeline, so strip half of THAT back
+                        //     out — the earner keeps base/2 * earnerBonus.
+                        //   - credit the spouse base/2 through THEIR pipeline so the
+                        //     spouse's own Discipline/Luck/XP bonuses apply to their half
+                        //     (base/2 * spouseBonus).
+                        //
+                        // Funnel-aware: if the spouse is at (or near) their cap they can't
+                        // absorb a share, so the split collapses toward 100/0 in favour of
+                        // whoever can still gain — the earner keeps the un-shareable half
+                        // rather than burning it. (The MIRROR case, where the EARNER is the
+                        // capped one, is handled by the XP-overflow listener, which fires
+                        // only when this listener cannot.)
+                        boolean funnelEnabled = marriageConfig.isXpOverflowFunnelEnabled();
+                        double spouseRoom = funnelEnabled
                                 ? api.xpToReachCapForProfile(spouseUuid, -1)
                                 : Double.POSITIVE_INFINITY;
-                        double transfer = Math.min(halfXp, Math.max(0.0D, spouseRoom));
 
-                        if (transfer > 0.0D) {
-                            EndlessLevelingAPI.get().adjustRawXp(uuid, -transfer);
-                            EndlessLevelingAPI.get().adjustRawXp(spouseUuid, transfer);
+                        if (spouseRoom > 0.0D) {
+                            // Strip the earner's bonused half.
+                            EndlessLevelingAPI.get().adjustRawXp(uuid, -(adjustedXp / 2.0));
+
+                            if (!Double.isNaN(baseXp) && baseXp > 0.0D
+                                    && marriageOverflowService != null) {
+                                // Preferred path: split the base, spouse gets their own bonuses.
+                                marriageOverflowService.creditSpouseEvenSplitShare(spouseUuid, baseXp / 2.0);
+                            } else {
+                                // Legacy fallback (core didn't supply a base): move the raw
+                                // bonused half across, no spouse-specific bonuses.
+                                EndlessLevelingAPI.get().adjustRawXp(spouseUuid, adjustedXp / 2.0);
+                            }
                         }
+                        // else spouse capped: earner keeps everything (no strip, no credit).
 
-                        // Positive handshake to EL core: the couple-only split
-                        // ran for this kill, so PartyManager must skip its
-                        // party-share loop (otherwise the spouse is paid twice).
-                        // Stands even when the spouse was capped and got no transfer —
-                        // a capped spouse must not be paid (and wasted) by the party
+                        // Positive handshake to EL core: the couple-only split ran for this
+                        // kill, so PartyManager must skip its party-share loop (otherwise the
+                        // spouse is paid twice). Stands even when the spouse was capped and got
+                        // no share — a capped spouse must not be paid (and wasted) by the party
                         // loop either. Only meaningful for a couple-only party.
                         if (coupleOnlyParty) {
                             api.markCoupleEvenSplitApplied();

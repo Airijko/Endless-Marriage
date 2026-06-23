@@ -1,7 +1,7 @@
 {
   "Group": "Airijko",
   "Name": "EndlessMarriage",
-  "Version": "2.12.0",
+  "Version": "2.13.0",
   "Description": "Endless Marriage by Airijko",
   "Authors": [
     {
@@ -11,7 +11,7 @@
   ],
   "ServerVersion": ">=0.5.0",
   "Dependencies": {
-    "Airijko:EndlessLevelingCore": ">=9.34.0"
+    "Airijko:EndlessLevelingCore": ">=9.34.1"
   },
   "OptionalDependencies": {},
   "DisabledByDefault": false,

@@ -9,6 +9,7 @@
 
 package com.airijko.endlessmarriage.commands;
 
+import com.airijko.endlessmarriage.commands.subcommands.CarryCommand;
 import com.airijko.endlessmarriage.commands.subcommands.KissCommand;
 import com.airijko.endlessmarriage.commands.subcommands.PiggybackCommand;
 import com.hypixel.hytale.logger.HytaleLogger;
@@ -29,7 +30,8 @@ public final class MarriageCommandRegistrar {
         commandRegistry.registerCommand(new MarriageCommand());
         // Top-level shortcuts: previously /marry piggyback and /marry kiss.
         commandRegistry.registerCommand(new PiggybackCommand());
+        commandRegistry.registerCommand(new CarryCommand());
         commandRegistry.registerCommand(new KissCommand());
-        LOGGER.atInfo().log("Registered /marry, /piggyback, /kiss commands.");
+        LOGGER.atInfo().log("Registered /marry, /piggyback, /carry, /kiss commands.");
     }
 }

@@ -89,6 +89,17 @@ public class MarriageOverflowLog {
      */
     public synchronized void record(@Nonnull UUID from, @Nonnull UUID to, double amount,
             @Nonnull String kind) {
+        record(from, to, amount, kind, true);
+    }
+
+    /**
+     * As {@link #record(UUID, UUID, double, String)} but {@code persist=false} skips the
+     * disk write — used by batch flush paths (server shutdown / admin page open) that
+     * call {@link #save()} once after appending many events, avoiding an O(n²)
+     * rewrite-the-whole-file per event.
+     */
+    public synchronized void record(@Nonnull UUID from, @Nonnull UUID to, double amount,
+            @Nonnull String kind, boolean persist) {
         if (amount <= 0.0D) {
             return;
         }
@@ -101,7 +112,9 @@ public class MarriageOverflowLog {
             log.recent.removeLast();
         }
         serverLifetimeTotal += amount;
-        save();
+        if (persist) {
+            save();
+        }
     }
 
     /** Couple record for either spouse, or {@code null} if the couple has no funnels yet. */
@@ -110,8 +123,19 @@ public class MarriageOverflowLog {
         return couples.get(pairKey(a, b));
     }
 
+    /**
+     * Newest-first snapshot copy of a couple's recent events, taken under the log's lock
+     * so a UI render can iterate it safely while funnels on other world threads mutate the
+     * live deque (avoids {@link java.util.ConcurrentModificationException}). Empty if none.
+     */
+    @Nonnull
+    public synchronized java.util.List<OverflowEvent> snapshotRecent(@Nonnull UUID a, @Nonnull UUID b) {
+        CoupleLog log = couples.get(pairKey(a, b));
+        return log != null ? new ArrayList<>(log.recent) : Collections.emptyList();
+    }
+
     /** Lifetime XP funneled for this couple (0 if none recorded). */
-    public double getCoupleLifetimeTotal(@Nonnull UUID a, @Nonnull UUID b) {
+    public synchronized double getCoupleLifetimeTotal(@Nonnull UUID a, @Nonnull UUID b) {
         CoupleLog log = couples.get(pairKey(a, b));
         return log != null ? log.lifetimeTotal : 0.0D;
     }

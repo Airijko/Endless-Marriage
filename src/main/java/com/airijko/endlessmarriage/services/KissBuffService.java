@@ -72,4 +72,65 @@ public final class KissBuffService {
         long cooldownMs = (long) (config.getKissBuffCooldownSeconds() * 1000.0);
         return (System.currentTimeMillis() - last) < cooldownMs;
     }
+
+    /**
+     * Whole seconds remaining on the player's active buff, or {@code 0} when the
+     * buff is not currently active. Used by the UI to render a live countdown.
+     */
+    public long getActiveSecondsRemaining(@Nonnull UUID playerUuid) {
+        Long last = lastAppliedMs.get(playerUuid);
+        if (last == null) {
+            return 0L;
+        }
+        long durationMs = (long) (config.getKissBuffDurationSeconds() * 1000.0);
+        long remainingMs = durationMs - (System.currentTimeMillis() - last);
+        return remainingMs > 0L ? remainingMs / 1000L : 0L;
+    }
+
+    /**
+     * Whole seconds until the player can re-apply the buff, or {@code 0} when it
+     * is already off cooldown (ready). Used by the UI to render a live countdown.
+     */
+    public long getCooldownSecondsRemaining(@Nonnull UUID playerUuid) {
+        Long last = lastAppliedMs.get(playerUuid);
+        if (last == null) {
+            return 0L;
+        }
+        long cooldownMs = (long) (config.getKissBuffCooldownSeconds() * 1000.0);
+        long remainingMs = cooldownMs - (System.currentTimeMillis() - last);
+        return remainingMs > 0L ? remainingMs / 1000L : 0L;
+    }
+
+    /**
+     * Wall-clock millis at which the buff was last applied (i.e. when it
+     * activated), or {@code 0} if the player has never kissed this session.
+     */
+    public long getActivationEpochMs(@Nonnull UUID playerUuid) {
+        Long last = lastAppliedMs.get(playerUuid);
+        return last != null ? last : 0L;
+    }
+
+    /**
+     * Wall-clock millis at which the active buff expires, or {@code 0} if the
+     * player has never kissed this session.
+     */
+    public long getExpiryEpochMs(@Nonnull UUID playerUuid) {
+        Long last = lastAppliedMs.get(playerUuid);
+        if (last == null) {
+            return 0L;
+        }
+        return last + (long) (config.getKissBuffDurationSeconds() * 1000.0);
+    }
+
+    /**
+     * Wall-clock millis at which the buff comes off cooldown and can be
+     * re-applied, or {@code 0} if the player has never kissed this session.
+     */
+    public long getReadyEpochMs(@Nonnull UUID playerUuid) {
+        Long last = lastAppliedMs.get(playerUuid);
+        if (last == null) {
+            return 0L;
+        }
+        return last + (long) (config.getKissBuffCooldownSeconds() * 1000.0);
+    }
 }
