@@ -63,7 +63,26 @@ public final class PiggybackFollowSystem extends TickingSystem<EntityStore> {
      */
     private static final double RIDE_OFFSET_Y = 0.0d;
 
+    /**
+     * Grace period (seconds) the carrier may be absent from the rider's store
+     * before the session is force-detached. A legitimate cross-world follow pulls
+     * the rider out of this store (the pull's tick-safe transfer) well within this
+     * window, so the timer only fires for a carrier that vanished without the
+     * rider following — e.g. a teleport path that wasn't wired to pull, or a
+     * carrier disconnect mid-window. Detaching then prevents the dead/stranded
+     * session from snapping the rider back when the carrier reappears.
+     */
+    private static final float CARRIER_ABSENT_DETACH_SECONDS = 3.0f;
+
     private final PiggybackService piggybackService;
+
+    /**
+     * rider UUID -&gt; accumulated seconds the carrier has been absent from the
+     * rider's store. Keyed by rider; only the rider's own world store touches a
+     * given key, but different riders may tick on different world threads, so this
+     * is concurrent. Pruned each tick against the live session set.
+     */
+    private final java.util.Map<UUID, Float> carrierAbsentSeconds = new java.util.concurrent.ConcurrentHashMap<>();
 
     public PiggybackFollowSystem(@Nonnull PiggybackService piggybackService) {
         this.piggybackService = piggybackService;
@@ -77,7 +96,16 @@ public final class PiggybackFollowSystem extends TickingSystem<EntityStore> {
 
         Map<UUID, UUID> sessions = piggybackService.getRiderToCarrierView();
         if (sessions.isEmpty()) {
+            // No live sessions — drop any leftover absence timers.
+            if (!carrierAbsentSeconds.isEmpty()) {
+                carrierAbsentSeconds.clear();
+            }
             return;
+        }
+        // Prune absence timers for sessions that have since ended (death-detach,
+        // disconnect, dismount) so the map can't grow unbounded.
+        if (!carrierAbsentSeconds.isEmpty()) {
+            carrierAbsentSeconds.keySet().retainAll(sessions.keySet());
         }
 
         EntityStore entityStore = store.getExternalData();
@@ -92,11 +120,24 @@ public final class PiggybackFollowSystem extends TickingSystem<EntityStore> {
             }
             Ref<EntityStore> carrierRef = entityStore.getRefFromUUID(carrierUuid);
             if (carrierRef == null || !carrierRef.isValid()) {
-                // Carrier left this store — could be cross-world teleport in
-                // flight, or the carrier is a synthetic debug NPC in a
-                // different store. Skip; the dismount/teleport hooks will
-                // resolve this on the right side.
+                // Carrier is absent from the rider's store: a cross-world teleport
+                // in flight (the rider should be getting pulled to the carrier), a
+                // synthetic debug-NPC carrier in another store, or a carrier that
+                // vanished. We must NEVER initiate a transfer from this tick body
+                // (the documented transfer-race / interaction-tick IOOBE), so the
+                // only action here is a detach-only safety net: if the carrier
+                // stays absent past the grace window, tear the session down so the
+                // rider can't be snapped back when the carrier reappears.
+                float elapsed = carrierAbsentSeconds.merge(riderUuid, deltaSeconds, Float::sum);
+                if (elapsed >= CARRIER_ABSENT_DETACH_SECONDS) {
+                    carrierAbsentSeconds.remove(riderUuid);
+                    piggybackService.clearForPlayer(riderUuid);
+                }
                 continue;
+            }
+            // Carrier is present again — reset any pending absence timer.
+            if (!carrierAbsentSeconds.isEmpty()) {
+                carrierAbsentSeconds.remove(riderUuid);
             }
 
             try {

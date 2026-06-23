@@ -67,6 +67,12 @@ public class MarriageConfig {
     // Block type id used for the BlockMount seat (affects the client's seated
     // pose). Resolved via BlockType.getAssetMap(); falls back to index 0 if absent.
     private String piggybackSeatBlockId = "Chair";
+    // When true, a married couple is routed into the same dungeon instance just
+    // like a party (without needing to form one): each spouse clicking the same
+    // dungeon lands in the shared instance. Also the master switch consumed by
+    // EndlessLeveling core's couple share-key routing. Kill-switch: false →
+    // spouses get independent instances.
+    private boolean sharedDungeonsEnabled = true;
     private double witnessMaxRange = 50.0;
     private double kissRange = 1.0;
     private double kissBuffDisciplinePercent = 10.0;
@@ -149,6 +155,10 @@ public class MarriageConfig {
 
     public String getPiggybackSeatBlockId() {
         return piggybackSeatBlockId;
+    }
+
+    public boolean isSharedDungeonsEnabled() {
+        return sharedDungeonsEnabled;
     }
 
     public double getWitnessMaxRange() {
@@ -253,6 +263,9 @@ public class MarriageConfig {
             }
             if (root.has("piggyback_max_range")) {
                 piggybackMaxRange = root.get("piggyback_max_range").getAsDouble();
+            }
+            if (root.has("marriage_shared_dungeons")) {
+                sharedDungeonsEnabled = root.get("marriage_shared_dungeons").getAsBoolean();
             }
             if (root.has("witness_max_range")) {
                 witnessMaxRange = root.get("witness_max_range").getAsDouble();

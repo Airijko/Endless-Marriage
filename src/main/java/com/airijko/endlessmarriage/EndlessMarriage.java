@@ -57,6 +57,7 @@ public class EndlessMarriage extends JavaPlugin {
     private SpouseProtectionSystem spouseProtectionSystem;
     private PiggybackFollowSystem piggybackFollowSystem;
     private com.airijko.endlessmarriage.systems.PiggybackSeatStreamSystem piggybackSeatStreamSystem;
+    private com.airijko.endlessmarriage.systems.PiggybackDeathDetachSystem piggybackDeathDetachSystem;
     private MarriageInteractListener marriageInteractListener;
     private BiConsumer<UUID, Double> xpGrantListener;
     private EndlessLevelingAPI.XpOverflowListener xpOverflowListener;
@@ -125,6 +126,8 @@ public class EndlessMarriage extends JavaPlugin {
         }
         marriageConfig.load(filesManager.getConfigFile());
         TieredRingCatalog.initialize(marriageConfig);
+        // Re-push the couple shared-dungeon toggle to EL core so /reload honors it.
+        EndlessLevelingAPI.get().setCoupleSharedDungeonsEnabled(marriageConfig.isSharedDungeonsEnabled());
         LOGGER.atInfo().log("EndlessMarriage config reloaded from disk.");
     }
 
@@ -231,6 +234,13 @@ public class EndlessMarriage extends JavaPlugin {
                 new com.airijko.endlessmarriage.systems.PiggybackSeatStreamSystem(piggybackService, marriageConfig);
         this.getEntityStoreRegistry().registerSystem(piggybackSeatStreamSystem);
 
+        // Piggyback death detach: the instant either participant dies, tear down
+        // the in-memory session so the follow system can never snap a dead,
+        // now-distant rider back onto the carrier after a dungeon death-kick.
+        piggybackDeathDetachSystem =
+                new com.airijko.endlessmarriage.systems.PiggybackDeathDetachSystem(piggybackService);
+        this.getEntityStoreRegistry().registerSystem(piggybackDeathDetachSystem);
+
         // Interact-key piggyback toggle on a spouse player
         marriageInteractListener = new MarriageInteractListener(marriageDataManager, piggybackService);
         this.getEventRegistry().registerGlobal(PlayerInteractEvent.class,
@@ -273,14 +283,49 @@ public class EndlessMarriage extends JavaPlugin {
         disciplineBonusProvider = this::marriageDisciplineBonusPercent;
         EndlessLevelingAPI.get().addExternalDisciplineXpBonusProvider(disciplineBonusProvider);
 
-        // Dismount piggyback before any cross-world teleport so the rider
-        // does not become invisible or desync in the destination world.
+        // Cross-world teleport handling for an active piggyback session:
+        //  - CARRIER teleporting cross-world: do NOT dismount. The rider is pulled
+        //    into the carrier's destination by the teleport sites themselves (via
+        //    EndlessLevelingAPI.pullPiggybackRider) so the pair stays attached
+        //    across the world boundary, then the follow/seat-stream systems re-seat
+        //    the rider once both are in the destination store.
+        //  - RIDER teleporting on its own (admin TP, /spawn, etc.): end the session
+        //    — the carrier isn't moving, so there's nothing to follow.
+        // (Death is handled separately by PiggybackDeathDetachSystem, which clears
+        //  the session BEFORE the death-kick teleport, so this never fires for a
+        //  dead rider.)
         preTeleportListener = uuid -> {
-            if (piggybackService != null) {
+            if (piggybackService == null) {
+                return;
+            }
+            if (piggybackService.isCarrying(uuid)) {
+                return;
+            }
+            if (piggybackService.isRiding(uuid)) {
                 piggybackService.dismountAny(uuid);
             }
         };
         EndlessLevelingAPI.get().addPreTeleportListener(preTeleportListener);
+
+        // Bridge piggyback state + couple-dungeon routing to EL core / Rifts so
+        // they can pull a seated rider into a teleporting carrier's destination and
+        // route married couples into the same dungeon instance.
+        EndlessLevelingAPI.get().setPiggybackRiderResolver(piggybackService::getRiderFor);
+        EndlessLevelingAPI.get().setCoupleSharedDungeonsEnabled(marriageConfig.isSharedDungeonsEnabled());
+
+        // Banked-instance even-split: inside a dungeon/rift/wave, kill XP is diverted
+        // into the killer's personal claim-or-lose bank BEFORE the normal XP-grant
+        // listener fires, so the overworld 50/50 even-split never runs there. This
+        // resolver lets EL core's XP banks apply the same split — they verify the
+        // spouse is a live participant in the same instance themselves, so we only
+        // answer "who is the married earner's spouse?".
+        EndlessLevelingAPI.get().setCoupleBankSplitResolver(earner -> {
+            if (marriageDataManager == null || !marriageDataManager.isMarried(earner)) {
+                return null;
+            }
+            UUID spouse = marriageDataManager.getSpouse(earner);
+            return (spouse != null && !spouse.equals(earner)) ? spouse : null;
+        });
 
         // EL wipes all permanent attribute bonuses on every augment-selection
         // change (loadout/profile swap, and the first post-join reconcile),
@@ -314,6 +359,14 @@ public class EndlessMarriage extends JavaPlugin {
         if (preTeleportListener != null) {
             EndlessLevelingAPI.get().removePreTeleportListener(preTeleportListener);
         }
+
+        // Tear down the piggyback bridge so EL core / Rifts stop resolving a rider
+        // from this (now-unloading) plugin.
+        EndlessLevelingAPI.get().setPiggybackRiderResolver(null);
+
+        // Stop EL core's XP banks from splitting banked instance XP to a spouse
+        // resolved by this (now-unloading) plugin.
+        EndlessLevelingAPI.get().setCoupleBankSplitResolver(null);
 
         // Unregister augment-selection-changed listener (ring bonus re-apply)
         if (augmentSelectionListener != null) {
