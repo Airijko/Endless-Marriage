@@ -221,7 +221,6 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         events.addEventBinding(Activating, "#SetHomeCancelButton", of("Action", "marry:sethome_cancel"), false);
         events.addEventBinding(Activating, "#ViewCoordsButton", of("Action", "marry:toggle_coords"), false);
         events.addEventBinding(Activating, "#InventoryButton", of("Action", "marry:inventory"), false);
-        events.addEventBinding(Activating, "#DivorceButton", of("Action", "marry:divorce"), false);
         events.addEventBinding(Activating, "#OverflowLogButton", of("Action", "marry:overflow_log"), false);
         events.addEventBinding(Activating, "#RingsButton", of("Action", "marry:rings_ui"), false);
 
@@ -448,7 +447,6 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
             case "marry:toggle_coords" -> handleToggleCoords();
             case "marry:inventory" -> handleInventory(ref, store);
             case "marry:view_profile" -> handleViewProfile(ref, store);
-            case "marry:divorce" -> handleDivorce();
             case "marry:accept" -> handleAccept();
             case "marry:deny" -> handleDeny();
             case "marry:propose_ui" -> handleOpenProposePage(ref, store);
@@ -890,47 +888,6 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
                         resolvePlayerName(spouseUuid)));
             });
         });
-    }
-
-    private void handleDivorce() {
-        UUID senderUuid = playerRef.getUuid();
-        MarriageDataManager data = EndlessMarriage.getInstance().getMarriageDataManager();
-
-        if (!data.isMarried(senderUuid)) {
-            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.NOT_MARRIED, "#ff6666"));
-            return;
-        }
-
-        // Enforce 72-hour minimum before divorce is allowed
-        MarriagePair currentPair = data.getMarriage(senderUuid);
-        if (currentPair != null) {
-            long elapsed = System.currentTimeMillis() - currentPair.timestamp();
-            long minMs = 72L * 60L * 60L * 1000L;
-            if (elapsed < minMs) {
-                long remaining = minMs - elapsed;
-                long hours = remaining / 3_600_000L;
-                long minutes = (remaining % 3_600_000L) / 60_000L;
-                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.MIN_MARRIAGE_TIME, "#ff6666",
-                        com.airijko.endlessleveling.util.Lang.tr(MarriageMessages.COOLDOWN_HM, "{0}h {1}m", hours, minutes)));
-                return;
-            }
-        }
-
-        UUID spouseUuid = data.getSpouse(senderUuid);
-        var config = EndlessMarriage.getInstance().getMarriageConfig();
-
-        if (!config.isRequireMagistrateForDivorce()) {
-            data.divorce(senderUuid, spouseUuid, null);
-            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.DIVORCED_SIMPLE, "#ff9900"));
-            PlayerRef spouseRef = spouseUuid != null ? Universe.get().getPlayer(spouseUuid) : null;
-            if (spouseRef != null) {
-                spouseRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.SPOUSE_DIVORCED_YOU, "#ff9900",
-                        resolvePlayerName(senderUuid)));
-            }
-        } else {
-            data.addPendingDivorce(senderUuid);
-            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.DIVORCE_PENDING, "#ff9900"));
-        }
     }
 
     private void handleAccept() {

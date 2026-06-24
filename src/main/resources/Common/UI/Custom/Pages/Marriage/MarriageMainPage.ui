@@ -163,53 +163,6 @@ $C.@PageOverlay {
 
                             Group { Anchor: (Height: 8); }
 
-                            // ---- Progression Badge (spouse prestige + level) ----
-                            Group #SpouseProgressBadge {
-                                LayoutMode: Left;
-                                Anchor: (Height: 24);
-                                Visible: false;
-
-                                // Prestige chip — hidden when the spouse has no prestige.
-                                Group #SpousePrestigeBadge {
-                                    LayoutMode: Middle;
-                                    Anchor: (Width: 118);
-                                    Background: #f0c040(0.13);
-                                    Visible: false;
-
-                                    Group {
-                                        Anchor: (Width: 2, Top: 0, Left: 0, Bottom: 0);
-                                        Background: #f0c040;
-                                    }
-
-                                    Label #SpousePrestigeLabel {
-                                        Text: "PRESTIGE 0";
-                                        Style: (FontSize: 11, TextColor: #f0c040, RenderBold: true, RenderUppercase: true, LetterSpacing: 1, HorizontalAlignment: Center, VerticalAlignment: Center);
-                                    }
-                                }
-
-                                // Gap between chips — hidden alongside the prestige chip.
-                                Group #SpouseBadgeGap { Anchor: (Width: 6); Visible: false; }
-
-                                // Level chip — always shown for a married spouse.
-                                Group #SpouseLevelBadge {
-                                    LayoutMode: Middle;
-                                    Anchor: (Width: 92);
-                                    Background: #9ad4ff(0.10);
-
-                                    Group {
-                                        Anchor: (Width: 2, Top: 0, Left: 0, Bottom: 0);
-                                        Background: #9ad4ff;
-                                    }
-
-                                    Label #SpouseLevelLabel {
-                                        Text: "LVL 0";
-                                        Style: (FontSize: 11, TextColor: #9ad4ff, RenderBold: true, RenderUppercase: true, LetterSpacing: 1, HorizontalAlignment: Center, VerticalAlignment: Center);
-                                    }
-                                }
-                            }
-
-                            Group { Anchor: (Height: 8); }
-
                             Label #MarriageDateLabel {
                                 Text: "Since: ---";
                                 Style: (FontSize: 12, TextColor: #7a9abf);
@@ -504,19 +457,6 @@ $C.@PageOverlay {
                         }
                     }
 
-                    Group { Anchor: (Height: 12); }
-
-                    Group {
-                        LayoutMode: Left;
-                        Anchor: (Height: 40);
-
-                        $C.@CancelTextButton #DivorceButton {
-                            Text: "REQUEST DIVORCE";
-                            Anchor: (Height: 36, Width: 220);
-                            Padding: (Horizontal: 12);
-                        }
-                    }
-
                     // ---- Role Section ----
                     Group #RoleSection {
                         LayoutMode: Top;
@@ -791,6 +731,80 @@ $C.@PageOverlay {
             Group #SideMarriedBlock {
                 LayoutMode: Top;
                 Visible: false;
+
+                // ---- Spouse Progression Card (prestige + level chips) ----
+                Group {
+                    LayoutMode: Top;
+                    Background: #0b141f(0.88);
+                    Padding: (Full: 14);
+
+                    Group {
+                        Anchor: (Width: 3, Top: 0, Left: 0, Bottom: 0);
+                        Background: #f0c040;
+                    }
+
+                    Group {
+                        LayoutMode: Top;
+                        Padding: (Left: 12);
+
+                        Label {
+                            Text: "PROGRESSION";
+                            Style: (FontSize: 10, TextColor: #f0c040, RenderBold: true, LetterSpacing: 2);
+                            Anchor: (Height: 14);
+                        }
+
+                        Group { Anchor: (Height: 1); Background: #ffffff(0.07); }
+                        Group { Anchor: (Height: 8); }
+
+                        // Prestige + level chips — chips flex to share the narrow side
+                        // column width. IDs match what the Java sender populates.
+                        Group #SpouseProgressBadge {
+                            LayoutMode: Left;
+                            Anchor: (Height: 24);
+                            Visible: false;
+
+                            // Prestige chip — hidden when the spouse has no prestige.
+                            Group #SpousePrestigeBadge {
+                                LayoutMode: Middle;
+                                FlexWeight: 1;
+                                Background: #f0c040(0.13);
+                                Visible: false;
+
+                                Group {
+                                    Anchor: (Width: 2, Top: 0, Left: 0, Bottom: 0);
+                                    Background: #f0c040;
+                                }
+
+                                Label #SpousePrestigeLabel {
+                                    Text: "PRESTIGE 0";
+                                    Style: (FontSize: 11, TextColor: #f0c040, RenderBold: true, RenderUppercase: true, LetterSpacing: 1, HorizontalAlignment: Center, VerticalAlignment: Center);
+                                }
+                            }
+
+                            // Gap between chips — hidden alongside the prestige chip.
+                            Group #SpouseBadgeGap { Anchor: (Width: 6); Visible: false; }
+
+                            // Level chip — always shown for a married spouse.
+                            Group #SpouseLevelBadge {
+                                LayoutMode: Middle;
+                                FlexWeight: 1;
+                                Background: #9ad4ff(0.10);
+
+                                Group {
+                                    Anchor: (Width: 2, Top: 0, Left: 0, Bottom: 0);
+                                    Background: #9ad4ff;
+                                }
+
+                                Label #SpouseLevelLabel {
+                                    Text: "LVL 0";
+                                    Style: (FontSize: 11, TextColor: #9ad4ff, RenderBold: true, RenderUppercase: true, LetterSpacing: 1, HorizontalAlignment: Center, VerticalAlignment: Center);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Group { Anchor: (Height: 10); }
 
                 // ---- Piggyback Card ----
                 Group {
