@@ -67,6 +67,17 @@ public class MarriageConfig {
     // Block type id used for the BlockMount seat (affects the client's seated
     // pose). Resolved via BlockType.getAssetMap(); falls back to index 0 if absent.
     private String piggybackSeatBlockId = "Chair";
+    // Free-look while piggybacking. When true the rider may turn their view
+    // within a yaw cone around the carrier's facing instead of having their
+    // camera hard-locked to it; the cone travels with the carrier so the rider
+    // keeps generally facing the carrier's direction. false → hard lock (camera
+    // matches the carrier exactly, the original behavior).
+    private boolean piggybackSeatFreeLookEnabled = true;
+    // Total width (degrees) of the yaw cone the rider may look within, centered
+    // on the carrier's facing (e.g. 180 → 90° to either side; 360 → full
+    // freedom). Clamped to [0, 360]. Only consulted when
+    // piggybackSeatFreeLookEnabled is true.
+    private double piggybackSeatFreeLookDegrees = 180.0;
     // When true, a married couple is routed into the same dungeon instance just
     // like a party (without needing to form one): each spouse clicking the same
     // dungeon lands in the shared instance. Also the master switch consumed by
@@ -155,6 +166,14 @@ public class MarriageConfig {
 
     public String getPiggybackSeatBlockId() {
         return piggybackSeatBlockId;
+    }
+
+    public boolean isPiggybackSeatFreeLookEnabled() {
+        return piggybackSeatFreeLookEnabled;
+    }
+
+    public double getPiggybackSeatFreeLookDegrees() {
+        return piggybackSeatFreeLookDegrees;
     }
 
     public boolean isSharedDungeonsEnabled() {
@@ -263,6 +282,12 @@ public class MarriageConfig {
             }
             if (root.has("piggyback_max_range")) {
                 piggybackMaxRange = root.get("piggyback_max_range").getAsDouble();
+            }
+            if (root.has("piggyback_seat_free_look_enabled")) {
+                piggybackSeatFreeLookEnabled = root.get("piggyback_seat_free_look_enabled").getAsBoolean();
+            }
+            if (root.has("piggyback_seat_free_look_degrees")) {
+                piggybackSeatFreeLookDegrees = root.get("piggyback_seat_free_look_degrees").getAsDouble();
             }
             if (root.has("marriage_shared_dungeons")) {
                 sharedDungeonsEnabled = root.get("marriage_shared_dungeons").getAsBoolean();

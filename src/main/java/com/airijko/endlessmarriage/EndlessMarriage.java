@@ -260,6 +260,9 @@ public class EndlessMarriage extends JavaPlugin {
         marriageOverflowLog = new com.airijko.endlessmarriage.data.MarriageOverflowLog(
                 filesManager.getDataFolder(), marriageConfig.getXpOverflowLogMaxEntriesPerCouple());
         marriageOverflowLog.load();
+        EndlessLevelingAPI.get().registerBackupParticipant(
+                new com.airijko.endlessmarriage.backup.MarriageBackupParticipant(
+                        filesManager.getDataFolder(), marriageDataManager, tieredRingDataManager, marriageOverflowLog));
         marriageOverflowService = new com.airijko.endlessmarriage.services.MarriageOverflowService(
                 marriageDataManager, marriageConfig, proximitySystem, marriageOverflowLog);
 

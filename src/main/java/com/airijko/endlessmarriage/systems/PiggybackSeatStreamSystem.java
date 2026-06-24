@@ -188,7 +188,21 @@ public final class PiggybackSeatStreamSystem extends EntityTickingSystem<EntityS
             Rotation3f cRot = carrierTransform.getRotation();
             float seatY = (float) (cPos.y() + config.getPiggybackSeatHeight());
             Vector3f seatPos = new Vector3f((float) cPos.x(), seatY, (float) cPos.z());
-            Vector3f seatRot = cRot != null ? new Vector3f(cRot.x, cRot.y, cRot.z) : new Vector3f(0f, 0f, 0f);
+
+            // Seat orientation. By default (free-look off) the seat matches the
+            // carrier exactly, hard-locking the rider's camera to the carrier's
+            // facing. With free-look on, we instead stream the rider's OWN look
+            // clamped to a yaw cone around the carrier's facing: the cone travels
+            // with the carrier so the rider keeps generally facing the carrier's
+            // direction, but gains a little freedom to glance around.
+            Vector3f seatRot;
+            if (!config.isPiggybackSeatFreeLookEnabled()) {
+                seatRot = new Vector3f(cRot.x, cRot.y, cRot.z);
+            } else {
+                TransformComponent riderTransform = store.getComponent(riderRef, this.transformComponentType);
+                Rotation3f rRot = riderTransform != null ? riderTransform.getRotation() : null;
+                seatRot = computeFreeLookOrientation(cRot, rRot);
+            }
 
             BlockMount blockMount = new BlockMount(BlockMountType.Seat, seatPos, seatRot, resolveSeatBlockTypeId());
             MountedUpdate update = new MountedUpdate(0, new Vector3f(0f, 0f, 0f), MountController.BlockMount, blockMount);
@@ -205,6 +219,36 @@ public final class PiggybackSeatStreamSystem extends EntityTickingSystem<EntityS
                         .log("Piggyback seat stream skipped a tick for %s (logged once).", uuid);
             }
         }
+    }
+
+    /**
+     * Builds the streamed seat orientation for free-look: the rider's own yaw
+     * clamped to within ±{@code piggybackSeatFreeLookDegrees/2} of the carrier's
+     * yaw (shortest-angle), with the rider's pitch passed through and the
+     * carrier's roll. Rotation components are {@code (x=pitch, y=yaw, z=roll)}
+     * in radians, matching {@code TransformComponent.getRotation()} and
+     * {@code BlockMountPoint.computeRotationEuler}.
+     *
+     * <p>When the rider is inside the cone we echo essentially their own look,
+     * so the orientation we stream matches what their client already shows — no
+     * camera fight. Only at the cone edge do we pin them, which reads as a soft
+     * wall that turns with the carrier. If the rider's look is unavailable (e.g.
+     * the client suppresses look input while seated), we fall back to the
+     * carrier's facing, i.e. the hard-lock behavior.
+     */
+    @Nonnull
+    private Vector3f computeFreeLookOrientation(@Nonnull Rotation3f carrierRot, @Nullable Rotation3f riderRot) {
+        if (riderRot == null) {
+            return new Vector3f(carrierRot.x, carrierRot.y, carrierRot.z);
+        }
+        // Config value is the TOTAL cone width; the per-side limit is half of it.
+        double totalDegrees = Math.max(0.0, Math.min(360.0, config.getPiggybackSeatFreeLookDegrees()));
+        float maxDelta = (float) Math.toRadians(totalDegrees / 2.0);
+        // Shortest signed angle from carrier yaw to rider yaw, wrapped to [-PI, PI].
+        float delta = (float) Math.IEEEremainder(riderRot.y - carrierRot.y, 2.0 * Math.PI);
+        float clamped = Math.max(-maxDelta, Math.min(maxDelta, delta));
+        float seatYaw = carrierRot.y + clamped;
+        return new Vector3f(riderRot.x, seatYaw, carrierRot.z);
     }
 
     private int resolveSeatBlockTypeId() {

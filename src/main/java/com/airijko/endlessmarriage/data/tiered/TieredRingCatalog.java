@@ -69,15 +69,15 @@ public final class TieredRingCatalog {
     static {
         Map<SkillAttributeType, Map<TieredRingTier, Double>> defaults = new EnumMap<>(SkillAttributeType.class);
         defaults.put(SkillAttributeType.LIFE_FORCE, tierMap(40, 65, 100, 160, 260, 480));
-        defaults.put(SkillAttributeType.STRENGTH,   tierMap(10, 16, 25,  40,  65,  120));
-        defaults.put(SkillAttributeType.DEFENSE,    tierMap( 3,  5,  8,  12,  20,  36));
+        defaults.put(SkillAttributeType.STRENGTH,   tierMap(10, 16, 25,  40,  63,  100));
+        defaults.put(SkillAttributeType.DEFENSE,    tierMap(12, 20, 30,  48,  76,  120));
         defaults.put(SkillAttributeType.HASTE,      tierMap( 3,  5,  8,  12,  20,  36));
         defaults.put(SkillAttributeType.PRECISION,  tierMap( 3,  5,  8,  12,  20,  36));
         defaults.put(SkillAttributeType.FEROCITY,   tierMap( 6, 10, 15,  25,  40,  72));
         defaults.put(SkillAttributeType.STAMINA,    tierMap( 5,  8, 13,  20,  32,  60));
         defaults.put(SkillAttributeType.DISCIPLINE, tierMap( 2,  3,  5,   8,  13,  24));
-        defaults.put(SkillAttributeType.FLOW,       tierMap(15, 25, 40,  65, 100, 180));
-        defaults.put(SkillAttributeType.SORCERY,    tierMap(10, 16, 25,  40,  65, 120));
+        defaults.put(SkillAttributeType.FLOW,       tierMap(16, 26, 40,  64, 100, 160));
+        defaults.put(SkillAttributeType.SORCERY,    tierMap(10, 16, 25,  40,  63, 100));
         DEFAULTS = Collections.unmodifiableMap(defaults);
     }
 
