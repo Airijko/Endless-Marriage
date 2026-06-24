@@ -177,9 +177,15 @@ public class MarriageRingVariationPage extends SafeInteractiveCustomUIPage<Marri
         }
 
         UUID spouseUuid = marriage.getSpouse(senderUuid);
-        int senderPrestige = EndlessLevelingAPI.get().getPlayerPrestigeLevel(senderUuid);
+        // Gate on each partner's account-scoped HIGHEST prestige (persistent, profile-
+        // independent) — the SAME source the build() display gate uses. Reading the
+        // active-profile value here instead would resolve an offline spouse (or a spouse
+        // currently on a non-prestiged profile) to 0 and falsely re-lock a ring the UI
+        // just showed as equippable. See PlayerData#getHighestPrestigeLevel, which names
+        // the marriage ring tiers as its reason for being account-scoped.
+        int senderPrestige = EndlessLevelingAPI.get().getHighestPrestigeLevel(senderUuid);
         int spousePrestige = spouseUuid != null
-                ? EndlessLevelingAPI.get().getPlayerPrestigeLevel(spouseUuid)
+                ? EndlessLevelingAPI.get().getHighestPrestigeLevel(spouseUuid)
                 : 0;
         if (Math.min(senderPrestige, spousePrestige) < tier.getPrestigeRequired()) {
             playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.RING_NEED_PRESTIGE_TIER, "#ff6666",

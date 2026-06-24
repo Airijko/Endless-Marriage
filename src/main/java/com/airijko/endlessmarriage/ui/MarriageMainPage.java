@@ -1010,8 +1010,11 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
             return;
         }
 
-        int senderPrestige = EndlessLevelingAPI.get().getPlayerPrestigeLevel(senderUuid);
-        int spousePrestige = EndlessLevelingAPI.get().getPlayerPrestigeLevel(spouseUuid);
+        // Account-scoped HIGHEST prestige (persistent, profile-independent), matching the
+        // ring-tier display gates. The active-profile getter would read an offline spouse
+        // as 0 and falsely block the upgrade. See PlayerData#getHighestPrestigeLevel.
+        int senderPrestige = EndlessLevelingAPI.get().getHighestPrestigeLevel(senderUuid);
+        int spousePrestige = EndlessLevelingAPI.get().getHighestPrestigeLevel(spouseUuid);
         int lowestPrestige = Math.min(senderPrestige, spousePrestige);
 
         if (lowestPrestige < next.getPrestigeRequired()) {

@@ -17,6 +17,7 @@ import java.lang.reflect.Method;
 import java.util.UUID;
 import java.util.function.BiPredicate;
 import java.util.function.BooleanSupplier;
+import java.util.function.UnaryOperator;
 
 /**
  * Optional, reflection-only bridge to Refixes-Endless' {@code PiggybackPairs} registry.
@@ -47,10 +48,19 @@ public final class PiggybackTargetingBridge {
     public static void install(@Nonnull PiggybackService service) {
         try {
             Class<?> registry = Class.forName(REGISTRY_CLASS);
-            Method install = registry.getMethod("install", BooleanSupplier.class, BiPredicate.class);
             BooleanSupplier activeGate = service::hasActiveSessions;
             BiPredicate<UUID, UUID> resolver = service::arePartners;
-            install.invoke(null, activeGate, resolver);
+            UnaryOperator<UUID> partnerResolver = service::getPartnerFor;
+            // Prefer the 3-arg install (adds the single-shooter partner resolver the optimized
+            // projectile path uses); fall back to the 2-arg form on older Refixes-Endless builds.
+            try {
+                Method install3 = registry.getMethod(
+                        "install", BooleanSupplier.class, BiPredicate.class, UnaryOperator.class);
+                install3.invoke(null, activeGate, resolver, partnerResolver);
+            } catch (NoSuchMethodException olderRefixes) {
+                registry.getMethod("install", BooleanSupplier.class, BiPredicate.class)
+                        .invoke(null, activeGate, resolver);
+            }
             installed = true;
             LOGGER.atInfo().log(
                     "Piggyback un-targeting bridge installed (Refixes-Endless detected): "

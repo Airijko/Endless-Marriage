@@ -16,8 +16,6 @@
   "magistrate_class_id": "magistrate",
   "piggyback_damage_reduction_percent": 25.0,
   "piggyback_max_range": 5.0,
-  "piggyback_seat_free_look_enabled": true,
-  "piggyback_seat_free_look_degrees": 180.0,
   "marriage_shared_dungeons": true,
   "witness_max_range": 50.0,
   "kiss_range": 1.0,

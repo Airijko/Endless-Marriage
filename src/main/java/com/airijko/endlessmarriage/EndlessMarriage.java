@@ -589,37 +589,62 @@ public class EndlessMarriage extends JavaPlugin {
                 if (nearSpouse && (!inParty || coupleOnlyParty)) {
                     UUID spouseUuid = marriageDataManager.getSpouse(uuid);
                     if (spouseUuid != null) {
-                        // EVEN SPLIT OF THE BASE KILL XP, then each partner's own bonuses
-                        // apply (mirrors party-share semantics):
-                        //   - the earner already received the full adjustedXp (= base *
-                        //     earnerBonus) from the pipeline, so strip half of THAT back
-                        //     out — the earner keeps base/2 * earnerBonus.
-                        //   - credit the spouse base/2 through THEIR pipeline so the
-                        //     spouse's own Discipline/Luck/XP bonuses apply to their half
-                        //     (base/2 * spouseBonus).
+                        // EVEN SPLIT, then EACH partner's own bonuses apply (mirrors party-share).
+                        // The kill is valued at the BEST level-range multiplier among the two
+                        // spouses, split once (XP-conserving — total never exceeds the best value),
+                        // and the split base is BOOST-FREE so each partner re-applies their OWN
+                        // xp-boost (keeping xp-boost per-spouse, exactly like luck/discipline):
+                        //   - earnerBase / spouseBase = this kill's level-range-adjusted value at
+                        //     each one's level WITHOUT xp-boost (global + additive + level-range +
+                        //     scaling + entity mult only); NaN for non-mob grants.
+                        //   - poolBase = max(earnerBase, spouseBase): an underleveled killer's
+                        //     level-range penalty no longer drags the in-range spouse's half down —
+                        //     the in-range partner carries the pool. When the EARNER is in-range,
+                        //     spouseBase <= earnerBase so poolBase == earnerBase (boost-low-spouse
+                        //     path unchanged). Each partner keeps poolBase/2.
+                        //   - earner: adjustedXp = earnerBase * earnerBoost * earnerBonus already
+                        //     credited by the pipeline; scale it to (poolBase/2) * earnerBoost *
+                        //     earnerBonus — a strip when poolBase==earnerBase, a top-UP when the
+                        //     spouse's value carries (both share the carry, each keeping their OWN
+                        //     boost, which rides inside adjustedXp so it cancels in the ratio).
+                        //   - spouse: re-apply the SPOUSE's own xp-boost to their boost-free half,
+                        //     then credit through their pipeline so their luck/discipline/passive
+                        //     apply too.
                         //
-                        // Funnel-aware: if the spouse is at (or near) their cap they can't
-                        // absorb a share, so the split collapses toward 100/0 in favour of
-                        // whoever can still gain — the earner keeps the un-shareable half
-                        // rather than burning it. (The MIRROR case, where the EARNER is the
-                        // capped one, is handled by the XP-overflow listener, which fires
-                        // only when this listener cannot.)
+                        // Funnel-aware: if the spouse is at (or near) their cap they can't absorb a
+                        // share, so the split collapses toward 100/0 in favour of whoever can still
+                        // gain — the earner keeps the un-shareable half rather than burning it. (The
+                        // MIRROR case, where the EARNER is the capped one, is handled by the
+                        // XP-overflow listener, which fires only when this listener cannot.)
+                        double earnerBase = api.computeMobKillGrantBaseFor(uuid);
+                        boolean mobCtx = !Double.isNaN(earnerBase) && earnerBase > 0.0D;
+
                         boolean funnelEnabled = marriageConfig.isXpOverflowFunnelEnabled();
                         double spouseRoom = funnelEnabled
                                 ? api.xpToReachCapForProfile(spouseUuid, -1)
                                 : Double.POSITIVE_INFINITY;
 
                         if (spouseRoom > 0.0D) {
-                            // Strip the earner's bonused half.
-                            EndlessLevelingAPI.get().adjustRawXp(uuid, -(adjustedXp / 2.0));
-
-                            if (!Double.isNaN(baseXp) && baseXp > 0.0D
+                            if (mobCtx && marriageOverflowService != null) {
+                                double spouseBase = api.computeMobKillGrantBaseFor(spouseUuid);
+                                double poolBase = (!Double.isNaN(spouseBase) && spouseBase > earnerBase)
+                                        ? spouseBase
+                                        : earnerBase;
+                                double half = poolBase / 2.0;
+                                EndlessLevelingAPI.get().adjustRawXp(uuid,
+                                        adjustedXp * ((half / earnerBase) - 1.0));
+                                double spouseBoost = api.getXpBoostMultiplier(spouseUuid);
+                                marriageOverflowService.creditSpouseEvenSplitShare(
+                                        spouseUuid, half * spouseBoost);
+                            } else if (!Double.isNaN(baseXp) && baseXp > 0.0D
                                     && marriageOverflowService != null) {
-                                // Preferred path: split the base, spouse gets their own bonuses.
+                                // Non-mob grant (no level-range/xp-boost context): plain base/2
+                                // even split; spouse still gets their own luck/discipline.
+                                EndlessLevelingAPI.get().adjustRawXp(uuid, -(adjustedXp / 2.0));
                                 marriageOverflowService.creditSpouseEvenSplitShare(spouseUuid, baseXp / 2.0);
                             } else {
-                                // Legacy fallback (core didn't supply a base): move the raw
-                                // bonused half across, no spouse-specific bonuses.
+                                // Legacy fallback (core didn't supply a base): raw bonused half.
+                                EndlessLevelingAPI.get().adjustRawXp(uuid, -(adjustedXp / 2.0));
                                 EndlessLevelingAPI.get().adjustRawXp(spouseUuid, adjustedXp / 2.0);
                             }
                         }

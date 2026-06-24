@@ -105,6 +105,24 @@ public final class PiggybackService {
     }
 
     /**
+     * Returns the piggyback partner of the given player — the carrier if they are
+     * riding, the rider if they are carrying — or {@code null} if they are not in
+     * an active session. Order-independent; two cheap {@link Map#get} lookups.
+     *
+     * <p>Used by the Refixes collision mixins (via the {@code PiggybackPairs}
+     * bridge) to resolve a shooter's partner exactly ONCE per projectile tick, so
+     * the per-candidate collision check collapses to a single ref-equality.
+     */
+    @Nullable
+    public UUID getPartnerFor(@Nullable UUID uuid) {
+        if (uuid == null) {
+            return null;
+        }
+        UUID carrier = riders.get(uuid);
+        return carrier != null ? carrier : carriers.get(uuid);
+    }
+
+    /**
      * Live, read-only view of the rider-to-carrier index. The map is backed by
      * a {@link ConcurrentHashMap}, so callers can safely iterate it without
      * copying — but they must not mutate it. Used by tick systems that need to
