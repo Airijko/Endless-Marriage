@@ -67,6 +67,25 @@ public final class PiggybackService {
         return riders.containsKey(uuid) || carriers.containsKey(uuid);
     }
 
+    /** Cheap hot-path gate for the Refixes un-targeting bridge: any sessions at all? */
+    public boolean hasActiveSessions() {
+        return !riders.isEmpty();
+    }
+
+    /**
+     * Order-independent: are these two UUIDs the rider and carrier of one active
+     * piggyback session? Backs the Refixes {@code PiggybackPairs} resolver so the
+     * combat mixins can let piggyback partners pass through each other's
+     * attacks/projectiles. {@code riders} maps rider→carrier and {@code carriers}
+     * maps carrier→rider, so checking both covers {@code a} in either role.
+     */
+    public boolean arePartners(@Nullable UUID a, @Nullable UUID b) {
+        if (a == null || b == null || a.equals(b)) {
+            return false;
+        }
+        return b.equals(riders.get(a)) || b.equals(carriers.get(a));
+    }
+
     /**
      * Returns the carrier UUID for the given rider, or {@code null} if the
      * rider is not currently in a piggyback session.

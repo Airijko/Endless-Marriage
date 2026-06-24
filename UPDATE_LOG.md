@@ -1,5 +1,91 @@
 # Endless Marriage - Update Log
 
+## 2026-06-24 — 3.1.0 (the V3 line, compared to 2.13.0)
+
+The major version bump to **V3** collapses three commits (`3ed24c1` → `8923766` → `d26be3e`) into one release. It is the first build to require **EndlessLeveling Core ≥ 9.35.0** (was `≥ 9.34.1`) — the new couple-dungeon routing, banked-instance even-split, cross-world rider pull, and suite backup hooks all consume core seams added in 9.35.0. **Requires an EL Core ≥ 9.35.0 redeploy alongside this jar.**
+
+### Highlights
+
+- **Married couples share dungeon instances** like a party (without forming one) — new `marriage_shared_dungeons` toggle, bridged to EL core's couple share-key routing.
+- **Even-split XP now works *inside* dungeons/rifts/waves**, not just the overworld — fixes the long-standing instance bypass via a new `CoupleBankSplitResolver` (see memory note "Marriage even-split bypassed in instances").
+- **Piggyback survives cross-world teleports**: a carrier going through a portal/dungeon pulls the seated rider with them instead of dismounting.
+- **New `PiggybackDeathDetachSystem`** tears the session down the instant either partner dies, so a dead, death-kicked rider can never be snapped back onto the carrier from across the map.
+- **Piggyback free-look**: the rider can glance around within a configurable yaw cone instead of a hard camera lock (default 180°).
+- **New `MarriageBackupParticipant`** registers marriage with EL core's suite backup/restore (`/el restore all`).
+- **Home coords hidden by default** (anti-leak) with a `VIEW COORDS` reveal toggle and a `SET HOME` overwrite-confirmation bar.
+- **`VIEW PROFILE`** button opens EndlessGuilds' read-only spouse profile card when Guilds is installed.
+- **Ring prestige gating fixed** for offline spouses (`getHighestPrestigeLevel`), and a **tiered-ring stat rebalance** (Defense buffed hard; Strength/Sorcery/Flow S-tier trimmed).
+
+### Couple shared dungeons (`new feature`)
+
+- New config `marriage_shared_dungeons` (default `true`) in [`MarriageConfig`](src/main/java/com/airijko/endlessmarriage/config/MarriageConfig.java) → `isSharedDungeonsEnabled()`. When enabled, each spouse clicking the same dungeon lands in the **same instance** — the engine routes them together exactly like a party, without either having to form one.
+- Pushed to core via `EndlessLevelingAPI.setCoupleSharedDungeonsEnabled(...)` in [`onEnable`](src/main/java/com/airijko/endlessmarriage/EndlessMarriage.java), and **re-pushed on `/marry reload`** so the toggle survives a live config reload.
+- Kill-switch: `false` → spouses get independent instances.
+
+### Banked-instance even-split (`bug fix` — the instance bypass)
+
+- Inside a dungeon/rift/wave, kill XP is diverted into the killer's personal **claim-or-lose bank** *before* the normal XP-grant listener runs, so the overworld 50/50 even-split never fired there (couples earned nothing for each other in instances).
+- Fixed at the bank level: `EndlessMarriage` now registers a `CoupleBankSplitResolver` via `EndlessLevelingAPI.setCoupleBankSplitResolver(...)` that answers *"who is this earner's spouse?"*. EL core's XP banks apply the same even-split and verify the spouse is a live participant in the same instance themselves. Cleared to `null` in `onDisable`.
+
+### Piggyback: cross-world carry (`new behavior`)
+
+- The pre-teleport listener in [`EndlessMarriage`](src/main/java/com/airijko/endlessmarriage/EndlessMarriage.java) was rewritten:
+  - **Carrier** teleporting cross-world → **no longer dismounts**. The teleport sites pull the rider into the carrier's destination (`EndlessLevelingAPI.pullPiggybackRider`, fed by `setPiggybackRiderResolver(piggybackService::getRiderFor)`), so the pair stays attached across the world boundary and the follow/seat-stream systems re-seat the rider on arrival.
+  - **Rider** teleporting on its own (admin TP, `/spawn`) → session ends (the carrier isn't moving, so there's nothing to follow).
+- The rider resolver is cleared (`setPiggybackRiderResolver(null)`) in `onDisable` so core/Rifts stop resolving a rider from an unloading plugin.
+
+### Piggyback: death detach (`new system`, crash/teleport safety)
+
+- New [`PiggybackDeathDetachSystem`](src/main/java/com/airijko/endlessmarriage/systems/PiggybackDeathDetachSystem.java) (a `DeathSystems.OnDeathSystem`, **player-only query**) clears the in-memory piggyback session the instant **either** participant dies.
+- **Why:** dungeons death-kick players out and (correctly) don't return them. Without this, the lingering session would let `PiggybackFollowSystem` snap the dead, now-distant rider back onto the carrier from thousands of blocks away once the carrier exited the instance. Detaching before the death-kick teleport runs prevents the re-converge. Pure map teardown — the rider holds no engine `MountedComponent` (the seat is a server-streamed `BlockMount`).
+
+### Piggyback: follow-system grace window (`hardening`)
+
+- [`PiggybackFollowSystem`](src/main/java/com/airijko/endlessmarriage/systems/PiggybackFollowSystem.java) gained a per-rider `carrierAbsentSeconds` timer. If the carrier stays absent from the rider's store past `CARRIER_ABSENT_DETACH_SECONDS` (3s) — a teleport path that wasn't wired to pull, or a mid-window carrier disconnect — the session is **force-detached** rather than left to snap the rider back when the carrier reappears. The tick body still never initiates a transfer itself (avoids the documented transfer-race / interaction-tick IOOBE); it's detach-only.
+- The timer map is pruned each tick against the live session set (and cleared when no sessions exist) so it can't grow unbounded.
+
+### Piggyback: free-look (`new feature`)
+
+- New config `piggyback_seat_free_look_enabled` (default `true`) and `piggyback_seat_free_look_degrees` (default `180.0`, clamped `[0,360]`) in [`MarriageConfig`](src/main/java/com/airijko/endlessmarriage/config/MarriageConfig.java).
+- [`PiggybackSeatStreamSystem.computeFreeLookOrientation`](src/main/java/com/airijko/endlessmarriage/systems/PiggybackSeatStreamSystem.java) streams the rider's **own** yaw clamped to a cone centered on the carrier's facing (rider's pitch passed through, carrier's roll). The cone travels with the carrier, so the rider keeps generally facing forward but can glance to either side; inside the cone it echoes the rider's own look (no camera fight), pinning only at the edge. `false` → hard-lock to the carrier's facing (the prior behavior); rider-look unavailable → falls back to hard-lock.
+
+### Suite backup integration (`new`)
+
+- New [`MarriageBackupParticipant`](src/main/java/com/airijko/endlessmarriage/backup/MarriageBackupParticipant.java) implements EL core's `SuiteBackupParticipant` (id `"marriage"`), registered in `onEnable`.
+  - **Export:** flushes `MarriageDataManager` / `TieredRingDataManager` / `MarriageOverflowLog` to disk, then copies every `*.json` in the data folder into the snapshot.
+  - **Restore-all:** copies the snapshot JSON back and reloads the three managers in place.
+  - **Per-player restore is unsupported** — marriage state is couple-scoped (pairs, officiants, shared homes) and can't be safely sliced; use `/el restore all`.
+
+### Home coords privacy + overwrite guard (`UI`)
+
+- In [`MarriageMainPage`](src/main/java/com/airijko/endlessmarriage/ui/MarriageMainPage.java), the home card no longer prints raw coords by default — it shows `Home set · coords hidden`. A new **`VIEW COORDS`** button toggles the reveal **for the open session only** (`coordsRevealed` resets on re-open); guards against accidental leaks while streaming/screenshotting.
+- Pressing **`SET HOME`** when a home already exists now opens a **`SetHomeConfirmBar`** ("Overwrite your existing home…") with `CONFIRM OVERWRITE` / `CANCEL`, instead of silently moving the shared home on a stray click. Setting the *first* home still saves immediately. New handlers: `handleSetHomeConfirm` / `handleSetHomeCancel` / `handleToggleCoords`, with `doSetHome` / `applyHomeInfo` helpers, plus the matching `.ui` markup in [`MarriageMainPage.ui`](src/main/resources/Common/UI/Custom/Pages/Marriage/MarriageMainPage.ui).
+
+### View spouse profile (`UI`, soft Guilds integration)
+
+- New **`VIEW PROFILE`** button on the main page opens **EndlessGuilds'** read-only `guild-profile` card for the spouse (DB-backed, so it works while they're offline). Routed through core's `MenuRegistry` param-page seam (the same path EndlessLink uses), so EndlessMarriage needs **no compile/reflection dependency** on Guilds — the button is hidden unless `MenuRegistry.hasParamPage("guild-profile")` is true, and `handleViewProfile` degrades gracefully if the page is gone.
+
+### Ring prestige gating fix (`bug fix`)
+
+- [`MarriageRingPage`](src/main/java/com/airijko/endlessmarriage/ui/MarriageRingPage.java) and [`MarriageRingVariationPage`](src/main/java/com/airijko/endlessmarriage/ui/MarriageRingVariationPage.java) now gate on each partner's **highest prestige across their profiles** via `getHighestPrestigeLevel(...)` (persistent storage) instead of `getPlayerPrestigeLevel(...)`. **Why:** the old call collapsed an **offline** spouse's prestige to `0`, which locked every ring tier/variation above E whenever a partner was away. Both partners' highest prestige is now read from persistent storage, so the lower-of-the-two gate stays correct regardless of who's online.
+
+### Tiered-ring stat rebalance (`balance`)
+
+- Default catalog ([`TieredRingCatalog`](src/main/java/com/airijko/endlessmarriage/data/tiered/TieredRingCatalog.java)) and bundled `config.json` re-tuned (tiers `e/d/c/b/a/s`):
+  - **Defense** — buffed across the board: `3/5/8/12/20/36` → `12/20/30/48/76/120`.
+  - **Strength** — A/S trimmed: `…/65/120` → `…/63/100`.
+  - **Sorcery** — A/S trimmed: `…/65/120` → `…/63/100`.
+  - **Flow** — E/D/B/S adjusted: `15/25/40/65/100/180` → `16/26/40/64/100/160`.
+
+### Config & version
+
+- `MarriageConfigMigrator.BUNDLED_CONFIG_VERSION` bumped `4` → `6`; `config.json` `config_version` synced to `6`. Existing user configs are merged forward on next boot to pick up `marriage_shared_dungeons`, `piggyback_seat_free_look_*`, and the rebalanced `tiered_rings` values.
+- `manifest.json`: `2.13.0` → `3.1.0`; `EndlessLevelingCore` dependency `≥ 9.34.1` → `≥ 9.35.0`.
+
+Build target jar: `EndlessMarriage-3.1.0.jar` (**requires EL Core ≥ 9.35.0**).
+
+---
+
 ## 2026-06-23 — 2.13.0
 
 ### Carry your partner (piggyback, reversed) + note on the existing XP-overflow toggle

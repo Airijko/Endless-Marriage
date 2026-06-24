@@ -144,6 +144,11 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         ui.set("#SpouseOnlineLabel.Text", spouseOnline ? "ONLINE" : "OFFLINE");
         ui.set("#SpouseOnlineLabel.Style.TextColor", spouseOnline ? "#66ff66" : "#ff6666");
 
+        // Spouse progression badge — prestige + level chips. Resolved via the profile
+        // card so the values stay correct even while the spouse is OFFLINE (it falls
+        // back to a read-only DAO load on a live-cache miss).
+        applySpouseProgressBadge(ui, spouseUuid);
+
         // View Profile — opens EndlessGuilds' read-only player profile card for the
         // spouse. Only surfaced when that page is registered (i.e. EndlessGuilds is
         // installed); the card is DB-backed so it works even while the spouse is
@@ -1140,6 +1145,36 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         } catch (Exception ex) {
             return null;
         }
+    }
+
+    /**
+     * Fill the spouse prestige + level chips. Uses {@link EndlessLevelingAPI#getProfileCard}
+     * so the values resolve from the persisted profile even while the spouse is offline; the
+     * prestige chip is hidden for a Prestige-0 spouse so the badge stays clean.
+     */
+    private void applySpouseProgressBadge(@Nonnull UICommandBuilder ui, @Nonnull UUID spouseUuid) {
+        int level = 0;
+        int prestige = 0;
+        java.util.Map<String, Object> card = EndlessLevelingAPI.get().getProfileCard(spouseUuid);
+        if (card != null) {
+            if (card.get("level") instanceof Number n) {
+                level = n.intValue();
+            }
+            if (card.get("prestige") instanceof Number n) {
+                prestige = n.intValue();
+            }
+        }
+
+        ui.set("#SpouseLevelLabel.Text", "LVL " + level);
+
+        boolean hasPrestige = prestige > 0;
+        ui.set("#SpousePrestigeBadge.Visible", hasPrestige);
+        ui.set("#SpouseBadgeGap.Visible", hasPrestige);
+        if (hasPrestige) {
+            ui.set("#SpousePrestigeLabel.Text", "PRESTIGE " + prestige);
+        }
+
+        ui.set("#SpouseProgressBadge.Visible", true);
     }
 
     @Nonnull

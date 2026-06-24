@@ -207,6 +207,10 @@ public class EndlessMarriage extends JavaPlugin {
 
         // Piggyback / kiss services
         piggybackService = new PiggybackService(marriageDataManager, marriageConfig);
+        // Soft enhancement: if Refixes-Endless is installed, feed its PiggybackPairs
+        // registry so piggyback partners pass through each other's attacks/projectiles.
+        // No-op (logged) when Refixes is absent; marriage works regardless.
+        com.airijko.endlessmarriage.bridge.PiggybackTargetingBridge.install(piggybackService);
         kissBuffService = new KissBuffService(marriageConfig);
         kissService = new KissService(marriageDataManager, marriageConfig, kissBuffService);
         debugNpcService = new DebugNpcService(marriageConfig);
@@ -366,6 +370,10 @@ public class EndlessMarriage extends JavaPlugin {
         // Tear down the piggyback bridge so EL core / Rifts stop resolving a rider
         // from this (now-unloading) plugin.
         EndlessLevelingAPI.get().setPiggybackRiderResolver(null);
+
+        // Clear the Refixes un-targeting resolver so its combat mixins stop calling
+        // into this (now-unloading) plugin's PiggybackService.
+        com.airijko.endlessmarriage.bridge.PiggybackTargetingBridge.uninstall();
 
         // Stop EL core's XP banks from splitting banked instance XP to a spouse
         // resolved by this (now-unloading) plugin.

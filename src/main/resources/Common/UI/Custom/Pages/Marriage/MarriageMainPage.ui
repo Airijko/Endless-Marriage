@@ -161,7 +161,54 @@ $C.@PageOverlay {
                                 }
                             }
 
-                            Group { Anchor: (Height: 4); }
+                            Group { Anchor: (Height: 8); }
+
+                            // ---- Progression Badge (spouse prestige + level) ----
+                            Group #SpouseProgressBadge {
+                                LayoutMode: Left;
+                                Anchor: (Height: 24);
+                                Visible: false;
+
+                                // Prestige chip — hidden when the spouse has no prestige.
+                                Group #SpousePrestigeBadge {
+                                    LayoutMode: Middle;
+                                    Anchor: (Width: 118);
+                                    Background: #f0c040(0.13);
+                                    Visible: false;
+
+                                    Group {
+                                        Anchor: (Width: 2, Top: 0, Left: 0, Bottom: 0);
+                                        Background: #f0c040;
+                                    }
+
+                                    Label #SpousePrestigeLabel {
+                                        Text: "PRESTIGE 0";
+                                        Style: (FontSize: 11, TextColor: #f0c040, RenderBold: true, RenderUppercase: true, LetterSpacing: 1, HorizontalAlignment: Center, VerticalAlignment: Center);
+                                    }
+                                }
+
+                                // Gap between chips — hidden alongside the prestige chip.
+                                Group #SpouseBadgeGap { Anchor: (Width: 6); Visible: false; }
+
+                                // Level chip — always shown for a married spouse.
+                                Group #SpouseLevelBadge {
+                                    LayoutMode: Middle;
+                                    Anchor: (Width: 92);
+                                    Background: #9ad4ff(0.10);
+
+                                    Group {
+                                        Anchor: (Width: 2, Top: 0, Left: 0, Bottom: 0);
+                                        Background: #9ad4ff;
+                                    }
+
+                                    Label #SpouseLevelLabel {
+                                        Text: "LVL 0";
+                                        Style: (FontSize: 11, TextColor: #9ad4ff, RenderBold: true, RenderUppercase: true, LetterSpacing: 1, HorizontalAlignment: Center, VerticalAlignment: Center);
+                                    }
+                                }
+                            }
+
+                            Group { Anchor: (Height: 8); }
 
                             Label #MarriageDateLabel {
                                 Text: "Since: ---";
