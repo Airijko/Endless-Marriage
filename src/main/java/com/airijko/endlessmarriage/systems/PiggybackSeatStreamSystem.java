@@ -189,20 +189,24 @@ public final class PiggybackSeatStreamSystem extends EntityTickingSystem<EntityS
             float seatY = (float) (cPos.y() + config.getPiggybackSeatHeight());
             Vector3f seatPos = new Vector3f((float) cPos.x(), seatY, (float) cPos.z());
 
-            // Seat orientation: stream the carrier's LIVE facing every tick so the
-            // rider's camera always points where the carrier is looking. The seat
-            // POSITION already follows the moving carrier; we hard-lock the
-            // orientation to match.
+            // Seat orientation: stream the carrier's LIVE yaw every tick so the
+            // rider's camera always points where the carrier is walking, but LEVEL
+            // the pitch/roll (rotation Vector3f is (x=pitch, y=yaw, z=roll) radians,
+            // per BlockMountPoint.computeRotationEuler). Copying the carrier's pitch
+            // (cRot.x) made the rider's view inherit the carrier's slight downward
+            // walking-aim, so the rider looked at the ground; zeroing it locks the
+            // view to the horizon instead. The seat POSITION already follows the
+            // moving carrier; we hard-lock the facing to match.
             //
-            // Free-look was tried (a yaw cone / capture-once orientation so the rider
-            // could turn their own view) and reverted: with a seated BlockMount the
-            // client snaps to whatever orientation we send, so a captured-once value
-            // left the rider STUCK facing their session-start direction as the carrier
-            // turned, and a per-tick recomputed angle fought the rider's live view.
-            // That's a Hytale limitation — a seat can't both follow the carrier and
-            // grant the rider independent look — so we stop fighting it and simply
-            // face the carrier.
-            Vector3f seatRot = new Vector3f(cRot.x, cRot.y, cRot.z);
+            // Independent look (the rider aiming up/down or turning on their own) is
+            // NOT possible here, for either axis: the seat position must be re-sent
+            // every tick (the carrier moves) and BlockMount bundles orientation into
+            // that same packet, so the client re-applies the whole orientation each
+            // tick and re-snaps the rider's view. Free-look was tried (a yaw cone /
+            // capture-once orientation) and reverted — a seat can't both follow the
+            // carrier and grant the rider independent look. So we stop fighting it
+            // and just face the carrier, level.
+            Vector3f seatRot = new Vector3f(0f, cRot.y, 0f);
 
             BlockMount blockMount = new BlockMount(BlockMountType.Seat, seatPos, seatRot, resolveSeatBlockTypeId());
             MountedUpdate update = new MountedUpdate(0, new Vector3f(0f, 0f, 0f), MountController.BlockMount, blockMount);

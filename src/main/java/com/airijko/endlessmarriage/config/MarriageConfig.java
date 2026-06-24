@@ -67,6 +67,11 @@ public class MarriageConfig {
     // Block type id used for the BlockMount seat (affects the client's seated
     // pose). Resolved via BlockType.getAssetMap(); falls back to index 0 if absent.
     private String piggybackSeatBlockId = "Chair";
+    // Horizontal offset (blocks) the rider's body is pushed BEHIND the carrier,
+    // along the carrier's facing. Keeps the rider's model from overlapping the
+    // carrier (covering the camera) and makes the pose read as a piggyback. The
+    // rider's camera seat is unaffected. 0 = co-located (old behaviour).
+    private double piggybackBackOffset = 0.45;
     // When true, a married couple is routed into the same dungeon instance just
     // like a party (without needing to form one): each spouse clicking the same
     // dungeon lands in the shared instance. Also the master switch consumed by
@@ -155,6 +160,10 @@ public class MarriageConfig {
 
     public String getPiggybackSeatBlockId() {
         return piggybackSeatBlockId;
+    }
+
+    public double getPiggybackBackOffset() {
+        return piggybackBackOffset;
     }
 
     public boolean isSharedDungeonsEnabled() {
@@ -263,6 +272,9 @@ public class MarriageConfig {
             }
             if (root.has("piggyback_max_range")) {
                 piggybackMaxRange = root.get("piggyback_max_range").getAsDouble();
+            }
+            if (root.has("piggyback_back_offset")) {
+                piggybackBackOffset = root.get("piggyback_back_offset").getAsDouble();
             }
             if (root.has("marriage_shared_dungeons")) {
                 sharedDungeonsEnabled = root.get("marriage_shared_dungeons").getAsBoolean();

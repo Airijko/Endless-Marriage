@@ -9,10 +9,13 @@
 
 package com.airijko.endlessmarriage.systems;
 
+import com.airijko.endlessmarriage.config.MarriageConfig;
 import com.airijko.endlessmarriage.services.PiggybackService;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
+import com.hypixel.hytale.math.util.TrigMathUtil;
+import com.hypixel.hytale.math.vector.Rotation3f;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.modules.physics.component.Velocity;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
@@ -75,6 +78,7 @@ public final class PiggybackFollowSystem extends TickingSystem<EntityStore> {
     private static final float CARRIER_ABSENT_DETACH_SECONDS = 3.0f;
 
     private final PiggybackService piggybackService;
+    private final MarriageConfig config;
 
     /**
      * rider UUID -&gt; accumulated seconds the carrier has been absent from the
@@ -84,8 +88,9 @@ public final class PiggybackFollowSystem extends TickingSystem<EntityStore> {
      */
     private final java.util.Map<UUID, Float> carrierAbsentSeconds = new java.util.concurrent.ConcurrentHashMap<>();
 
-    public PiggybackFollowSystem(@Nonnull PiggybackService piggybackService) {
+    public PiggybackFollowSystem(@Nonnull PiggybackService piggybackService, @Nonnull MarriageConfig config) {
         this.piggybackService = piggybackService;
+        this.config = config;
     }
 
     @Override
@@ -169,11 +174,25 @@ public final class PiggybackFollowSystem extends TickingSystem<EntityStore> {
                 // lands where the carrier is heading rather than where it just
                 // was. The change is picked up by the entity tracker next sync
                 // and pushed to clients.
+                // Push the rider's body a small amount BEHIND the carrier along the
+                // carrier's facing, so the rider's model doesn't overlap the carrier
+                // (covering the camera) and the pose reads as a piggyback. Forward
+                // (pitch=0) is (-sin(yaw), -cos(yaw)); "behind" is its negation. Only
+                // the body moves — the rider's camera seat (PiggybackSeatStreamSystem)
+                // stays on the carrier.
+                double backX = 0d, backZ = 0d;
+                double backOffset = config.getPiggybackBackOffset();
+                if (backOffset != 0d) {
+                    Rotation3f cRot = carrierTransform.getRotation();
+                    backX = TrigMathUtil.sin(cRot.yaw()) * backOffset;
+                    backZ = TrigMathUtil.cos(cRot.yaw()) * backOffset;
+                }
+
                 Vector3d carrierPos = carrierTransform.getPosition();
                 riderTransform.getPosition().set(
-                        carrierPos.x() + vx * FOLLOW_LEAD_SECONDS,
+                        carrierPos.x() + backX + vx * FOLLOW_LEAD_SECONDS,
                         carrierPos.y() + RIDE_OFFSET_Y + vy * FOLLOW_LEAD_SECONDS,
-                        carrierPos.z() + vz * FOLLOW_LEAD_SECONDS);
+                        carrierPos.z() + backZ + vz * FOLLOW_LEAD_SECONDS);
 
                 // Match the carrier's velocity instead of zeroing it. Zeroing
                 // told every client the rider was standing still, so each

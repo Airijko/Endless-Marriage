@@ -226,7 +226,7 @@ public class EndlessMarriage extends JavaPlugin {
         // the tracking range of players near the carrier so the seat stream below
         // reaches them. (It does NOT drive the rider's own camera — a player's
         // client owns its position; see PiggybackSeatStreamSystem for the camera.)
-        piggybackFollowSystem = new PiggybackFollowSystem(piggybackService);
+        piggybackFollowSystem = new PiggybackFollowSystem(piggybackService, marriageConfig);
         this.getEntityStoreRegistry().registerSystem(piggybackFollowSystem);
 
         // Piggyback seat stream: each tick, push a server-authoritative
