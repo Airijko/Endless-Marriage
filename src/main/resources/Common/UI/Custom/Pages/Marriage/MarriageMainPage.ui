@@ -181,9 +181,12 @@ $C.@PageOverlay {
                     Group { Anchor: (Height: 8); }
 
                     // ---- Bonus & Home Cards ----
+                    // Height fits the HOME card's tallest state (label + info + the
+                    // VIEW COORDS button row) so the button stays inside the card
+                    // background instead of spilling below it.
                     Group {
                         LayoutMode: Left;
-                        Anchor: (Height: 80);
+                        Anchor: (Height: 100);
 
                         Group {
                             FlexWeight: 1;

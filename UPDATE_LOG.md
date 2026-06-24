@@ -10,7 +10,7 @@ The major version bump to **V3** collapses three commits (`3ed24c1` → `8923766
 - **Even-split XP now works *inside* dungeons/rifts/waves**, not just the overworld — fixes the long-standing instance bypass via a new `CoupleBankSplitResolver` (see memory note "Marriage even-split bypassed in instances").
 - **Piggyback survives cross-world teleports**: a carrier going through a portal/dungeon pulls the seated rider with them instead of dismounting.
 - **New `PiggybackDeathDetachSystem`** tears the session down the instant either partner dies, so a dead, death-kicked rider can never be snapped back onto the carrier from across the map.
-- **Piggyback free-look**: the rider can glance around within a configurable yaw cone instead of a hard camera lock (default 180°).
+- **Piggyback free-look**: the rider can freely look around instead of having their camera dictated by the carrier, by holding the streamed seat orientation constant so it stops re-snapping the view each tick.
 - **New `MarriageBackupParticipant`** registers marriage with EL core's suite backup/restore (`/el restore all`).
 - **Home coords hidden by default** (anti-leak) with a `VIEW COORDS` reveal toggle and a `SET HOME` overwrite-confirmation bar.
 - **`VIEW PROFILE`** button opens EndlessGuilds' read-only spouse profile card when Guilds is installed.
@@ -46,8 +46,9 @@ The major version bump to **V3** collapses three commits (`3ed24c1` → `8923766
 
 ### Piggyback: free-look (`new feature`)
 
-- New config `piggyback_seat_free_look_enabled` (default `true`) and `piggyback_seat_free_look_degrees` (default `180.0`, clamped `[0,360]`) in [`MarriageConfig`](src/main/java/com/airijko/endlessmarriage/config/MarriageConfig.java).
-- [`PiggybackSeatStreamSystem.computeFreeLookOrientation`](src/main/java/com/airijko/endlessmarriage/systems/PiggybackSeatStreamSystem.java) streams the rider's **own** yaw clamped to a cone centered on the carrier's facing (rider's pitch passed through, carrier's roll). The cone travels with the carrier, so the rider keeps generally facing forward but can glance to either side; inside the cone it echoes the rider's own look (no camera fight), pinning only at the edge. `false` → hard-lock to the carrier's facing (the prior behavior); rider-look unavailable → falls back to hard-lock.
+- Config `piggyback_seat_free_look_enabled` (default `true`) in [`MarriageConfig`](src/main/java/com/airijko/endlessmarriage/config/MarriageConfig.java) selects free-look vs. the legacy hard-lock. (`piggyback_seat_free_look_degrees` is retained for back-compat but no longer used — the new mechanism gives unrestricted look rather than a cone.)
+- **Mechanism.** [`PiggybackSeatStreamSystem`](src/main/java/com/airijko/endlessmarriage/systems/PiggybackSeatStreamSystem.java) streams a server-authoritative `BlockMount` "seat" to the rider every tick so the camera *anchor* follows the moving carrier. The engine itself (`MountSystems.TrackerUpdate`) sends a static seat's orientation **once** (on a mount-state change or to newly-visible viewers) — after which the seated player's own `SetBody`/`SetHead` look input drives the camera freely (`MountSystems.HandleMountInput`; only *movement* dismounts a `BlockMount`). The earlier cone code recomputed a fresh orientation **every tick**, so the client re-snapped the view continuously — and because the echoed angle was a network round-trip stale, it fought the rider's live look and read as "camera locked to the carrier."
+- The shipped `BlockMount` protocol serializes orientation **unconditionally** (`PacketIO.writeVector3f` dereferences it with no null guard — verified via `javap`, the build jar differs from `hytale-shared-source`), so the per-tick seat can't simply omit it. The fix instead **captures the carrier's facing once at session start and resends that same constant orientation every tick**: with nothing new to snap to, the rider's own look owns the camera. Per-rider captured value is cleared on session end so a re-mount re-captures. `false` → legacy hard-lock (re-assert the carrier's live facing each tick).
 
 ### Suite backup integration (`new`)
 

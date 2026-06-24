@@ -93,6 +93,19 @@ public final class PiggybackSeatStreamSystem extends EntityTickingSystem<EntityS
      */
     private final Set<UUID> seated = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
+    /**
+     * Captured seat orientation per rider for the current session (free-look
+     * mode). The shipped {@code BlockMount} protocol serializes orientation
+     * unconditionally (no nullable bit — {@code PacketIO.writeVector3f}
+     * dereferences it), so every streamed seat MUST carry a non-null
+     * orientation. We therefore capture the carrier's facing ONCE at session
+     * start and resend that same constant value every tick: the orientation
+     * stops changing, so it cannot re-snap the rider's camera each tick, and
+     * the rider's own SetBody/SetHead look governs the view. Cleared when the
+     * session ends so a re-mount re-captures.
+     */
+    private final java.util.Map<UUID, Vector3f> capturedOrientation = new ConcurrentHashMap<>();
+
     /** Cached resolved block type id for the seat (resolved lazily on first tick). */
     private volatile int seatBlockTypeId = UNRESOLVED;
 
@@ -156,6 +169,7 @@ public final class PiggybackSeatStreamSystem extends EntityTickingSystem<EntityS
             // No viewers: nothing to stream/remove. Drop the seated marker so we
             // don't try to remove forever (the client cleared it on despawn).
             seated.remove(uuid);
+            capturedOrientation.remove(uuid);
             return;
         }
         Ref<EntityStore> riderRef = archetypeChunk.getReferenceTo(index);
@@ -167,6 +181,7 @@ public final class PiggybackSeatStreamSystem extends EntityTickingSystem<EntityS
                     viewer.queueRemove(riderRef, ComponentUpdateType.Mounted);
                 }
                 seated.remove(uuid);
+                capturedOrientation.remove(uuid);
                 return;
             }
 
@@ -189,19 +204,38 @@ public final class PiggybackSeatStreamSystem extends EntityTickingSystem<EntityS
             float seatY = (float) (cPos.y() + config.getPiggybackSeatHeight());
             Vector3f seatPos = new Vector3f((float) cPos.x(), seatY, (float) cPos.z());
 
-            // Seat orientation. By default (free-look off) the seat matches the
-            // carrier exactly, hard-locking the rider's camera to the carrier's
-            // facing. With free-look on, we instead stream the rider's OWN look
-            // clamped to a yaw cone around the carrier's facing: the cone travels
-            // with the carrier so the rider keeps generally facing the carrier's
-            // direction, but gains a little freedom to glance around.
+            // Seat orientation. The seat POSITION is streamed every tick so the
+            // rider's camera anchor follows the moving carrier — but the
+            // orientation is what governs the rider's view direction, and how we
+            // send it decides whether the rider can look around.
+            //
+            // The engine itself (MountSystems.TrackerUpdate) sends a static
+            // seat's orientation essentially ONCE — only on a mount state change
+            // or to newly-visible viewers — never every tick. After that the
+            // seated player's own SetBody/SetHead look input drives the camera
+            // freely (MountSystems.HandleMountInput applies it to the rider's
+            // own transform; only *movement* dismounts a BlockMount). A
+            // *changing* orientation on each BlockMount update re-snaps the view.
+            //
+            // The shipped protocol forces a non-null orientation on every
+            // BlockMount (it is serialized unconditionally), and we must stream a
+            // BlockMount every tick to move the seat — so we cannot simply drop
+            // the orientation. The fix is to stop it *changing*: capture the
+            // carrier's facing ONCE at session start and resend that same
+            // constant value every tick. With a stable orientation the client
+            // has nothing new to snap to after the first frame, so the rider's
+            // own look owns the camera (free look). The old cone free-look failed
+            // exactly because it recomputed a fresh, RTT-stale angle each tick,
+            // continuously fighting the rider's live view.
+            //
+            // Free-look OFF: legacy hard-lock — re-assert the carrier's live
+            // facing each tick so the rider's view stays pinned to the carrier.
             Vector3f seatRot;
             if (!config.isPiggybackSeatFreeLookEnabled()) {
                 seatRot = new Vector3f(cRot.x, cRot.y, cRot.z);
             } else {
-                TransformComponent riderTransform = store.getComponent(riderRef, this.transformComponentType);
-                Rotation3f rRot = riderTransform != null ? riderTransform.getRotation() : null;
-                seatRot = computeFreeLookOrientation(cRot, rRot);
+                // Capture-once, then resend the constant captured orientation.
+                seatRot = capturedOrientation.computeIfAbsent(uuid, k -> new Vector3f(cRot.x, cRot.y, cRot.z));
             }
 
             BlockMount blockMount = new BlockMount(BlockMountType.Seat, seatPos, seatRot, resolveSeatBlockTypeId());
@@ -219,36 +253,6 @@ public final class PiggybackSeatStreamSystem extends EntityTickingSystem<EntityS
                         .log("Piggyback seat stream skipped a tick for %s (logged once).", uuid);
             }
         }
-    }
-
-    /**
-     * Builds the streamed seat orientation for free-look: the rider's own yaw
-     * clamped to within ±{@code piggybackSeatFreeLookDegrees/2} of the carrier's
-     * yaw (shortest-angle), with the rider's pitch passed through and the
-     * carrier's roll. Rotation components are {@code (x=pitch, y=yaw, z=roll)}
-     * in radians, matching {@code TransformComponent.getRotation()} and
-     * {@code BlockMountPoint.computeRotationEuler}.
-     *
-     * <p>When the rider is inside the cone we echo essentially their own look,
-     * so the orientation we stream matches what their client already shows — no
-     * camera fight. Only at the cone edge do we pin them, which reads as a soft
-     * wall that turns with the carrier. If the rider's look is unavailable (e.g.
-     * the client suppresses look input while seated), we fall back to the
-     * carrier's facing, i.e. the hard-lock behavior.
-     */
-    @Nonnull
-    private Vector3f computeFreeLookOrientation(@Nonnull Rotation3f carrierRot, @Nullable Rotation3f riderRot) {
-        if (riderRot == null) {
-            return new Vector3f(carrierRot.x, carrierRot.y, carrierRot.z);
-        }
-        // Config value is the TOTAL cone width; the per-side limit is half of it.
-        double totalDegrees = Math.max(0.0, Math.min(360.0, config.getPiggybackSeatFreeLookDegrees()));
-        float maxDelta = (float) Math.toRadians(totalDegrees / 2.0);
-        // Shortest signed angle from carrier yaw to rider yaw, wrapped to [-PI, PI].
-        float delta = (float) Math.IEEEremainder(riderRot.y - carrierRot.y, 2.0 * Math.PI);
-        float clamped = Math.max(-maxDelta, Math.min(maxDelta, delta));
-        float seatYaw = carrierRot.y + clamped;
-        return new Vector3f(riderRot.x, seatYaw, carrierRot.z);
     }
 
     private int resolveSeatBlockTypeId() {
