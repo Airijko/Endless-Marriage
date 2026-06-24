@@ -142,6 +142,18 @@ $C.@PageOverlay {
                                     FlexWeight: 1;
                                 }
 
+                                // Shown only when EndlessGuilds' player profile card
+                                // is installed (gated in Java via MenuRegistry).
+                                $C.@TextButton #ViewProfileButton {
+                                    Text: "VIEW PROFILE";
+                                    Anchor: (Height: 24, Width: 124);
+                                    Padding: (Horizontal: 10);
+                                    Style: @CustomStyle;
+                                    Visible: false;
+                                }
+
+                                Group { Anchor: (Width: 8); }
+
                                 Label #SpouseOnlineLabel {
                                     Text: "OFFLINE";
                                     Style: (FontSize: 11, TextColor: #ff6666, RenderBold: true, RenderUppercase: true, VerticalAlignment: Center, HorizontalAlignment: End);
@@ -235,6 +247,23 @@ $C.@PageOverlay {
                                     Text: "No home set";
                                     Style: (FontSize: 13, TextColor: #c0cee5);
                                     Anchor: (Height: 20);
+                                }
+
+                                Group { Anchor: (Height: 6); }
+
+                                // Coords are hidden by default to avoid accidental
+                                // leaks (streaming / screenshots). Toggle to reveal.
+                                Group {
+                                    LayoutMode: Left;
+                                    Anchor: (Height: 24);
+
+                                    $C.@TextButton #ViewCoordsButton {
+                                        Text: "VIEW COORDS";
+                                        Anchor: (Height: 22, Width: 130);
+                                        Padding: (Horizontal: 10);
+                                        Style: @CustomStyle;
+                                        Visible: false;
+                                    }
                                 }
                             }
                         }
@@ -360,6 +389,46 @@ $C.@PageOverlay {
                             Padding: (Horizontal: 12);
                             FlexWeight: 1;
                             Style: @CustomStyle;
+                        }
+                    }
+
+                    // Confirmation bar shown when SET HOME is pressed while a home
+                    // already exists — guards against accidental overwrites.
+                    Group #SetHomeConfirmBar {
+                        LayoutMode: Top;
+                        Background: #2a1212(0.92);
+                        Padding: (Full: 10);
+                        Visible: false;
+
+                        Label {
+                            Text: "Overwrite your existing home with your current location?";
+                            Style: (FontSize: 12, TextColor: #ffcf80, RenderBold: true);
+                            Anchor: (Height: 18);
+                        }
+
+                        Group { Anchor: (Height: 8); }
+
+                        Group {
+                            LayoutMode: Left;
+                            Anchor: (Height: 32);
+
+                            $C.@TextButton #SetHomeConfirmButton {
+                                Text: "CONFIRM OVERWRITE";
+                                Anchor: (Height: 30);
+                                Padding: (Horizontal: 12);
+                                FlexWeight: 1;
+                                Style: @CustomStyle;
+                            }
+
+                            Group { Anchor: (Width: 6); }
+
+                            $C.@TextButton #SetHomeCancelButton {
+                                Text: "CANCEL";
+                                Anchor: (Height: 30);
+                                Padding: (Horizontal: 12);
+                                FlexWeight: 1;
+                                Style: @CustomStyle;
+                            }
                         }
                     }
 

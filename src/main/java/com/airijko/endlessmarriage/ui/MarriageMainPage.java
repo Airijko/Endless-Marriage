@@ -46,6 +46,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.airijko.endlessleveling.api.EndlessLevelingAPI;
+import com.airijko.endlessleveling.ui.menu.MenuRegistry;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -71,6 +72,10 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
     /** When non-null, the page renders the married view using this fake pair regardless of real marital status. Used by /marry debug menu. */
     @Nullable
     private final MarriagePair forcedPair;
+
+    /** Home coords are hidden by default (anti-leak); VIEW COORDS reveals them
+     *  for this open session only. Re-opening the page resets to hidden. */
+    private boolean coordsRevealed = false;
 
     public MarriageMainPage(@Nonnull PlayerRef playerRef,
             @Nonnull CustomPageLifetime lifetime,
@@ -139,6 +144,16 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         ui.set("#SpouseOnlineLabel.Text", spouseOnline ? "ONLINE" : "OFFLINE");
         ui.set("#SpouseOnlineLabel.Style.TextColor", spouseOnline ? "#66ff66" : "#ff6666");
 
+        // View Profile — opens EndlessGuilds' read-only player profile card for the
+        // spouse. Only surfaced when that page is registered (i.e. EndlessGuilds is
+        // installed); the card is DB-backed so it works even while the spouse is
+        // offline. Hidden by default in the .ui so servers without Guilds never see it.
+        boolean profileAvailable = MenuRegistry.hasParamPage("guild-profile");
+        ui.set("#ViewProfileButton.Visible", profileAvailable);
+        if (profileAvailable) {
+            events.addEventBinding(Activating, "#ViewProfileButton", of("Action", "marry:view_profile"), false);
+        }
+
         // XP bonus info
         boolean nearSpouse = EndlessMarriage.getInstance().getProximitySystem().isNearSpouse(senderUuid);
         ui.set("#XpBonusLabel.Text", nearSpouse
@@ -146,11 +161,9 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
                 : "+25% Discipline XP (Spouse Not Nearby)");
         ui.set("#XpBonusLabel.Style.TextColor", nearSpouse ? "#66ff66" : "#9fb6d3");
 
-        // Home info
+        // Home info — coords stay hidden by default to avoid accidental leaks.
         MarriageHome home = data.getHome(senderUuid);
-        ui.set("#HomeInfoLabel.Text", home != null
-                ? String.format("Home: %.0f, %.0f, %.0f (%s)", home.x(), home.y(), home.z(), home.worldName())
-                : "No home set");
+        applyHomeInfo(ui, home);
 
         // Ring info — sourced from the tiered/attribute ring system (the one the
         // Rings page now drives). The legacy cosmetic WeddingRingTier is no longer
@@ -199,6 +212,9 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         events.addEventBinding(Activating, "#TpPartnerButton", of("Action", "marry:tp"), false);
         events.addEventBinding(Activating, "#HomeButton", of("Action", "marry:home"), false);
         events.addEventBinding(Activating, "#SetHomeButton", of("Action", "marry:sethome"), false);
+        events.addEventBinding(Activating, "#SetHomeConfirmButton", of("Action", "marry:sethome_confirm"), false);
+        events.addEventBinding(Activating, "#SetHomeCancelButton", of("Action", "marry:sethome_cancel"), false);
+        events.addEventBinding(Activating, "#ViewCoordsButton", of("Action", "marry:toggle_coords"), false);
         events.addEventBinding(Activating, "#InventoryButton", of("Action", "marry:inventory"), false);
         events.addEventBinding(Activating, "#DivorceButton", of("Action", "marry:divorce"), false);
         events.addEventBinding(Activating, "#OverflowLogButton", of("Action", "marry:overflow_log"), false);
@@ -422,7 +438,11 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
             case "marry:tp" -> handleTpPartner();
             case "marry:home" -> handleTpHome();
             case "marry:sethome" -> handleSetHome(ref, store);
+            case "marry:sethome_confirm" -> handleSetHomeConfirm(ref, store);
+            case "marry:sethome_cancel" -> handleSetHomeCancel();
+            case "marry:toggle_coords" -> handleToggleCoords();
             case "marry:inventory" -> handleInventory(ref, store);
+            case "marry:view_profile" -> handleViewProfile(ref, store);
             case "marry:divorce" -> handleDivorce();
             case "marry:accept" -> handleAccept();
             case "marry:deny" -> handleDeny();
@@ -437,6 +457,24 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
             case "marry:carry" -> handleCarry(ref, store);
             case "marry:dismount" -> handleDismount(ref, store);
             case "marry:kiss" -> handleKiss(ref, store);
+        }
+    }
+
+    /**
+     * Open EndlessGuilds' read-only profile card for the spouse. Routed through the
+     * core {@link MenuRegistry} param-page seam (same path EndlessLink uses), so
+     * EndlessMarriage needs no compile or reflection dependency on EndlessGuilds —
+     * if Guilds is absent the page key is unregistered and we degrade gracefully.
+     */
+    private void handleViewProfile(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store) {
+        UUID senderUuid = playerRef.getUuid();
+        MarriageDataManager data = EndlessMarriage.getInstance().getMarriageDataManager();
+        UUID spouseUuid = data.getSpouse(senderUuid);
+        if (spouseUuid == null) {
+            return;
+        }
+        if (!MenuRegistry.openPage("guild-profile", ref, store, playerRef, spouseUuid.toString())) {
+            playerRef.sendMessage(Message.raw("Profile view is unavailable.").color("#ff6666"));
         }
     }
 
@@ -696,10 +734,71 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
             return;
         }
 
+        // A home is already saved — require confirmation before overwriting so a
+        // stray click can't move the shared home somewhere unintended.
+        if (data.getHome(senderUuid) != null) {
+            UICommandBuilder ui = new UICommandBuilder();
+            ui.set("#SetHomeConfirmBar.Visible", true);
+            ui.set("#SetHomeButton.Disabled", true);
+            sendUpdate(ui, false);
+            return;
+        }
+
+        doSetHome(ref, store, senderUuid, spouseUuid);
+    }
+
+    private void handleSetHomeConfirm(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store) {
+        UUID senderUuid = playerRef.getUuid();
+        MarriageDataManager data = EndlessMarriage.getInstance().getMarriageDataManager();
+
+        UICommandBuilder ui = new UICommandBuilder();
+        ui.set("#SetHomeConfirmBar.Visible", false);
+        ui.set("#SetHomeButton.Disabled", false);
+
+        if (!data.isMarried(senderUuid)) {
+            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.NOT_MARRIED, "#ff6666"));
+            sendUpdate(ui, false);
+            return;
+        }
+
+        UUID spouseUuid = data.getSpouse(senderUuid);
+        if (spouseUuid != null && doSetHome(ref, store, senderUuid, spouseUuid)) {
+            applyHomeInfo(ui, data.getHome(senderUuid));
+        }
+        sendUpdate(ui, false);
+    }
+
+    private void handleSetHomeCancel() {
+        UICommandBuilder ui = new UICommandBuilder();
+        ui.set("#SetHomeConfirmBar.Visible", false);
+        ui.set("#SetHomeButton.Disabled", false);
+        sendUpdate(ui, false);
+    }
+
+    private void handleToggleCoords() {
+        UUID senderUuid = playerRef.getUuid();
+        MarriageDataManager data = EndlessMarriage.getInstance().getMarriageDataManager();
+        MarriageHome home = data.getHome(senderUuid);
+        if (home == null) {
+            return;
+        }
+        coordsRevealed = !coordsRevealed;
+        UICommandBuilder ui = new UICommandBuilder();
+        applyHomeInfo(ui, home);
+        sendUpdate(ui, false);
+    }
+
+    /** Captures the player's current location as the shared marriage home.
+     *  Returns {@code false} (and notifies the player) if the position is
+     *  unavailable. */
+    private boolean doSetHome(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
+            @Nonnull UUID senderUuid, @Nonnull UUID spouseUuid) {
+        MarriageDataManager data = EndlessMarriage.getInstance().getMarriageDataManager();
+
         TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
         if (transform == null) {
             playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.SETHOME_POSITION_UNKNOWN, "#ff6666"));
-            return;
+            return false;
         }
 
         Vector3d pos = transform.getPosition();
@@ -716,6 +815,27 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         MarriageHome home = new MarriageHome(world.getName(), pos.x(), pos.y(), pos.z(), yaw, pitch);
         data.setHome(senderUuid, spouseUuid, home);
         playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.SETHOME_SUCCESS_SHORT, "#66ff66"));
+        return true;
+    }
+
+    /** Renders the home card label + VIEW COORDS toggle, keeping the raw
+     *  coordinates hidden unless the player has explicitly revealed them. */
+    private void applyHomeInfo(@Nonnull UICommandBuilder ui, @Nullable MarriageHome home) {
+        if (home == null) {
+            ui.set("#HomeInfoLabel.Text", "No home set");
+            ui.set("#ViewCoordsButton.Visible", false);
+            return;
+        }
+
+        ui.set("#ViewCoordsButton.Visible", true);
+        if (coordsRevealed) {
+            ui.set("#HomeInfoLabel.Text",
+                    String.format("Home: %.0f, %.0f, %.0f (%s)", home.x(), home.y(), home.z(), home.worldName()));
+            ui.set("#ViewCoordsButton.Text", "HIDE COORDS");
+        } else {
+            ui.set("#HomeInfoLabel.Text", "Home set · coords hidden");
+            ui.set("#ViewCoordsButton.Text", "VIEW COORDS");
+        }
     }
 
     private void handleInventory(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store) {

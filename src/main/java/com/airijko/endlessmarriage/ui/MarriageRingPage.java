@@ -70,9 +70,12 @@ public class MarriageRingPage extends SafeInteractiveCustomUIPage<MarriagePageDa
 
         UUID spouseUuid = data.getSpouse(senderUuid);
 
-        int senderPrestige = EndlessLevelingAPI.get().getPlayerPrestigeLevel(senderUuid);
+        // Gate on each partner's HIGHEST prestige across their profiles, resolved from
+        // persistent storage so an offline spouse still reads their real prestige instead
+        // of collapsing to 0 (which previously locked every tier above E while they were away).
+        int senderPrestige = EndlessLevelingAPI.get().getHighestPrestigeLevel(senderUuid);
         int spousePrestige = spouseUuid != null
-                ? EndlessLevelingAPI.get().getPlayerPrestigeLevel(spouseUuid)
+                ? EndlessLevelingAPI.get().getHighestPrestigeLevel(spouseUuid)
                 : 0;
         int lowestPrestige = Math.min(senderPrestige, spousePrestige);
 

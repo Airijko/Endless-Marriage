@@ -84,9 +84,11 @@ public class MarriageRingVariationPage extends SafeInteractiveCustomUIPage<Marri
         }
 
         UUID spouseUuid = marriage.getSpouse(senderUuid);
-        int senderPrestige = EndlessLevelingAPI.get().getPlayerPrestigeLevel(senderUuid);
+        // Highest prestige per partner, persistent across offline/profile switches — matches the
+        // tier-list gate in MarriageRingPage so an offline spouse doesn't re-lock every variation.
+        int senderPrestige = EndlessLevelingAPI.get().getHighestPrestigeLevel(senderUuid);
         int spousePrestige = spouseUuid != null
-                ? EndlessLevelingAPI.get().getPlayerPrestigeLevel(spouseUuid)
+                ? EndlessLevelingAPI.get().getHighestPrestigeLevel(spouseUuid)
                 : 0;
         int lowestPrestige = Math.min(senderPrestige, spousePrestige);
         boolean meetsPrestige = lowestPrestige >= tier.getPrestigeRequired();
