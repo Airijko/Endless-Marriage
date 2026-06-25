@@ -128,6 +128,12 @@ public class EndlessMarriage extends JavaPlugin {
         TieredRingCatalog.initialize(marriageConfig);
         // Re-push the couple shared-dungeon toggle to EL core so /reload honors it.
         EndlessLevelingAPI.get().setCoupleSharedDungeonsEnabled(marriageConfig.isSharedDungeonsEnabled());
+        // If the piggyback/carry system was just turned off, the live config is
+        // already honored for new mounts — but tear down any in-flight sessions so
+        // the kill-switch is immediate rather than lingering until manual dismount.
+        if (!marriageConfig.isPiggybackEnabled() && piggybackService != null) {
+            piggybackService.dismountAllSessions();
+        }
         LOGGER.atInfo().log("EndlessMarriage config reloaded from disk.");
     }
 

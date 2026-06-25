@@ -81,6 +81,8 @@ public class CarryCommand extends AbstractPlayerCommand {
                     }
                 }
             }
+            case DISABLED ->
+                senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.PIGGYBACK_DISABLED, COLOR_WARN));
             case NOT_MARRIED ->
                 senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.MUST_BE_MARRIED, COLOR_ERROR));
             case SPOUSE_OFFLINE ->

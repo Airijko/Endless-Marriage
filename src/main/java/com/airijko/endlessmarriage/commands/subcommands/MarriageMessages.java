@@ -180,6 +180,7 @@ public final class MarriageMessages {
     public static final String PIGGYBACK_ALREADY_MOUNTED = "ui.marriage.piggyback.already_mounted";
     public static final String PIGGYBACK_SPOUSE_BUSY = "ui.marriage.piggyback.spouse_busy";
     public static final String PIGGYBACK_ERROR = "ui.marriage.piggyback.error";
+    public static final String PIGGYBACK_DISABLED = "ui.marriage.piggyback.disabled";
 
     // Carry (piggyback in reverse — you pick up your spouse)
     public static final String CARRY_SUCCESS_SELF = "ui.marriage.carry.success_self";

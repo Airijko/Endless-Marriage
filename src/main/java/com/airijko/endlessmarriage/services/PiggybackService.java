@@ -136,6 +136,8 @@ public final class PiggybackService {
     /** Result codes for {@link #tryMount} / {@link #tryCarry}. */
     public enum MountResult {
         SUCCESS,
+        /** The piggyback/carry system is turned off in config (piggyback_enabled=false). */
+        DISABLED,
         NOT_MARRIED,
         SPOUSE_OFFLINE,
         SPOUSE_NOT_IN_WORLD,
@@ -159,6 +161,9 @@ public final class PiggybackService {
             @Nonnull Ref<EntityStore> riderRef,
             @Nonnull Store<EntityStore> riderStore) {
 
+        if (!config.isPiggybackEnabled()) {
+            return MountResult.DISABLED;
+        }
         if (!dataManager.isMarried(riderUuid)) {
             return MountResult.NOT_MARRIED;
         }
@@ -257,6 +262,9 @@ public final class PiggybackService {
             @Nonnull Ref<EntityStore> carrierRef,
             @Nonnull Store<EntityStore> carrierStore) {
 
+        if (!config.isPiggybackEnabled()) {
+            return MountResult.DISABLED;
+        }
         if (!dataManager.isMarried(carrierUuid)) {
             return MountResult.NOT_MARRIED;
         }
@@ -444,6 +452,33 @@ public final class PiggybackService {
             return true;
         }
         return false;
+    }
+
+    /**
+     * Tears down every active piggyback/carry session, properly removing each
+     * rider's MountedComponent. Used when the system is disabled at runtime (e.g.
+     * {@code piggyback_enabled} flipped off and {@code /marry reload} run) so the
+     * kill-switch takes effect immediately instead of waiting for each couple to
+     * dismount manually. Returns the number of sessions ended.
+     */
+    public int dismountAllSessions() {
+        if (riders.isEmpty()) {
+            return 0;
+        }
+        // Snapshot rider UUIDs first — dismount() mutates the maps as it goes.
+        int ended = 0;
+        for (UUID riderUuid : new java.util.ArrayList<>(riders.keySet())) {
+            if (riderUuid != null && dismountAny(riderUuid)) {
+                ended++;
+            }
+        }
+        // Defensive: drop any tracking that survived (unreachable entities, etc.).
+        riders.clear();
+        carriers.clear();
+        if (ended > 0) {
+            LOGGER.atInfo().log("Tore down %d active piggyback session(s).", ended);
+        }
+        return ended;
     }
 
     @Nullable

@@ -20,6 +20,7 @@ import com.hypixel.hytale.component.SystemGroup;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.tick.EntityTickingSystem;
 import com.hypixel.hytale.logger.HytaleLogger;
+import com.hypixel.hytale.math.util.TrigMathUtil;
 import com.hypixel.hytale.math.vector.Rotation3f;
 import com.hypixel.hytale.protocol.BlockMount;
 import com.hypixel.hytale.protocol.BlockMountType;
@@ -186,8 +187,25 @@ public final class PiggybackSeatStreamSystem extends EntityTickingSystem<EntityS
 
             Vector3d cPos = carrierTransform.getPosition();
             Rotation3f cRot = carrierTransform.getRotation();
+
+            // Seat the rider BEHIND the carrier along the carrier's facing so the
+            // rider's model (and camera) sits over the carrier's back instead of
+            // clipping straight through them. The seat is the authoritative visual:
+            // the BlockMount MountedUpdate below is queued to EVERY viewer, so all
+            // clients render the rider at this position — the horizontal offset must
+            // live here, not on the rider's TransformComponent (which only drives
+            // view-range tracking; see PiggybackFollowSystem). Forward (pitch=0) is
+            // (-sin(yaw), -cos(yaw)) per Transform.getDirection; "behind" is its
+            // negation: (sin(yaw), cos(yaw)). Kept in sync with PiggybackFollowSystem.
+            double backX = 0d, backZ = 0d;
+            double backOffset = config.getPiggybackBackOffset();
+            if (backOffset != 0d) {
+                backX = TrigMathUtil.sin(cRot.yaw()) * backOffset;
+                backZ = TrigMathUtil.cos(cRot.yaw()) * backOffset;
+            }
+
             float seatY = (float) (cPos.y() + config.getPiggybackSeatHeight());
-            Vector3f seatPos = new Vector3f((float) cPos.x(), seatY, (float) cPos.z());
+            Vector3f seatPos = new Vector3f((float) (cPos.x() + backX), seatY, (float) (cPos.z() + backZ));
 
             // Seat orientation: stream the carrier's LIVE yaw every tick so the
             // rider's camera always points where the carrier is walking, but LEVEL

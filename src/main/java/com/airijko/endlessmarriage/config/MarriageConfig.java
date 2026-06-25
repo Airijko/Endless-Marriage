@@ -55,6 +55,11 @@ public class MarriageConfig {
     private double officiateRange = 5.0;
     private String priestClassId = "priest";
     private String magistrateClassId = "magistrate";
+    // Master switch for the entire piggyback/carry system. When false, /piggyback,
+    // /carry and the right-click-spouse interaction are all refused and no mount
+    // session can be started (the per-tick follow/seat/detach systems then stay
+    // idle because nobody is ever registered as a rider).
+    private boolean piggybackEnabled = true;
     private double piggybackDamageReductionPercent = 25.0;
     private double piggybackMaxRange = 5.0;
     // Stream a server-authoritative BlockMount "seat" to the rider's client each
@@ -140,6 +145,10 @@ public class MarriageConfig {
 
     public String getMagistrateClassId() {
         return magistrateClassId;
+    }
+
+    public boolean isPiggybackEnabled() {
+        return piggybackEnabled;
     }
 
     public double getPiggybackDamageReductionPercent() {
@@ -267,6 +276,9 @@ public class MarriageConfig {
             if (root.has("magistrate_class_id")) {
                 magistrateClassId = root.get("magistrate_class_id").getAsString();
             }
+            if (root.has("piggyback_enabled")) {
+                piggybackEnabled = root.get("piggyback_enabled").getAsBoolean();
+            }
             if (root.has("piggyback_damage_reduction_percent")) {
                 piggybackDamageReductionPercent = root.get("piggyback_damage_reduction_percent").getAsDouble();
             }
@@ -300,10 +312,10 @@ public class MarriageConfig {
 
             loadTieredRingValues(root);
 
-            LOGGER.atInfo().log("Marriage config loaded: priest=%b, magistrate=%b, range=%.1f, discipline=%.1f%%, xpShare=%.2f, piggybackDR=%.1f%%, kissRange=%.1f, kissBuff=%.1f%%/%.0fs (cd %.0fs)",
+            LOGGER.atInfo().log("Marriage config loaded: priest=%b, magistrate=%b, range=%.1f, discipline=%.1f%%, xpShare=%.2f, piggyback=%b (DR=%.1f%%), kissRange=%.1f, kissBuff=%.1f%%/%.0fs (cd %.0fs)",
                     requirePriestForMarriage, requireMagistrateForDivorce, proximityRange,
                     disciplineBonusPercent, xpShareMultiplier,
-                    piggybackDamageReductionPercent, kissRange,
+                    piggybackEnabled, piggybackDamageReductionPercent, kissRange,
                     kissBuffDisciplinePercent, kissBuffDurationSeconds, kissBuffCooldownSeconds);
         } catch (Exception ex) {
             LOGGER.atWarning().withCause(ex).log("Failed to load config.json, using defaults.");
