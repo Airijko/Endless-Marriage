@@ -1,5 +1,59 @@
 # Endless Marriage - Update Log
 
+## 2026-06-25 — 3.2.2 (compared to 3.1.0)
+
+A post-V3 hardening pass: six commits (`a5ab9f3` → `8acad48` → `4002a47` → `51676be` → `b2a9db9` → `51fac0a`) collapsed into one release. The headlines are a **piggyback master kill-switch**, the **reversal of the 3.1.0 free-look mechanism** (replaced with a level "face-the-carrier" seat plus a body back-offset so the rider stops covering the camera and staring at the ground), an **XP even-split rework** (best-multiplier carry, boost-free base), an **offline-spouse ring-equip fix**, and an optimized **Refixes targeting bridge**. It bumps the core floor to **EndlessLeveling Core ≥ 9.36.0** (was `≥ 9.35.0`) — the reworked even-split consumes `computeMobKillGrantBaseFor` / `getXpBoostMultiplier` seams. **Requires an EL Core ≥ 9.36.0 redeploy alongside this jar.**
+
+### Highlights
+
+- **Piggyback/carry master kill-switch** — new `piggyback_enabled` config; `false` refuses `/piggyback`, `/carry` and the right-click-spouse interaction, and `/marry reload` tears down any in-flight sessions immediately.
+- **Free-look removed** (reverted): a `BlockMount` seat can't both follow a moving carrier *and* grant independent look. The seat now streams the carrier's **live yaw with a leveled pitch/roll**, so the rider faces where the carrier walks instead of inheriting its downward walking-aim.
+- **New `piggyback_back_offset`** pushes the rider's body behind the carrier so the model no longer overlaps/covers the camera.
+- **XP even-split rework** — the kill is valued at the **best level-range multiplier** of the two spouses (XP-conserving), and the split base is **boost-free** so each partner re-applies their **own** xp-boost (like luck/discipline).
+- **Offline-spouse ring-equip fix** — the ring *equip/upgrade* action now gates on account-scoped `getHighestPrestigeLevel`, so an offline spouse no longer collapses to prestige 0 and re-locks a ring the page just showed as equippable.
+- **Refixes targeting bridge** prefers a 3-arg `install` that resolves a shooter's partner once per projectile tick.
+- **UI**: the in-page divorce button was removed (command-only now) and the spouse prestige/level chips moved into their own progression card.
+
+### Piggyback master kill-switch (`new feature`)
+
+- New config `piggyback_enabled` (default `true`) in [`MarriageConfig`](src/main/java/com/airijko/endlessmarriage/config/MarriageConfig.java) → `isPiggybackEnabled()`. When `false`, `tryMount` / `tryCarry` short-circuit with a new `MountResult.DISABLED`, and the per-tick follow/seat/detach systems stay idle because nobody is ever registered as a rider.
+- New `ui.marriage.piggyback.disabled` lang key surfaced from [`PiggybackCommand`](src/main/java/com/airijko/endlessmarriage/commands/subcommands/PiggybackCommand.java) and [`CarryCommand`](src/main/java/com/airijko/endlessmarriage/commands/subcommands/CarryCommand.java).
+- New `PiggybackService.dismountAllSessions()` (snapshots rider UUIDs, dismounts each properly, then clears both maps defensively) is invoked from `/marry reload` in [`EndlessMarriage`](src/main/java/com/airijko/endlessmarriage/EndlessMarriage.java) — so flipping the switch off mid-session is **immediate**, not deferred to manual dismount.
+
+### Piggyback free-look removed → level face-carrier + back-offset (`behaviour change`)
+
+- The 3.1.0 free-look mechanism is **reverted**: removed configs `piggyback_seat_free_look_enabled` / `piggyback_seat_free_look_degrees` and the `computeFreeLookOrientation()` cone code in [`PiggybackSeatStreamSystem`](src/main/java/com/airijko/endlessmarriage/systems/PiggybackSeatStreamSystem.java). Documented conclusion: a `BlockMount` seat must re-send its position every tick (the carrier moves) and orientation rides in that same packet, so the client re-snaps the view each tick — a follow-seat and independent look are mutually exclusive.
+- **Seat orientation** is now `new Vector3f(0f, cRot.y, 0f)` — the carrier's live **yaw** every tick, **pitch/roll zeroed**. Copying the carrier's pitch made the rider inherit its slight downward walking-aim (looking at the ground); leveling it locks the view to the horizon.
+- **New `piggyback_back_offset`** config (default `0.45`): the rider is pushed **behind** the carrier along its facing (`(sin(yaw), cos(yaw)) * offset`) so the rider's model doesn't overlap the carrier and cover the camera. Applied in **both** the seat stream (authoritative visual, queued to every viewer) and [`PiggybackFollowSystem`](src/main/java/com/airijko/endlessmarriage/systems/PiggybackFollowSystem.java) (server body/tracking position) — the follow system now takes `MarriageConfig` and uses `TrigMathUtil`. `0` = co-located (old behaviour).
+
+### XP even-split rework (`rework` — best-multiplier carry, boost-free base)
+
+- The in-instance / overworld even-split in [`EndlessMarriage`](src/main/java/com/airijko/endlessmarriage/EndlessMarriage.java) now values the kill at the **best level-range multiplier among the two spouses** — `poolBase = max(earnerBase, spouseBase)` via `computeMobKillGrantBaseFor` — split once and XP-conserving (total never exceeds the best value). An underleveled killer's level-range penalty no longer drags the in-range spouse's half down; the in-range partner carries the pool. Each partner keeps `poolBase/2`.
+- The split base is **boost-free**: each partner re-applies their **own** xp-boost (`getXpBoostMultiplier`), keeping xp-boost per-spouse exactly like luck/discipline. The earner's already-credited `adjustedXp` is scaled by `((half/earnerBase) − 1)` — a strip when the earner carries (`poolBase == earnerBase`), a top-**up** when the spouse's value carries (each keeps their own boost, which cancels in the ratio).
+- Non-mob grants (no level-range/boost context) fall back to a plain `base/2` even split; the legacy no-base path (raw bonused half across) is unchanged. Funnel-awareness (spouse-at-cap collapses the split toward 100/0) is retained.
+
+### Offline-spouse ring equip fix (`bug fix`)
+
+- 3.1.0 fixed the ring *display* gate but the **equip/upgrade action** still read `getPlayerPrestigeLevel`. [`MarriageMainPage`](src/main/java/com/airijko/endlessmarriage/ui/MarriageMainPage.java) (ring upgrade) and [`MarriageRingVariationPage`](src/main/java/com/airijko/endlessmarriage/ui/MarriageRingVariationPage.java) now gate the action on account-scoped `getHighestPrestigeLevel` for **both** partners — matching the display gate. **Why:** the active-profile getter resolved an **offline** spouse (or one on a non-prestiged profile) to `0`, falsely re-locking a ring the page had just shown as equippable. ("Fix Equipping while Offline".)
+
+### Refixes targeting bridge — single-shooter resolver (`integration`)
+
+- [`PiggybackTargetingBridge`](src/main/java/com/airijko/endlessmarriage/bridge/PiggybackTargetingBridge.java) now prefers a **3-arg `install(BooleanSupplier, BiPredicate, UnaryOperator)`** on Refixes-Endless' `PiggybackPairs`, passing a new order-independent `PiggybackService.getPartnerFor(uuid)` (two cheap map lookups). The optimized projectile path resolves a shooter's partner **once per tick** instead of scanning every candidate. Falls back to the 2-arg `install` on older Refixes-Endless builds (`NoSuchMethodException`).
+
+### UI cleanup (`UI`)
+
+- The in-page **"REQUEST DIVORCE" button was removed** from [`MarriageMainPage`](src/main/java/com/airijko/endlessmarriage/ui/MarriageMainPage.java) — the event binding, the `marry:divorce` dispatch case, and the `handleDivorce()` method (72h-minimum + magistrate-pending logic) are all gone; divorce is command-only now.
+- In [`MarriageMainPage.ui`](src/main/resources/Common/UI/Custom/Pages/Marriage/MarriageMainPage.ui), the spouse prestige/level chips were relocated out of the spouse header into their own **Spouse Progression Card** (chips flex to share the narrow side), and the HOME card height was retuned to fit its tallest state (label + info + the VIEW COORDS button row).
+
+### Config & version
+
+- `MarriageConfigMigrator.BUNDLED_CONFIG_VERSION` bumped `6` → `7`; `config.json` `config_version` synced to `7`. Existing user configs merge forward on next boot to pick up `piggyback_enabled` and `piggyback_back_offset`, and to drop the obsolete `piggyback_seat_free_look_*` keys.
+- `manifest.json`: `3.1.0` → `3.2.2`; `EndlessLevelingCore` dependency `≥ 9.35.0` → `≥ 9.36.0`.
+
+Build target jar: `EndlessMarriage-3.2.2.jar` (**requires EL Core ≥ 9.36.0**).
+
+---
+
 ## 2026-06-24 — 3.1.0 (the V3 line, compared to 2.13.0)
 
 The major version bump to **V3** collapses three commits (`3ed24c1` → `8923766` → `d26be3e`) into one release. It is the first build to require **EndlessLeveling Core ≥ 9.35.0** (was `≥ 9.34.1`) — the new couple-dungeon routing, banked-instance even-split, cross-world rider pull, and suite backup hooks all consume core seams added in 9.35.0. **Requires an EL Core ≥ 9.35.0 redeploy alongside this jar.**
