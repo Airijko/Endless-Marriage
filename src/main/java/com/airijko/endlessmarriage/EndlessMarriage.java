@@ -422,6 +422,13 @@ public class EndlessMarriage extends JavaPlugin {
             tieredRingDataManager.save();
         }
 
+        // Drain debounced async file writes (overflow log, tiered rings) queued
+        // above and during gameplay so nothing is lost on clean shutdown.
+        try {
+            com.airijko.endlessmarriage.util.AsyncFileWriter.INSTANCE.flushAllNow();
+        } catch (Throwable ignored) {
+        }
+
         LOGGER.atInfo().log("EndlessMarriage has been disabled!");
     }
 

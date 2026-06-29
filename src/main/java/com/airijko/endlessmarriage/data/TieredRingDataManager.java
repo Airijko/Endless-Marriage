@@ -29,7 +29,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.File;
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Map;
@@ -274,19 +273,16 @@ public class TieredRingDataManager {
 
     public void save() {
         File file = new File(dataFolder, FILE_NAME);
-        try {
-            JsonObject root = new JsonObject();
-            JsonArray array = new JsonArray();
-            for (Map.Entry<UUID, String> entry : equippedRings.entrySet()) {
-                JsonObject obj = new JsonObject();
-                obj.addProperty("uuid", entry.getKey().toString());
-                obj.addProperty("ring_id", entry.getValue());
-                array.add(obj);
-            }
-            root.add("rings", array);
-            Files.writeString(file.toPath(), GSON.toJson(root), StandardCharsets.UTF_8);
-        } catch (IOException ex) {
-            LOGGER.atWarning().withCause(ex).log("Failed to save %s.", FILE_NAME);
+        // Serialize on the caller thread, hand the disk write off-thread.
+        JsonObject root = new JsonObject();
+        JsonArray array = new JsonArray();
+        for (Map.Entry<UUID, String> entry : equippedRings.entrySet()) {
+            JsonObject obj = new JsonObject();
+            obj.addProperty("uuid", entry.getKey().toString());
+            obj.addProperty("ring_id", entry.getValue());
+            array.add(obj);
         }
+        root.add("rings", array);
+        com.airijko.endlessmarriage.util.AsyncFileWriter.INSTANCE.write(file.toPath(), GSON.toJson(root));
     }
 }

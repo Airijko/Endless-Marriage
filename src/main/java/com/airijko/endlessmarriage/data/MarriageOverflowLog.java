@@ -19,7 +19,6 @@ import com.hypixel.hytale.logger.HytaleLogger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.File;
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayDeque;
@@ -211,34 +210,33 @@ public class MarriageOverflowLog {
 
     public synchronized void save() {
         File file = new File(dataFolder, FILE_NAME);
-        try {
-            JsonObject root = new JsonObject();
-            root.addProperty("server_lifetime_total", serverLifetimeTotal);
-            JsonArray array = new JsonArray();
-            for (CoupleLog log : couples.values()) {
-                JsonObject obj = new JsonObject();
-                obj.addProperty("player1", log.player1.toString());
-                obj.addProperty("player2", log.player2.toString());
-                obj.addProperty("lifetime_total", log.lifetimeTotal);
-                obj.addProperty("event_count", log.eventCount);
-                JsonArray recent = new JsonArray();
-                // Persist newest-first to match the in-memory deque order.
-                for (OverflowEvent ev : log.recent) {
-                    JsonObject evObj = new JsonObject();
-                    evObj.addProperty("timestamp", ev.timestamp());
-                    evObj.addProperty("from", ev.from().toString());
-                    evObj.addProperty("to", ev.to().toString());
-                    evObj.addProperty("amount", ev.amount());
-                    evObj.addProperty("kind", ev.kind());
-                    recent.add(evObj);
-                }
-                obj.add("recent", recent);
-                array.add(obj);
+        // Reached from the PlayerDisconnectEvent handler (world thread); serialize
+        // here under the lock, hand the disk write off-thread so disconnect never
+        // blocks the world tick on a full re-serialize of every couple.
+        JsonObject root = new JsonObject();
+        root.addProperty("server_lifetime_total", serverLifetimeTotal);
+        JsonArray array = new JsonArray();
+        for (CoupleLog log : couples.values()) {
+            JsonObject obj = new JsonObject();
+            obj.addProperty("player1", log.player1.toString());
+            obj.addProperty("player2", log.player2.toString());
+            obj.addProperty("lifetime_total", log.lifetimeTotal);
+            obj.addProperty("event_count", log.eventCount);
+            JsonArray recent = new JsonArray();
+            // Persist newest-first to match the in-memory deque order.
+            for (OverflowEvent ev : log.recent) {
+                JsonObject evObj = new JsonObject();
+                evObj.addProperty("timestamp", ev.timestamp());
+                evObj.addProperty("from", ev.from().toString());
+                evObj.addProperty("to", ev.to().toString());
+                evObj.addProperty("amount", ev.amount());
+                evObj.addProperty("kind", ev.kind());
+                recent.add(evObj);
             }
-            root.add("couples", array);
-            Files.writeString(file.toPath(), GSON.toJson(root), StandardCharsets.UTF_8);
-        } catch (IOException ex) {
-            LOGGER.atWarning().withCause(ex).log("Failed to save %s.", FILE_NAME);
+            obj.add("recent", recent);
+            array.add(obj);
         }
+        root.add("couples", array);
+        com.airijko.endlessmarriage.util.AsyncFileWriter.INSTANCE.write(file.toPath(), GSON.toJson(root));
     }
 }
