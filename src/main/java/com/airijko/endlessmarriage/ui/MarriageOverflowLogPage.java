@@ -101,7 +101,7 @@ public class MarriageOverflowLogPage extends SafeInteractiveCustomUIPage<Marriag
             String fromName = resolvePlayerName(event.from());
             String toName = resolvePlayerName(event.to());
 
-            ui.set(base + " #OverflowRowDirection.Text", fromName + "  →  " + toName);
+            ui.set(base + " #OverflowRowDirection.Text", fromName + "  »  " + toName);
             ui.set(base + " #OverflowRowAmount.Text", "+" + formatXp(event.amount()) + " XP");
             ui.set(base + " #OverflowRowKind.Text", kindLabel(event.kind()));
             ui.set(base + " #OverflowRowDate.Text", dateFmt.format(new Date(event.timestamp())));
