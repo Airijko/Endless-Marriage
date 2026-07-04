@@ -52,6 +52,10 @@ public class MarriageConfig {
     private double xpOverflowNotifyIntervalSeconds = 30.0;
     // How many recent rolled-up overflow events to retain per couple in overflow_log.json.
     private int xpOverflowLogMaxEntriesPerCouple = 50;
+    // Multiplier applied to raid/boss-reward overflow ONLY (the RAID channel) before it's
+    // funneled to the spouse — combat overflow (mob kills) is unaffected and still funnels
+    // at full value. 1.0 = no nerf, 0.35 = raid overflow only funnels at 35% effectiveness.
+    private double xpOverflowRaidEffectiveness = 0.35;
     private double officiateRange = 5.0;
     private String priestClassId = "priest";
     private String magistrateClassId = "magistrate";
@@ -133,6 +137,10 @@ public class MarriageConfig {
 
     public int getXpOverflowLogMaxEntriesPerCouple() {
         return xpOverflowLogMaxEntriesPerCouple;
+    }
+
+    public double getXpOverflowRaidEffectiveness() {
+        return xpOverflowRaidEffectiveness;
     }
 
     public double getOfficiateRange() {
@@ -266,6 +274,9 @@ public class MarriageConfig {
             }
             if (root.has("xp_overflow_log_max_entries_per_couple")) {
                 xpOverflowLogMaxEntriesPerCouple = root.get("xp_overflow_log_max_entries_per_couple").getAsInt();
+            }
+            if (root.has("xp_overflow_raid_effectiveness")) {
+                xpOverflowRaidEffectiveness = root.get("xp_overflow_raid_effectiveness").getAsDouble();
             }
             if (root.has("officiate_range")) {
                 officiateRange = root.get("officiate_range").getAsDouble();

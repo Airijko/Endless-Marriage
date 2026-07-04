@@ -32,7 +32,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * the XP they would otherwise burn (mob kills while near their spouse, plus raid / boss
  * rewards) is redirected to their partner — as long as the partner still has room to
  * level. This turns the normal 50/50 marriage even-split into a 100/0 split toward the
- * spouse who can still gain, and salvages raid overflow that EL would discard.
+ * spouse who can still gain for combat overflow, and salvages raid overflow that EL
+ * would discard — though raid overflow only funnels at reduced effectiveness (default
+ * 35%, {@code xp_overflow_raid_effectiveness}) to keep it from outweighing combat.
  *
  * <p>Funnel events fire on every XP grant (potentially many per second in combat), so
  * they are coalesced per capped-earner over a short window
@@ -57,7 +59,10 @@ public class MarriageOverflowService {
          *  proximity-gated 50/50 even-split). */
         COMBAT,
         /** Raid / boss reward payouts — no distance requirement, but both spouses must be
-         *  present (receiving spouse online). "Raids just need both players present." */
+         *  present (receiving spouse online). "Raids just need both players present."
+         *  Funnels at reduced effectiveness ({@link MarriageConfig#getXpOverflowRaidEffectiveness()},
+         *  default 35%) — nerfed relative to the full-value combat channel to keep raid
+         *  rewards from becoming the dominant overflow-funnel vector. */
         RAID,
         /** Everything else (quest/dungeon/outlander claims, generic API grants, raw
          *  adjustments, the marriage redistribution source itself, temp-profile, unknown):
@@ -168,13 +173,23 @@ public class MarriageOverflowService {
 
         EndlessLevelingAPI api = EndlessLevelingAPI.get();
 
+        // Raid/boss-reward overflow funnels at reduced effectiveness (default 35%) —
+        // combat (mob-kill) overflow is untouched. Applied before the spouse-room clamp
+        // so the nerf can't be bypassed by a spouse with plenty of room.
+        double nerfedOverflow = channel == Channel.RAID
+                ? overflowAmount * config.getXpOverflowRaidEffectiveness()
+                : overflowAmount;
+        if (nerfedOverflow <= 0.0D) {
+            return;
+        }
+
         // Only fund what the spouse can actually absorb before their own cap — never
         // burn the salvage on a second capped partner.
         double spouseRoom = api.xpToReachCapForProfile(spouse, -1);
         if (spouseRoom <= 0.0D) {
             return;
         }
-        double fundable = Math.min(overflowAmount, spouseRoom);
+        double fundable = Math.min(nerfedOverflow, spouseRoom);
         if (fundable <= 0.0D) {
             return;
         }
