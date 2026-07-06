@@ -56,6 +56,11 @@ public class MarriageConfig {
     // funneled to the spouse — combat overflow (mob kills) is unaffected and still funnels
     // at full value. 1.0 = no nerf, 0.35 = raid overflow only funnels at 35% effectiveness.
     private double xpOverflowRaidEffectiveness = 0.35;
+    // Multiplier applied to combat overflow ONLY (the COMBAT channel: mob kills near
+    // spouse, party kills/shares, matchmaking shares) before it's funneled to the spouse —
+    // a separate knob from xpOverflowRaidEffectiveness. 1.0 = no nerf, 0.25 = combat
+    // overflow only funnels at 25% effectiveness.
+    private double xpOverflowCombatEffectiveness = 0.25;
     private double officiateRange = 5.0;
     private String priestClassId = "priest";
     private String magistrateClassId = "magistrate";
@@ -141,6 +146,10 @@ public class MarriageConfig {
 
     public double getXpOverflowRaidEffectiveness() {
         return xpOverflowRaidEffectiveness;
+    }
+
+    public double getXpOverflowCombatEffectiveness() {
+        return xpOverflowCombatEffectiveness;
     }
 
     public double getOfficiateRange() {
@@ -277,6 +286,9 @@ public class MarriageConfig {
             }
             if (root.has("xp_overflow_raid_effectiveness")) {
                 xpOverflowRaidEffectiveness = root.get("xp_overflow_raid_effectiveness").getAsDouble();
+            }
+            if (root.has("xp_overflow_combat_effectiveness")) {
+                xpOverflowCombatEffectiveness = root.get("xp_overflow_combat_effectiveness").getAsDouble();
             }
             if (root.has("officiate_range")) {
                 officiateRange = root.get("officiate_range").getAsDouble();

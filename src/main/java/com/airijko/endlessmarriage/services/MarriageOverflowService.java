@@ -33,8 +33,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * rewards) is redirected to their partner — as long as the partner still has room to
  * level. This turns the normal 50/50 marriage even-split into a 100/0 split toward the
  * spouse who can still gain for combat overflow, and salvages raid overflow that EL
- * would discard — though raid overflow only funnels at reduced effectiveness (default
- * 35%, {@code xp_overflow_raid_effectiveness}) to keep it from outweighing combat.
+ * would discard — both channels funnel at reduced effectiveness ({@code xp_overflow_combat_effectiveness},
+ * default 25%; {@code xp_overflow_raid_effectiveness}, default 35% — two independent
+ * knobs) rather than at full value.
  *
  * <p>Funnel events fire on every XP grant (potentially many per second in combat), so
  * they are coalesced per capped-earner over a short window
@@ -56,13 +57,13 @@ public class MarriageOverflowService {
     /** How an XP-overflow source is allowed to funnel (if at all). */
     private enum Channel {
         /** Direct combat XP — funnels only when the couple is near each other (mirrors the
-         *  proximity-gated 50/50 even-split). */
+         *  proximity-gated 50/50 even-split). Funnels at reduced effectiveness
+         *  ({@link MarriageConfig#getXpOverflowCombatEffectiveness()}, default 25%). */
         COMBAT,
         /** Raid / boss reward payouts — no distance requirement, but both spouses must be
          *  present (receiving spouse online). "Raids just need both players present."
          *  Funnels at reduced effectiveness ({@link MarriageConfig#getXpOverflowRaidEffectiveness()},
-         *  default 35%) — nerfed relative to the full-value combat channel to keep raid
-         *  rewards from becoming the dominant overflow-funnel vector. */
+         *  default 35%) — its own independent knob from the combat channel's. */
         RAID,
         /** Everything else (quest/dungeon/outlander claims, generic API grants, raw
          *  adjustments, the marriage redistribution source itself, temp-profile, unknown):
@@ -173,12 +174,13 @@ public class MarriageOverflowService {
 
         EndlessLevelingAPI api = EndlessLevelingAPI.get();
 
-        // Raid/boss-reward overflow funnels at reduced effectiveness (default 35%) —
-        // combat (mob-kill) overflow is untouched. Applied before the spouse-room clamp
-        // so the nerf can't be bypassed by a spouse with plenty of room.
-        double nerfedOverflow = channel == Channel.RAID
-                ? overflowAmount * config.getXpOverflowRaidEffectiveness()
-                : overflowAmount;
+        // Both channels funnel at reduced effectiveness (each default 35%, two
+        // independent config knobs). Applied before the spouse-room clamp so the nerf
+        // can't be bypassed by a spouse with plenty of room.
+        double effectiveness = channel == Channel.RAID
+                ? config.getXpOverflowRaidEffectiveness()
+                : config.getXpOverflowCombatEffectiveness();
+        double nerfedOverflow = overflowAmount * effectiveness;
         if (nerfedOverflow <= 0.0D) {
             return;
         }

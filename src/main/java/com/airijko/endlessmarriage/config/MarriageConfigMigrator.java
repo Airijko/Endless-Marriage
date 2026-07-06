@@ -48,7 +48,7 @@ public final class MarriageConfigMigrator {
      * structural change that older user files won't have). On the next server
      * boot, every user file with a lower version will be merged forward.
      */
-    public static final int BUNDLED_CONFIG_VERSION = 8;
+    public static final int BUNDLED_CONFIG_VERSION = 9;
 
     public static final String CONFIG_VERSION_KEY = "config_version";
     private static final String BUNDLED_RESOURCE_NAME = "config.json";
