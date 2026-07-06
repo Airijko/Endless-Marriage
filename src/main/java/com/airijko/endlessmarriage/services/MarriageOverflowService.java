@@ -206,6 +206,19 @@ public class MarriageOverflowService {
         }
 
         boolean isRaid = channel == Channel.RAID;
+
+        // RAID overflow is rare and bounded (once per raid completion, unlike the
+        // high-frequency combat channel below) and can be a large amount. The ledger
+        // + chat notification below are durable/visible essentially immediately
+        // (MarriageOverflowLog persists synchronously on this same call), but the
+        // credit above only marks the spouse's PlayerData dirty for the normal ~5s
+        // coalesced flush — a crash landing in that window loses the XP while the
+        // ledger/chat still say it happened. Force it durable now instead. Combat
+        // overflow stays on the coalesced path; it's a per-kill hot path where a
+        // synchronous save per credit would peg the SQLite writer thread.
+        if (isRaid) {
+            api.flushPlayerNow(spouse);
+        }
         long now = System.currentTimeMillis();
         final UUID spouseFinal = spouse;
         pending.compute(uuid, (k, p) -> {
