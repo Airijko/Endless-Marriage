@@ -512,9 +512,12 @@ public class EndlessMarriage extends JavaPlugin {
      *    before the split. Over time both partners converge on the same total
      *    XP regardless of who killed what.
      *
-     * Marriage XP sharing and party XP sharing are mutually exclusive. If the
-     * earner is in a party, only the discipline/kiss bonuses apply — the even
-     * split is skipped so party distribution is not doubled.
+     * Marriage XP sharing and party XP sharing never double-pay the spouse. In a
+     * couple-only party the even-split replaces the party loop entirely; in a
+     * party with outsiders the split still runs on the killer-spouse's own
+     * full-kill grant (spouse gets 50%, excluded from the party-share loop via
+     * the spouse-marker handshake) while outsiders draw their normal member
+     * share. Already-divided PARTY_SHARE grants never split.
      *
      * Uses a ThreadLocal guard to prevent infinite recursion since granting
      * XP to the spouse will trigger this listener again.
@@ -583,7 +586,13 @@ public class EndlessMarriage extends JavaPlugin {
 
             inMarriageXpShare.set(true);
             try {
-                // 1. Discipline bonus: grant the earning player extra XP.
+                // 1. Discipline bonus (marriage proximity + kiss): grant the earning
+                //    player extra XP on their full earned amount. When the even-split
+                //    below runs, its strip re-multiplies by this same factor so the
+                //    earner keeps the bonus on only their HALF (the spouse gets their
+                //    own bonus on the other half) — see killerDiscMult. When no split
+                //    runs (kiss buff far from spouse, or the split collapses 100/0
+                //    because the spouse is capped), this full-kill bonus stands.
                 double disciplineBonus = adjustedXp * (disciplineBonusPct / 100.0);
                 if (disciplineBonus > 0) {
                     EndlessLevelingAPI.get().grantXp(uuid, disciplineBonus);
@@ -591,16 +600,31 @@ public class EndlessMarriage extends JavaPlugin {
 
                 // 2. Even split: pool the earner's XP and divide equally.
                 //    Runs when the earner is near their spouse AND either
-                //    (a) not in a party, or (b) in a couple-only party (just
-                //    the two spouses). When outsiders are in the party the
-                //    standard party-share pipeline runs instead. PartyManager
-                //    mirrors this check and skips its member distribution for
-                //    couple-only parties so the spouse does not double-dip.
+                //    (a) not in a party, (b) in a couple-only party (just the
+                //    two spouses), or (c) in a party WITH outsiders where the
+                //    spouse is a fellow member — but for (c) ONLY on the
+                //    killer's own full-kill grant (MOB_KILL / PARTY_KILL).
+                //    An already-divided PARTY_SHARE cut must never split: the
+                //    strip/top-up math below values the FULL kill, so it would
+                //    inflate a member's 20% share toward 50% (e.g. a second
+                //    married couple in the same party receiving their shares).
+                //    PartyManager consumes the spouse marker set below and
+                //    excludes JUST the spouse from its share loop — outsiders
+                //    still draw their normal member share; the legacy boolean
+                //    keeps couple-only parties skipping the whole loop.
                 EndlessLevelingAPI api = EndlessLevelingAPI.get();
                 boolean inParty = api.isInParty(uuid);
                 boolean coupleOnlyParty = inParty && api.isCoupleOnlyParty(uuid);
-                if (nearSpouse && (!inParty || coupleOnlyParty)) {
-                    UUID spouseUuid = marriageDataManager.getSpouse(uuid);
+                UUID spouseForGate = marriageDataManager.getSpouse(uuid);
+                String grantSource = api.getCurrentGrantSourceName();
+                boolean fullKillGrant = "MOB_KILL".equals(grantSource)
+                        || "PARTY_KILL".equals(grantSource);
+                boolean spouseInOutsiderParty = inParty && !coupleOnlyParty
+                        && spouseForGate != null
+                        && api.isInPartyWith(uuid, spouseForGate);
+                if (nearSpouse && (!inParty || coupleOnlyParty
+                        || (spouseInOutsiderParty && fullKillGrant))) {
+                    UUID spouseUuid = spouseForGate;
                     if (spouseUuid != null) {
                         // EVEN SPLIT, then EACH partner's own bonuses apply (mirrors party-share).
                         // The kill is valued at the BEST level-range multiplier among the two
@@ -623,6 +647,15 @@ public class EndlessMarriage extends JavaPlugin {
                         //   - spouse: re-apply the SPOUSE's own xp-boost to their boost-free half,
                         //     then credit through their pipeline so their luck/discipline/passive
                         //     apply too.
+                        //   - marriage proximity/kiss bonus is ALSO per-half: each partner's own
+                        //     marriageDisciplineBonusPercent multiplies THEIR half (killerDiscMult /
+                        //     spouseDiscMult below), exactly like xp-boost/luck. The earner already
+                        //     got their bonus on the FULL kill in step 1; folding killerDiscMult into
+                        //     the strip reduces it to their half's worth, so the couple total is
+                        //     unchanged but splits evenly instead of leaving the killer ahead. Both
+                        //     are near each other, so both qualify for the +25% proximity; kiss buffs
+                        //     stay per-partner. (When the split collapses 100/0 because the spouse is
+                        //     capped, step 1's full-kill bonus stands — the earner keeps everything.)
                         //
                         // Funnel-aware: if the spouse is at (or near) their cap they can't absorb a
                         // share, so the split collapses toward 100/0 in favour of whoever can still
@@ -638,6 +671,14 @@ public class EndlessMarriage extends JavaPlugin {
                                 : Double.POSITIVE_INFINITY;
 
                         if (spouseRoom > 0.0D) {
+                            // Per-half marriage proximity/kiss multipliers. The earner's
+                            // (disciplineBonusPct) was already granted on the FULL kill in
+                            // step 1; multiplying the strip by it reduces that to the earner's
+                            // half. The spouse's own bonus (their proximity + their kiss buff)
+                            // rides their credited half — resolved individually so a kiss buff
+                            // stays per-partner. Both near each other ⇒ both get +25% proximity.
+                            double killerDiscMult = 1.0 + disciplineBonusPct / 100.0;
+                            double spouseDiscMult = 1.0 + marriageDisciplineBonusPercent(spouseUuid) / 100.0;
                             if (mobCtx && marriageOverflowService != null) {
                                 double spouseBase = api.computeMobKillGrantBaseFor(spouseUuid);
                                 double poolBase = (!Double.isNaN(spouseBase) && spouseBase > earnerBase)
@@ -645,29 +686,40 @@ public class EndlessMarriage extends JavaPlugin {
                                         : earnerBase;
                                 double half = poolBase / 2.0;
                                 EndlessLevelingAPI.get().adjustRawXp(uuid,
-                                        adjustedXp * ((half / earnerBase) - 1.0));
+                                        adjustedXp * killerDiscMult * ((half / earnerBase) - 1.0));
                                 double spouseBoost = api.getXpBoostMultiplier(spouseUuid);
                                 marriageOverflowService.creditSpouseEvenSplitShare(
-                                        spouseUuid, half * spouseBoost);
+                                        spouseUuid, half * spouseBoost * spouseDiscMult);
                             } else if (!Double.isNaN(baseXp) && baseXp > 0.0D
                                     && marriageOverflowService != null) {
                                 // Non-mob grant (no level-range/xp-boost context): plain base/2
-                                // even split; spouse still gets their own luck/discipline.
-                                EndlessLevelingAPI.get().adjustRawXp(uuid, -(adjustedXp / 2.0));
-                                marriageOverflowService.creditSpouseEvenSplitShare(spouseUuid, baseXp / 2.0);
+                                // even split; spouse still gets their own luck/discipline, and
+                                // each half carries its own marriage proximity/kiss bonus.
+                                EndlessLevelingAPI.get().adjustRawXp(uuid, -(adjustedXp / 2.0) * killerDiscMult);
+                                marriageOverflowService.creditSpouseEvenSplitShare(
+                                        spouseUuid, (baseXp / 2.0) * spouseDiscMult);
                             } else {
-                                // Legacy fallback (core didn't supply a base): raw bonused half.
-                                EndlessLevelingAPI.get().adjustRawXp(uuid, -(adjustedXp / 2.0));
-                                EndlessLevelingAPI.get().adjustRawXp(spouseUuid, adjustedXp / 2.0);
+                                // Legacy fallback (core didn't supply a base): raw bonused half,
+                                // each side carrying its own marriage proximity/kiss bonus.
+                                EndlessLevelingAPI.get().adjustRawXp(uuid, -(adjustedXp / 2.0) * killerDiscMult);
+                                EndlessLevelingAPI.get().adjustRawXp(spouseUuid, (adjustedXp / 2.0) * spouseDiscMult);
                             }
                         }
-                        // else spouse capped: earner keeps everything (no strip, no credit).
+                        // else spouse capped: earner keeps everything (no strip, no credit) —
+                        // step 1's full-kill proximity bonus stands.
 
-                        // Positive handshake to EL core: the couple-only split ran for this
-                        // kill, so PartyManager must skip its party-share loop (otherwise the
-                        // spouse is paid twice). Stands even when the spouse was capped and got
-                        // no share — a capped spouse must not be paid (and wasted) by the party
-                        // loop either. Only meaningful for a couple-only party.
+                        // Positive handshake to EL core: the split ran for this kill, so
+                        // PartyManager must not ALSO pay the spouse a party share (double-pay).
+                        // Stands even when the spouse was capped and got no share — a capped
+                        // spouse must not be paid (and wasted) by the party loop either.
+                        //   - spouse marker: precise exclusion; lets outsiders in the party
+                        //     still draw their normal shares (new cores).
+                        //   - legacy boolean: couple-only full-loop skip. Kept couple-only so
+                        //     an OLD core (which only knows the boolean and skips the WHOLE
+                        //     loop) can never starve outsiders of their shares.
+                        if (inParty) {
+                            api.markCoupleEvenSplitSpouse(spouseUuid);
+                        }
                         if (coupleOnlyParty) {
                             api.markCoupleEvenSplitApplied();
                         }

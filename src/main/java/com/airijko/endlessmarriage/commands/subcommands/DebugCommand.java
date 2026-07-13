@@ -36,6 +36,7 @@ public class DebugCommand extends AbstractPlayerCommand {
         this.addSubCommand(new DebugMenuCommand());
         this.addSubCommand(new DebugRingsCommand());
         this.addSubCommand(new AdminListCommand());
+        this.addSubCommand(new ResetCooldownCommand());
     }
 
     @Override
@@ -55,6 +56,6 @@ public class DebugCommand extends AbstractPlayerCommand {
             return;
         }
 
-        senderRef.sendMessage(MarriageMessages.adminLine("Available: /marry admin inv | npc | kiss | piggyback | testmenu | rings | list", "#4fd7f7"));
+        senderRef.sendMessage(MarriageMessages.adminLine("Available: /marry admin inv | npc | kiss | piggyback | testmenu | rings | list | reset-cooldown <player>", "#4fd7f7"));
     }
 }
