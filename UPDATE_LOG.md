@@ -1,5 +1,44 @@
 # Endless Marriage - Update Log
 
+## 2026-07-13 — 3.2.4 (compared to 3.2.2)
+
+Collapses the whole unlogged 3.2.3 → 3.2.4 window (`8dde4d7` → `57a55d2` → `19baeb6` → `7d62a1b` → `c4d70f3` → `89474be` → `5f01862`) into one release. Two headlines: a **new admin command — `/marry admin reset-cooldown <player>`** to clear a player's post-divorce remarriage lock, and a correction to the **+25% "near spouse" proximity Discipline XP bonus** so it now rides *each partner's own half* of the even split (both spouses near each other each get their own +25%, instead of only the killer keeping it on the whole kill). Alongside those: the even split now pays a spouse who is in a **party with outsiders** (50/50 on the killer's full kill, without double-paying via the party loop), two new **overflow-effectiveness knobs** (raid `0.35`, combat `0.25`), and a **crash-durability fix** for raid overflow. It raises the core floor to **EndlessLeveling Core ≥ 10.0.4** (was `≥ 9.36.0`) — the spouse-in-outsider-party split consumes new core seams (`getCurrentGrantSourceName`, `isInPartyWith`, `markCoupleEvenSplitSpouse`). **Requires an EL Core ≥ 10.0.4 redeploy alongside this jar.**
+
+### Highlights
+
+- **New admin command `/marry admin reset-cooldown <player>`** (alias `clear-cooldown`) — clears a player's post-divorce remarriage cooldown so they can propose/accept again immediately. Ops-only; accepts an online name **or** a raw UUID (so offline players can be cleared).
+- **+25% proximity Discipline XP bonus is now per-half in the even split** — both partners near each other each apply their **own** `discipline_bonus_percent` (default 25%) to **their** half of a shared kill (`killerDiscMult` / `spouseDiscMult`), exactly like xp-boost/luck. Previously the killer kept the +25% on the *full* kill while the spouse's half went unbuffed; the couple total is unchanged but now splits evenly instead of leaving the killer ahead. Kiss buffs stay per-partner. When the split collapses 100/0 (spouse capped), the killer's full-kill proximity bonus stands.
+- **Even split now works when the spouse is in a party with outsiders** — the killer-spouse's own full-kill grant (`MOB_KILL` / `PARTY_KILL`) splits 50/50 with the spouse, who is precisely excluded from the party-share loop via a spouse marker; outsiders still draw their normal member share. Already-divided `PARTY_SHARE` cuts never split (would inflate a member's share).
+- **Two overflow-effectiveness knobs** — `xp_overflow_raid_effectiveness` (default `0.35`) throttles raid/boss-reward overflow only; `xp_overflow_combat_effectiveness` (default `0.25`) throttles combat overflow (mob kills / party kills-shares / matchmaking shares) only. Independent knobs; `1.0` = no nerf.
+- **Raid overflow is now crash-durable** — the spouse's raid-overflow credit is force-flushed (`flushPlayerNow`) instead of riding the ~5s coalesced save, so a crash in that window no longer loses XP the ledger/chat already reported as delivered. Combat overflow stays on the coalesced path (per-kill hot path).
+
+### New admin command — reset remarriage cooldown (`new feature`)
+
+- New [`ResetCooldownCommand`](src/main/java/com/airijko/endlessmarriage/commands/subcommands/ResetCooldownCommand.java) registered under `/marry admin` in [`DebugCommand`](src/main/java/com/airijko/endlessmarriage/commands/subcommands/DebugCommand.java). Command name `reset-cooldown`, alias `clear-cooldown`, generates its own permission and additionally gates on `OperatorHelper.isOperator`.
+- Resolves the target by **online player name first, then falls back to parsing the argument as a UUID** — so an offline player can still be cleared by UUID. Reports "no active divorce cooldown" when `getDivorceTimestamp` is null, otherwise calls `MarriageDataManager.clearDivorceCooldown(uuid)`, confirms to the sender, and (if online) DMs the target that they may marry again.
+- The `/marry admin` help line now reads `… | list | reset-cooldown <player>`.
+
+### Proximity + even-split XP correction (`bug fix` / `rework`)
+
+- In [`EndlessMarriage`](src/main/java/com/airijko/endlessmarriage/EndlessMarriage.java)'s XP grant listener, the discipline/kiss bonus is granted on the **full** earned amount in step 1 (`marriageDisciplineBonusPercent` = proximity `discipline_bonus_percent` + active kiss buff, additive — single source of truth shared with the profile-UI Discipline-row provider). When the even split runs, folding **`killerDiscMult = 1 + disciplineBonusPct/100`** into the earner's strip reduces that bonus to the earner's **half**, and **`spouseDiscMult = 1 + marriageDisciplineBonusPercent(spouseUuid)/100`** applies the spouse's *own* proximity/kiss bonus to their credited half. Applied across all three split paths (mob-context, non-mob base/2, legacy raw half).
+- **Spouse-in-outsider-party gate:** the split now also runs when `spouseInOutsiderParty && fullKillGrant` — i.e. the spouse is a party member but the party has outsiders, and this grant is the killer's own `MOB_KILL`/`PARTY_KILL` (never an already-divided `PARTY_SHARE`). `api.markCoupleEvenSplitSpouse(spouse)` tells core to exclude *just the spouse* from its share loop (new cores); the legacy `markCoupleEvenSplitApplied()` boolean still fires only for couple-only parties so an old core can't starve outsiders.
+
+### Overflow balancing & durability (`balance` / `bug fix`)
+
+- New config `xp_overflow_raid_effectiveness` (default `0.35`) in [`MarriageConfig`](src/main/java/com/airijko/endlessmarriage/config/MarriageConfig.java) → `getXpOverflowRaidEffectiveness()`, applied to the **RAID** overflow channel only in [`MarriageOverflowService`](src/main/java/com/airijko/endlessmarriage/services/MarriageOverflowService.java) before funneling to the spouse.
+- New config `xp_overflow_combat_effectiveness` (default `0.25`) → `getXpOverflowCombatEffectiveness()`, applied to the **COMBAT** channel only. Combat overflow is a high-frequency per-kill path; it stays on the coalesced save.
+- Raid overflow credit forced durable via `api.flushPlayerNow(spouse)` (raid overflow is rare, bounded, and large; the ledger/chat notification are already synchronous/visible on the same call).
+
+### Config & version
+
+- `config.json` `config_version` bumped `7` → `8` (raid effectiveness) → `9` (combat effectiveness); `MarriageConfigMigrator.BUNDLED_CONFIG_VERSION` = `9`. Existing user configs merge forward on next boot to pick up both `xp_overflow_*_effectiveness` keys.
+- `manifest.json`: `3.2.2` → `3.2.4`; `EndlessLevelingCore` dependency `≥ 9.36.0` → `≥ 10.0.4`.
+- Build tooling: `copyToEndlessJars` no longer fingerprints the shared jar folder (faster incremental builds; `89474be`).
+
+Build target jar: `EndlessMarriage-3.2.4.jar` (**requires EL Core ≥ 10.0.4, deploy both together**).
+
+---
+
 ## 2026-06-25 — 3.2.2 (compared to 3.1.0)
 
 A post-V3 hardening pass: six commits (`a5ab9f3` → `8acad48` → `4002a47` → `51676be` → `b2a9db9` → `51fac0a`) collapsed into one release. The headlines are a **piggyback master kill-switch**, the **reversal of the 3.1.0 free-look mechanism** (replaced with a level "face-the-carrier" seat plus a body back-offset so the rider stops covering the camera and staring at the ground), an **XP even-split rework** (best-multiplier carry, boost-free base), an **offline-spouse ring-equip fix**, and an optimized **Refixes targeting bridge**. It bumps the core floor to **EndlessLeveling Core ≥ 9.36.0** (was `≥ 9.35.0`) — the reworked even-split consumes `computeMobKillGrantBaseFor` / `getXpBoostMultiplier` seams. **Requires an EL Core ≥ 9.36.0 redeploy alongside this jar.**
