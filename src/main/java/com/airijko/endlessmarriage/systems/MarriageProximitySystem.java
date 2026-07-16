@@ -12,15 +12,14 @@ package com.airijko.endlessmarriage.systems;
 import com.airijko.endlessmarriage.config.MarriageConfig;
 import com.airijko.endlessmarriage.data.MarriageDataManager;
 import com.airijko.endlessmarriage.data.MarriagePair;
+import com.airijko.endlessmarriage.util.PositionUtil;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import org.joml.Vector3d;
-import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -132,8 +131,8 @@ public class MarriageProximitySystem extends TickingSystem<EntityStore> {
             return;
         }
 
-        Vector3d pos1 = resolvePosition(entity1, store);
-        Vector3d pos2 = resolvePosition(entity2, store);
+        Vector3d pos1 = PositionUtil.resolvePosition(entity1, store);
+        Vector3d pos2 = PositionUtil.resolvePosition(entity2, store);
 
         if (pos1 == null || pos2 == null) {
             return;
@@ -161,16 +160,4 @@ public class MarriageProximitySystem extends TickingSystem<EntityStore> {
         timeSinceLastCheck.remove(store);
     }
 
-    @Nullable
-    private Vector3d resolvePosition(Ref<EntityStore> ref, Store<EntityStore> store) {
-        if (ref == null || store == null) {
-            return null;
-        }
-        try {
-            TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
-            return transform != null ? transform.getPosition() : null;
-        } catch (Exception ex) {
-            return null;
-        }
-    }
 }

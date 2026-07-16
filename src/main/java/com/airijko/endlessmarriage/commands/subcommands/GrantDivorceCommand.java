@@ -10,7 +10,6 @@
 
 package com.airijko.endlessmarriage.commands.subcommands;
 
-import com.airijko.endlessleveling.api.EndlessLevelingAPI;
 import com.airijko.endlessmarriage.config.MarriageConfig;
 import com.airijko.endlessmarriage.data.MarriageDataManager;
 import com.hypixel.hytale.component.Ref;
@@ -59,13 +58,7 @@ public class GrantDivorceCommand extends AbstractPlayerCommand {
         // Check magistrate class requirement (permission-holders bypass)
         if (config.isRequireMagistrateForDivorce()
                 && !senderHasPermission(context, PERM_DIVORCE_GRANT)) {
-            String magistrateClassId = config.getMagistrateClassId();
-            String primaryClass = EndlessLevelingAPI.get().getPrimaryClassId(senderUuid);
-            String secondaryClass = EndlessLevelingAPI.get().getSecondaryClassId(senderUuid);
-            boolean isMagistrate = magistrateClassId.equalsIgnoreCase(primaryClass)
-                    || magistrateClassId.equalsIgnoreCase(secondaryClass);
-
-            if (!isMagistrate) {
+            if (!MarriageUtil.isMagistrate(senderUuid)) {
                 senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.GRANT_MAGISTRATE_ONLY, COLOR_ERROR));
                 return;
             }

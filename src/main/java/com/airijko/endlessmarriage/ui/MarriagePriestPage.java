@@ -14,6 +14,7 @@ import com.airijko.endlessmarriage.EndlessMarriage;
 import com.airijko.endlessmarriage.commands.subcommands.MarriageMessages;
 import com.airijko.endlessmarriage.config.MarriageConfig;
 import com.airijko.endlessmarriage.data.MarriageDataManager;
+import com.airijko.endlessmarriage.util.PlayerNameResolver;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.logger.HytaleLogger;
@@ -141,8 +142,8 @@ public class MarriagePriestPage extends SafeInteractiveCustomUIPage<MarriagePage
             data.addPriestRequest(priestUuid, pendingPair[0], pendingPair[1]);
 
             UUID partnerId = pendingPair[0].equals(senderUuid) ? pendingPair[1] : pendingPair[0];
-            String partnerName = resolvePlayerName(partnerId);
-            String priestName = resolvePlayerName(priestUuid);
+            String partnerName = PlayerNameResolver.resolve(partnerId);
+            String priestName = PlayerNameResolver.resolve(priestUuid);
 
             playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.OFFICIATION_REQUEST_SENT, "#66ff66", priestName));
 
@@ -159,15 +160,4 @@ public class MarriagePriestPage extends SafeInteractiveCustomUIPage<MarriagePage
         }
     }
 
-    private String resolvePlayerName(@Nonnull UUID uuid) {
-        PlayerRef ref = Universe.get().getPlayer(uuid);
-        if (ref != null && ref.getUsername() != null) {
-            return ref.getUsername();
-        }
-        var snapshot = EndlessLevelingAPI.get().getPlayerSnapshot(uuid);
-        if (snapshot != null && snapshot.playerName() != null) {
-            return snapshot.playerName();
-        }
-        return uuid.toString().substring(0, 8);
-    }
 }

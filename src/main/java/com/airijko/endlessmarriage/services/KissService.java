@@ -11,12 +11,12 @@ package com.airijko.endlessmarriage.services;
 
 import com.airijko.endlessmarriage.config.MarriageConfig;
 import com.airijko.endlessmarriage.data.MarriageDataManager;
+import com.airijko.endlessmarriage.util.PositionUtil;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.logger.HytaleLogger;
 import org.joml.Vector3d;
 import com.hypixel.hytale.server.core.asset.type.soundevent.config.SoundEvent;
-import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.ParticleUtil;
@@ -93,8 +93,8 @@ public final class KissService {
             return KissResult.SPOUSE_DIFFERENT_WORLD;
         }
 
-        Vector3d initiatorPos = positionOf(initiatorRef, initiatorStore);
-        Vector3d spousePos = positionOf(spouseRef, spouseStore);
+        Vector3d initiatorPos = PositionUtil.resolvePosition(initiatorRef, initiatorStore);
+        Vector3d spousePos = PositionUtil.resolvePosition(spouseRef, spouseStore);
         if (initiatorPos == null || spousePos == null) {
             return KissResult.ERROR;
         }
@@ -133,8 +133,8 @@ public final class KissService {
             @Nonnull Store<EntityStore> initiatorStore,
             @Nonnull Ref<EntityStore> targetRef) {
 
-        Vector3d initiatorPos = positionOf(initiatorRef, initiatorStore);
-        Vector3d targetPos = positionOf(targetRef, initiatorStore);
+        Vector3d initiatorPos = PositionUtil.resolvePosition(initiatorRef, initiatorStore);
+        Vector3d targetPos = PositionUtil.resolvePosition(targetRef, initiatorStore);
         if (initiatorPos == null || targetPos == null) {
             return KissResult.ERROR;
         }
@@ -194,16 +194,4 @@ public final class KissService {
         }
     }
 
-    @Nullable
-    private Vector3d positionOf(@Nullable Ref<EntityStore> ref, @Nullable Store<EntityStore> store) {
-        if (ref == null || store == null) {
-            return null;
-        }
-        try {
-            TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
-            return transform != null ? transform.getPosition() : null;
-        } catch (Exception ex) {
-            return null;
-        }
-    }
 }

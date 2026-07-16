@@ -57,6 +57,13 @@ public final class MarriageBackupParticipant implements SuiteBackupParticipant {
         tieredRings.save();
         overflowLog.save();
 
+        // The saves above are debounced async writes (AsyncFileWriter, ~1s); drain them
+        // so the snapshot copies current bytes, not the pre-save file contents.
+        try {
+            com.airijko.endlessmarriage.util.AsyncFileWriter.INSTANCE.flushAllNow();
+        } catch (Throwable ignored) {
+        }
+
         int copied = 0;
         if (Files.isDirectory(dataFolder)) {
             try (Stream<Path> s = Files.list(dataFolder)) {

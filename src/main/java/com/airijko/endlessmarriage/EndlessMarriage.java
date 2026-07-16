@@ -502,27 +502,6 @@ public class EndlessMarriage extends JavaPlugin {
     }
 
     /**
-     * Creates the XP grant listener that handles:
-     * 1. Marriage Discipline bonus: +25% XP when near spouse
-     * 2. Kiss buff: temporary +10% Discipline XP (configurable) for 1h after a
-     *    successful kiss, regardless of spouse proximity
-     * 3. Marriage XP even split: when near spouse, the earner's adjusted XP is
-     *    split 50/50 between both partners. Each partner's individual bonuses
-     *    (luck, discipline, level range) are already baked into their own XP
-     *    before the split. Over time both partners converge on the same total
-     *    XP regardless of who killed what.
-     *
-     * Marriage XP sharing and party XP sharing never double-pay the spouse. In a
-     * couple-only party the even-split replaces the party loop entirely; in a
-     * party with outsiders the split still runs on the killer-spouse's own
-     * full-kill grant (spouse gets 50%, excluded from the party-share loop via
-     * the spouse-marker handshake) while outsiders draw their normal member
-     * share. Already-divided PARTY_SHARE grants never split.
-     *
-     * Uses a ThreadLocal guard to prevent infinite recursion since granting
-     * XP to the spouse will trigger this listener again.
-     */
-    /**
      * The total marriage Discipline XP-bonus percent currently active for the
      * player: the proximity bonus while near their spouse (or within the linger
      * window) plus the kiss buff, additive. Returns {@code 0} when neither
@@ -547,6 +526,27 @@ public class EndlessMarriage extends JavaPlugin {
         return pct;
     }
 
+    /**
+     * Creates the XP grant listener that handles:
+     * 1. Marriage Discipline bonus: +25% XP when near spouse
+     * 2. Kiss buff: temporary +10% Discipline XP (configurable) for 1h after a
+     *    successful kiss, regardless of spouse proximity
+     * 3. Marriage XP even split: when near spouse, the earner's adjusted XP is
+     *    split 50/50 between both partners. Each partner's individual bonuses
+     *    (luck, discipline, level range) are already baked into their own XP
+     *    before the split. Over time both partners converge on the same total
+     *    XP regardless of who killed what.
+     *
+     * Marriage XP sharing and party XP sharing never double-pay the spouse. In a
+     * couple-only party the even-split replaces the party loop entirely; in a
+     * party with outsiders the split still runs on the killer-spouse's own
+     * full-kill grant (spouse gets 50%, excluded from the party-share loop via
+     * the spouse-marker handshake) while outsiders draw their normal member
+     * share. Already-divided PARTY_SHARE grants never split.
+     *
+     * Uses a ThreadLocal guard to prevent infinite recursion since granting
+     * XP to the spouse will trigger this listener again.
+     */
     private BiConsumer<UUID, Double> createXpGrantListener() {
         final ThreadLocal<Boolean> inMarriageXpShare = ThreadLocal.withInitial(() -> false);
 
@@ -593,9 +593,16 @@ public class EndlessMarriage extends JavaPlugin {
                 //    own bonus on the other half) — see killerDiscMult. When no split
                 //    runs (kiss buff far from spouse, or the split collapses 100/0
                 //    because the spouse is capped), this full-kill bonus stands.
+                //    Credited via adjustRawXp, NOT grantXp: grantXp would route through
+                //    LevelingManager.addXp, which re-applies the player's own
+                //    discipline/luck/passive bonuses on top and clips at the per-kill
+                //    gain cap — so the amount landed would no longer be the exact
+                //    `adjustedXp * pct` the even-split strip's killerDiscMult math
+                //    assumes (the strip folds this step-1 grant into its cancellation).
+                //    adjustRawXp matches the strip's own raw pipe.
                 double disciplineBonus = adjustedXp * (disciplineBonusPct / 100.0);
                 if (disciplineBonus > 0) {
-                    EndlessLevelingAPI.get().grantXp(uuid, disciplineBonus);
+                    EndlessLevelingAPI.get().adjustRawXp(uuid, disciplineBonus);
                 }
 
                 // 2. Even split: pool the earner's XP and divide equally.

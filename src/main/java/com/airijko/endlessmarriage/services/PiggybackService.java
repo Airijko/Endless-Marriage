@@ -11,12 +11,12 @@ package com.airijko.endlessmarriage.services;
 
 import com.airijko.endlessmarriage.config.MarriageConfig;
 import com.airijko.endlessmarriage.data.MarriageDataManager;
+import com.airijko.endlessmarriage.util.PositionUtil;
 import com.hypixel.hytale.builtin.mounts.MountedComponent;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.logger.HytaleLogger;
 import org.joml.Vector3d;
-import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
@@ -216,8 +216,8 @@ public final class PiggybackService {
             return MountResult.SPOUSE_ALREADY_CARRYING;
         }
 
-        Vector3d riderPos = positionOf(riderRef, riderStore);
-        Vector3d spousePos = positionOf(spouseRef, spouseStore);
+        Vector3d riderPos = PositionUtil.resolvePosition(riderRef, riderStore);
+        Vector3d spousePos = PositionUtil.resolvePosition(spouseRef, spouseStore);
         if (riderPos == null || spousePos == null) {
             return MountResult.ERROR;
         }
@@ -308,8 +308,8 @@ public final class PiggybackService {
             return MountResult.SPOUSE_ALREADY_CARRYING;
         }
 
-        Vector3d carrierPos = positionOf(carrierRef, carrierStore);
-        Vector3d spousePos = positionOf(spouseRef, spouseStore);
+        Vector3d carrierPos = PositionUtil.resolvePosition(carrierRef, carrierStore);
+        Vector3d spousePos = PositionUtil.resolvePosition(spouseRef, spouseStore);
         if (carrierPos == null || spousePos == null) {
             return MountResult.ERROR;
         }
@@ -481,16 +481,4 @@ public final class PiggybackService {
         return ended;
     }
 
-    @Nullable
-    private Vector3d positionOf(@Nullable Ref<EntityStore> ref, @Nullable Store<EntityStore> store) {
-        if (ref == null || store == null) {
-            return null;
-        }
-        try {
-            TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
-            return transform != null ? transform.getPosition() : null;
-        } catch (Exception ex) {
-            return null;
-        }
-    }
 }

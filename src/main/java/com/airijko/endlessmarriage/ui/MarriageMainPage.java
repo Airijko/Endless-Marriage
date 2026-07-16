@@ -15,7 +15,6 @@ import com.airijko.endlessmarriage.commands.subcommands.MarriageMessages;
 import com.airijko.endlessmarriage.data.MarriageDataManager;
 import com.airijko.endlessmarriage.data.MarriageHome;
 import com.airijko.endlessmarriage.data.MarriagePair;
-import com.airijko.endlessmarriage.data.WeddingRingTier;
 import com.airijko.endlessmarriage.data.TieredRingDataManager;
 import com.airijko.endlessmarriage.data.tiered.TieredRingDefinition;
 import com.airijko.endlessmarriage.data.tiered.TieredRingTier;
@@ -171,8 +170,8 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         applyHomeInfo(ui, home);
 
         // Ring info — sourced from the tiered/attribute ring system (the one the
-        // Rings page now drives). The legacy cosmetic WeddingRingTier is no longer
-        // shown here.
+        // Rings page now drives). The legacy cosmetic ring system has been removed;
+        // tiered rings are the only ring system.
         TieredRingDataManager rings = EndlessMarriage.getInstance().getTieredRingDataManager();
         TieredRingDefinition equippedRing = rings != null ? rings.getEquippedRing(senderUuid) : null;
 
@@ -188,8 +187,11 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
 
         // The button now opens the Rings page (tier -> variation picker) instead of
         // cosmetically bumping a tier. The hint label reports unlock progress.
-        int senderPrestige = EndlessLevelingAPI.get().getPlayerPrestigeLevel(senderUuid);
-        int spousePrestige = EndlessLevelingAPI.get().getPlayerPrestigeLevel(spouseUuid);
+        // Account-scoped HIGHEST prestige (persistent, profile-independent) — the
+        // active-profile getter would read an offline spouse as 0 and falsely lock
+        // tiers the couple has already unlocked. Matches MarriageRingPage / MarriageRingVariationPage.
+        int senderPrestige = EndlessLevelingAPI.get().getHighestPrestigeLevel(senderUuid);
+        int spousePrestige = EndlessLevelingAPI.get().getHighestPrestigeLevel(spouseUuid);
         int lowestPrestige = Math.min(senderPrestige, spousePrestige);
 
         TieredRingTier highestUnlocked = TieredRingTier.E;
@@ -231,13 +233,8 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         }
 
         // Role section (priests / magistrates only)
-        var config = EndlessMarriage.getInstance().getMarriageConfig();
-        String primaryClass = EndlessLevelingAPI.get().getPrimaryClassId(senderUuid);
-        String secondaryClass = EndlessLevelingAPI.get().getSecondaryClassId(senderUuid);
-        boolean isPriest = config.getPriestClassId().equalsIgnoreCase(primaryClass)
-                || config.getPriestClassId().equalsIgnoreCase(secondaryClass);
-        boolean isMagistrate = config.getMagistrateClassId().equalsIgnoreCase(primaryClass)
-                || config.getMagistrateClassId().equalsIgnoreCase(secondaryClass);
+        boolean isPriest = com.airijko.endlessmarriage.commands.subcommands.MarriageUtil.isPriest(senderUuid);
+        boolean isMagistrate = com.airijko.endlessmarriage.commands.subcommands.MarriageUtil.isMagistrate(senderUuid);
 
         if (isPriest || isMagistrate) {
             ui.set("#RoleSection.Visible", true);
@@ -410,13 +407,8 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         events.addEventBinding(Activating, "#ProposeButton", of("Action", "marry:propose_ui"), false);
 
         // Role section (priests / magistrates only)
-        var config = EndlessMarriage.getInstance().getMarriageConfig();
-        String primaryClass = EndlessLevelingAPI.get().getPrimaryClassId(senderUuid);
-        String secondaryClass = EndlessLevelingAPI.get().getSecondaryClassId(senderUuid);
-        boolean isPriest = config.getPriestClassId().equalsIgnoreCase(primaryClass)
-                || config.getPriestClassId().equalsIgnoreCase(secondaryClass);
-        boolean isMagistrate = config.getMagistrateClassId().equalsIgnoreCase(primaryClass)
-                || config.getMagistrateClassId().equalsIgnoreCase(secondaryClass);
+        boolean isPriest = com.airijko.endlessmarriage.commands.subcommands.MarriageUtil.isPriest(senderUuid);
+        boolean isMagistrate = com.airijko.endlessmarriage.commands.subcommands.MarriageUtil.isMagistrate(senderUuid);
 
         if (isPriest || isMagistrate) {
             ui.set("#OfficiateSection.Visible", true);
@@ -455,7 +447,6 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
             case "marry:records" -> handleRecords();
             case "marry:officiate_ui" -> handleOpenOfficiatePage(ref, store);
             case "marry:rings_ui" -> handleOpenRingPage(ref, store);
-            case "marry:ring_upgrade" -> handleRingUpgrade();
             case "marry:piggyback" -> handlePiggyback(ref, store);
             case "marry:carry" -> handleCarry(ref, store);
             case "marry:dismount" -> handleDismount(ref, store);
@@ -987,53 +978,6 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
         }
         MarriagePriestPage page = new MarriagePriestPage(playerRef, CustomPageLifetime.CanDismiss);
         player.getPageManager().openCustomPage(ref, store, page);
-    }
-
-    private void handleRingUpgrade() {
-        UUID senderUuid = playerRef.getUuid();
-        MarriageDataManager data = EndlessMarriage.getInstance().getMarriageDataManager();
-
-        if (!data.isMarried(senderUuid)) {
-            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.NOT_MARRIED, "#ff6666"));
-            return;
-        }
-
-        UUID spouseUuid = data.getSpouse(senderUuid);
-        if (spouseUuid == null) {
-            return;
-        }
-
-        WeddingRingTier current = data.getRing(senderUuid);
-        WeddingRingTier next = current != null ? current.next() : WeddingRingTier.lowest();
-        if (next == null) {
-            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.RING_MAX, "#ff9900"));
-            return;
-        }
-
-        // Account-scoped HIGHEST prestige (persistent, profile-independent), matching the
-        // ring-tier display gates. The active-profile getter would read an offline spouse
-        // as 0 and falsely block the upgrade. See PlayerData#getHighestPrestigeLevel.
-        int senderPrestige = EndlessLevelingAPI.get().getHighestPrestigeLevel(senderUuid);
-        int spousePrestige = EndlessLevelingAPI.get().getHighestPrestigeLevel(spouseUuid);
-        int lowestPrestige = Math.min(senderPrestige, spousePrestige);
-
-        if (lowestPrestige < next.getPrestigeRequired()) {
-            playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.RING_NEED_PRESTIGE, "#ff6666",
-                    next.getPrestigeRequired()));
-            return;
-        }
-
-        // Placeholder: economy check would go here
-        // if (next.getCost() > 0 && !hasBalance(senderUuid, next.getCost())) { ... }
-
-        data.setRing(senderUuid, spouseUuid, next);
-        playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.RING_UPGRADED, "#66ff66", next.getDisplayName()));
-
-        PlayerRef spouseRef = Universe.get().getPlayer(spouseUuid);
-        if (spouseRef != null && spouseRef.isValid()) {
-            spouseRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.RING_SPOUSE_UPGRADED, "#4fd7f7",
-                    resolvePlayerName(senderUuid), next.getDisplayName()));
-        }
     }
 
     private void handleOpenOverflowLogPage(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store) {

@@ -15,7 +15,6 @@ import com.hypixel.hytale.logger.HytaleLogger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.File;
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.*;
@@ -54,9 +53,6 @@ public class MarriageDataManager {
 
     // Priest inbox: priest UUID -> list of couple pairs [player1, player2] awaiting officiation
     private final Map<UUID, List<UUID[]>> priestInbox = new ConcurrentHashMap<>();
-
-    // Wedding rings: keyed by either spouse's UUID (both map to the same tier)
-    private final Map<UUID, WeddingRingTier> weddingRings = new ConcurrentHashMap<>();
 
     // Divorce cooldown: UUID -> timestamp of most recent divorce (both ex-spouses are recorded)
     private final Map<UUID, Long> recentDivorces = new ConcurrentHashMap<>();
@@ -204,7 +200,7 @@ public class MarriageDataManager {
     public void addPriestRequest(@Nonnull UUID priestUuid, @Nonnull UUID player1, @Nonnull UUID player2) {
         priestInbox.computeIfAbsent(priestUuid, k -> new CopyOnWriteArrayList<>())
                 .add(new UUID[]{player1, player2});
-        save();
+        savePriestInbox();
     }
 
     public List<UUID[]> getPriestInbox(@Nonnull UUID priestUuid) {
@@ -221,7 +217,7 @@ public class MarriageDataManager {
                 priestInbox.remove(priestUuid);
             }
         }
-        save();
+        savePriestInbox();
     }
 
     /** Remove all inbox entries for a couple across all priests. */
@@ -258,7 +254,9 @@ public class MarriageDataManager {
                     player1, player2, System.currentTimeMillis()));
         }
 
-        save();
+        saveMarriages();
+        saveRecords();
+        savePriestInbox();
         LOGGER.atInfo().log("Marriage created: %s + %s (officiant: %s)", player1, player2, officiant);
     }
 
@@ -273,11 +271,22 @@ public class MarriageDataManager {
         pendingDivorces.remove(player1);
         pendingDivorces.remove(player2);
 
-        // Clean up marriage home and ring
+        // Clean up marriage home
         marriageHomes.remove(player1);
         marriageHomes.remove(player2);
-        weddingRings.remove(player1);
-        weddingRings.remove(player2);
+
+        // Unequip both partners' tiered rings: the EL attribute bonus is a marriage
+        // perk and must not survive the divorce (STATSYNC: it would otherwise be
+        // re-applied from tiered_rings.json on every join, forever).
+        try {
+            var rings = com.airijko.endlessmarriage.EndlessMarriage.getInstance().getTieredRingDataManager();
+            if (rings != null) {
+                rings.unequipOnDivorce(player1);
+                rings.unequipOnDivorce(player2);
+            }
+        } catch (Exception ex) {
+            LOGGER.atWarning().withCause(ex).log("Failed to unequip tiered rings on divorce.");
+        }
 
         // End any active piggyback session between the two players
         try {
@@ -300,7 +309,10 @@ public class MarriageDataManager {
         recentDivorces.put(player1, divorceTime);
         recentDivorces.put(player2, divorceTime);
 
-        save();
+        saveMarriages();
+        saveRecords();
+        saveHomes();
+        saveDivorceCooldowns();
         LOGGER.atInfo().log("Divorce finalized: %s + %s (officiant: %s)", player1, player2, officiant);
     }
 
@@ -330,20 +342,7 @@ public class MarriageDataManager {
     public void setHome(@Nonnull UUID player1, @Nonnull UUID player2, @Nonnull MarriageHome home) {
         marriageHomes.put(player1, home);
         marriageHomes.put(player2, home);
-        save();
-    }
-
-    // ---- Wedding rings ----
-
-    @Nullable
-    public WeddingRingTier getRing(@Nonnull UUID uuid) {
-        return weddingRings.get(uuid);
-    }
-
-    public void setRing(@Nonnull UUID player1, @Nonnull UUID player2, @Nonnull WeddingRingTier tier) {
-        weddingRings.put(player1, tier);
-        weddingRings.put(player2, tier);
-        save();
+        saveHomes();
     }
 
     // ---- Divorce cooldown ----
@@ -362,26 +361,36 @@ public class MarriageDataManager {
      */
     public void clearDivorceCooldown(@Nonnull UUID uuid) {
         recentDivorces.remove(uuid);
-        save();
+        saveDivorceCooldowns();
     }
 
     // ---- Persistence ----
+
+    /** Serialize on the caller thread, hand the disk write off the world thread. */
+    private void writeJson(@Nonnull String fileName, @Nonnull JsonObject root) {
+        com.airijko.endlessmarriage.util.AsyncFileWriter.INSTANCE.write(
+                new File(dataFolder, fileName).toPath(), GSON.toJson(root));
+    }
 
     public void load() {
         loadMarriages();
         loadRecords();
         loadHomes();
         loadPriestInbox();
-        loadRings();
         loadDivorceCooldowns();
     }
 
+    /**
+     * Saves every section. Writes are async+debounced (see {@link #writeJson}); callers
+     * needing durable bytes on disk (shutdown/backup) must follow with
+     * {@code AsyncFileWriter.INSTANCE.flushAllNow()} — shutdown already does, backup
+     * does after the save-then-copy flush.
+     */
     public void save() {
         saveMarriages();
         saveRecords();
         saveHomes();
         savePriestInbox();
-        saveRings();
         saveDivorceCooldowns();
     }
 
@@ -435,32 +444,27 @@ public class MarriageDataManager {
     }
 
     private void saveMarriages() {
-        File file = new File(dataFolder, "marriages.json");
-        try {
-            JsonObject root = new JsonObject();
-            JsonArray array = new JsonArray();
+        JsonObject root = new JsonObject();
+        JsonArray array = new JsonArray();
 
-            for (MarriagePair pair : marriages) {
-                JsonObject obj = new JsonObject();
-                obj.addProperty("player1", pair.player1().toString());
-                obj.addProperty("player2", pair.player2().toString());
-                obj.addProperty("officiant", pair.officiant() != null ? pair.officiant().toString() : null);
-                obj.addProperty("timestamp", pair.timestamp());
+        for (MarriagePair pair : marriages) {
+            JsonObject obj = new JsonObject();
+            obj.addProperty("player1", pair.player1().toString());
+            obj.addProperty("player2", pair.player2().toString());
+            obj.addProperty("officiant", pair.officiant() != null ? pair.officiant().toString() : null);
+            obj.addProperty("timestamp", pair.timestamp());
 
-                JsonArray witnessArray = new JsonArray();
-                for (UUID witness : pair.witnesses()) {
-                    witnessArray.add(witness.toString());
-                }
-                obj.add("witnesses", witnessArray);
-
-                array.add(obj);
+            JsonArray witnessArray = new JsonArray();
+            for (UUID witness : pair.witnesses()) {
+                witnessArray.add(witness.toString());
             }
+            obj.add("witnesses", witnessArray);
 
-            root.add("marriages", array);
-            Files.writeString(file.toPath(), GSON.toJson(root), StandardCharsets.UTF_8);
-        } catch (IOException ex) {
-            LOGGER.atWarning().withCause(ex).log("Failed to save marriages.json.");
+            array.add(obj);
         }
+
+        root.add("marriages", array);
+        writeJson("marriages.json", root);
     }
 
     private void loadRecords() {
@@ -498,26 +502,21 @@ public class MarriageDataManager {
     }
 
     private void saveRecords() {
-        File file = new File(dataFolder, "officiant_records.json");
-        try {
-            JsonObject root = new JsonObject();
-            JsonArray array = new JsonArray();
+        JsonObject root = new JsonObject();
+        JsonArray array = new JsonArray();
 
-            for (OfficiantRecord record : officiantRecords) {
-                JsonObject obj = new JsonObject();
-                obj.addProperty("officiant", record.officiant().toString());
-                obj.addProperty("type", record.type().name());
-                obj.addProperty("player1", record.player1().toString());
-                obj.addProperty("player2", record.player2().toString());
-                obj.addProperty("timestamp", record.timestamp());
-                array.add(obj);
-            }
-
-            root.add("records", array);
-            Files.writeString(file.toPath(), GSON.toJson(root), StandardCharsets.UTF_8);
-        } catch (IOException ex) {
-            LOGGER.atWarning().withCause(ex).log("Failed to save officiant_records.json.");
+        for (OfficiantRecord record : officiantRecords) {
+            JsonObject obj = new JsonObject();
+            obj.addProperty("officiant", record.officiant().toString());
+            obj.addProperty("type", record.type().name());
+            obj.addProperty("player1", record.player1().toString());
+            obj.addProperty("player2", record.player2().toString());
+            obj.addProperty("timestamp", record.timestamp());
+            array.add(obj);
         }
+
+        root.add("records", array);
+        writeJson("officiant_records.json", root);
     }
 
     private void loadHomes() {
@@ -559,41 +558,36 @@ public class MarriageDataManager {
     }
 
     private void saveHomes() {
-        File file = new File(dataFolder, "homes.json");
-        try {
-            JsonObject root = new JsonObject();
-            JsonArray array = new JsonArray();
+        JsonObject root = new JsonObject();
+        JsonArray array = new JsonArray();
 
-            // Deduplicate: only save one entry per marriage pair
-            Set<String> saved = new HashSet<>();
-            for (MarriagePair pair : marriages) {
-                MarriageHome home = marriageHomes.get(pair.player1());
-                if (home == null) {
-                    continue;
-                }
-                String key = pair.player1().toString() + ":" + pair.player2().toString();
-                if (saved.contains(key)) {
-                    continue;
-                }
-                saved.add(key);
-
-                JsonObject obj = new JsonObject();
-                obj.addProperty("player1", pair.player1().toString());
-                obj.addProperty("player2", pair.player2().toString());
-                obj.addProperty("world", home.worldName());
-                obj.addProperty("x", home.x());
-                obj.addProperty("y", home.y());
-                obj.addProperty("z", home.z());
-                obj.addProperty("yaw", home.yaw());
-                obj.addProperty("pitch", home.pitch());
-                array.add(obj);
+        // Deduplicate: only save one entry per marriage pair
+        Set<String> saved = new HashSet<>();
+        for (MarriagePair pair : marriages) {
+            MarriageHome home = marriageHomes.get(pair.player1());
+            if (home == null) {
+                continue;
             }
+            String key = pair.player1().toString() + ":" + pair.player2().toString();
+            if (saved.contains(key)) {
+                continue;
+            }
+            saved.add(key);
 
-            root.add("homes", array);
-            Files.writeString(file.toPath(), GSON.toJson(root), StandardCharsets.UTF_8);
-        } catch (IOException ex) {
-            LOGGER.atWarning().withCause(ex).log("Failed to save homes.json.");
+            JsonObject obj = new JsonObject();
+            obj.addProperty("player1", pair.player1().toString());
+            obj.addProperty("player2", pair.player2().toString());
+            obj.addProperty("world", home.worldName());
+            obj.addProperty("x", home.x());
+            obj.addProperty("y", home.y());
+            obj.addProperty("z", home.z());
+            obj.addProperty("yaw", home.yaw());
+            obj.addProperty("pitch", home.pitch());
+            array.add(obj);
         }
+
+        root.add("homes", array);
+        writeJson("homes.json", root);
     }
 
     private void loadPriestInbox() {
@@ -627,92 +621,21 @@ public class MarriageDataManager {
     }
 
     private void savePriestInbox() {
-        File file = new File(dataFolder, "priest_inbox.json");
-        try {
-            JsonObject root = new JsonObject();
-            JsonArray array = new JsonArray();
+        JsonObject root = new JsonObject();
+        JsonArray array = new JsonArray();
 
-            for (Map.Entry<UUID, List<UUID[]>> entry : priestInbox.entrySet()) {
-                for (UUID[] pair : entry.getValue()) {
-                    JsonObject obj = new JsonObject();
-                    obj.addProperty("priest", entry.getKey().toString());
-                    obj.addProperty("player1", pair[0].toString());
-                    obj.addProperty("player2", pair[1].toString());
-                    array.add(obj);
-                }
-            }
-
-            root.add("inbox", array);
-            Files.writeString(file.toPath(), GSON.toJson(root), StandardCharsets.UTF_8);
-        } catch (IOException ex) {
-            LOGGER.atWarning().withCause(ex).log("Failed to save priest_inbox.json.");
-        }
-    }
-
-    private void loadRings() {
-        File file = new File(dataFolder, "rings.json");
-        if (!file.exists()) {
-            return;
-        }
-
-        try {
-            String json = Files.readString(file.toPath(), StandardCharsets.UTF_8);
-            JsonObject root = GSON.fromJson(json, JsonObject.class);
-            if (root == null || !root.has("rings")) {
-                return;
-            }
-
-            JsonArray array = root.getAsJsonArray("rings");
-            weddingRings.clear();
-
-            for (JsonElement element : array) {
-                JsonObject obj = element.getAsJsonObject();
-                UUID p1 = UUID.fromString(obj.get("player1").getAsString());
-                UUID p2 = UUID.fromString(obj.get("player2").getAsString());
-                WeddingRingTier tier = WeddingRingTier.fromName(obj.get("tier").getAsString());
-                if (tier != null) {
-                    weddingRings.put(p1, tier);
-                    weddingRings.put(p2, tier);
-                }
-            }
-
-            LOGGER.atInfo().log("Loaded %d wedding rings from disk.", array.size());
-        } catch (Exception ex) {
-            LOGGER.atWarning().withCause(ex).log("Failed to load rings.json.");
-        }
-    }
-
-    private void saveRings() {
-        File file = new File(dataFolder, "rings.json");
-        try {
-            JsonObject root = new JsonObject();
-            JsonArray array = new JsonArray();
-
-            // Deduplicate: only save one entry per marriage pair
-            Set<String> saved = new HashSet<>();
-            for (MarriagePair pair : marriages) {
-                WeddingRingTier tier = weddingRings.get(pair.player1());
-                if (tier == null) {
-                    continue;
-                }
-                String key = pair.player1().toString() + ":" + pair.player2().toString();
-                if (saved.contains(key)) {
-                    continue;
-                }
-                saved.add(key);
-
+        for (Map.Entry<UUID, List<UUID[]>> entry : priestInbox.entrySet()) {
+            for (UUID[] pair : entry.getValue()) {
                 JsonObject obj = new JsonObject();
-                obj.addProperty("player1", pair.player1().toString());
-                obj.addProperty("player2", pair.player2().toString());
-                obj.addProperty("tier", tier.name());
+                obj.addProperty("priest", entry.getKey().toString());
+                obj.addProperty("player1", pair[0].toString());
+                obj.addProperty("player2", pair[1].toString());
                 array.add(obj);
             }
-
-            root.add("rings", array);
-            Files.writeString(file.toPath(), GSON.toJson(root), StandardCharsets.UTF_8);
-        } catch (IOException ex) {
-            LOGGER.atWarning().withCause(ex).log("Failed to save rings.json.");
         }
+
+        root.add("inbox", array);
+        writeJson("priest_inbox.json", root);
     }
 
     private void loadDivorceCooldowns() {
@@ -743,17 +666,12 @@ public class MarriageDataManager {
     }
 
     private void saveDivorceCooldowns() {
-        File file = new File(dataFolder, "divorce_cooldowns.json");
-        try {
-            JsonObject root = new JsonObject();
-            JsonObject cooldowns = new JsonObject();
-            for (Map.Entry<UUID, Long> entry : recentDivorces.entrySet()) {
-                cooldowns.addProperty(entry.getKey().toString(), entry.getValue());
-            }
-            root.add("cooldowns", cooldowns);
-            Files.writeString(file.toPath(), GSON.toJson(root), StandardCharsets.UTF_8);
-        } catch (IOException ex) {
-            LOGGER.atWarning().withCause(ex).log("Failed to save divorce_cooldowns.json.");
+        JsonObject root = new JsonObject();
+        JsonObject cooldowns = new JsonObject();
+        for (Map.Entry<UUID, Long> entry : recentDivorces.entrySet()) {
+            cooldowns.addProperty(entry.getKey().toString(), entry.getValue());
         }
+        root.add("cooldowns", cooldowns);
+        writeJson("divorce_cooldowns.json", root);
     }
 }

@@ -27,16 +27,9 @@ public final class MarriageMessages {
     // MarriageMainPage UI variants
     public static final String SETHOME_SUCCESS_SHORT = "ui.marriage.sethome.success_short";
     public static final String HOME_NO_HOME_SHORT = "ui.marriage.home.no_home_short";
-    public static final String DIVORCED_SIMPLE = "ui.marriage.divorced_simple";
     public static final String ACCEPTED_PRIEST_NEEDED_SIMPLE = "ui.marriage.accepted_priest_needed_simple";
     public static final String ACCEPTED_BY_SHORT = "ui.marriage.accepted_by_short";
     public static final String COOLDOWN_HM = "ui.marriage.cooldown.hm";
-
-    // Wedding ring
-    public static final String RING_MAX = "ui.marriage.ring.max";
-    public static final String RING_NEED_PRESTIGE = "ui.marriage.ring.need_prestige";
-    public static final String RING_UPGRADED = "ui.marriage.ring.upgraded";
-    public static final String RING_SPOUSE_UPGRADED = "ui.marriage.ring.spouse_upgraded";
 
     // Debug
     public static final String DEBUG_PIGGY_NPC = "ui.marriage.debug.piggy_npc";
@@ -57,9 +50,7 @@ public final class MarriageMessages {
     public static final String INVALID_PRIEST = "ui.marriage.invalid_priest";
 
     // RingPage
-    public static final String INVALID_RING_TIER = "ui.marriage.invalid_ring_tier";
     public static final String RING_NEED_PRESTIGE_TIER = "ui.marriage.ring.need_prestige_tier";
-    public static final String RING_EQUIPPED = "ui.marriage.ring.equipped";
     public static final String RING_SPOUSE_EQUIPPED = "ui.marriage.ring.spouse_equipped";
 
     // TieredRingBrowser
@@ -98,9 +89,6 @@ public final class MarriageMessages {
     public static final String COOLDOWN_ACCEPTOR = "ui.marriage.cooldown.acceptor";
     public static final String COOLDOWN_PROPOSER = "ui.marriage.cooldown.proposer";
     public static final String NOW_MARRIED_TO = "ui.marriage.now_married_to";
-    public static final String PROPOSAL_ACCEPTED_BY = "ui.marriage.proposal_accepted_by";
-    public static final String PRIEST_REQUIRED = "ui.marriage.priest_required";
-    public static final String PRIEST_HINT = "ui.marriage.priest_hint";
     public static final String PROPOSER_ACCEPTED_PRIEST_NEEDED = "ui.marriage.proposer_accepted_priest_needed";
 
     // Deny
@@ -110,21 +98,8 @@ public final class MarriageMessages {
     // Propose
     public static final String ALREADY_MARRIED_SELF = "ui.marriage.already_married_self";
     public static final String ALREADY_HAVE_PROPOSAL = "ui.marriage.already_have_proposal";
-    public static final String COOLDOWN_SELF = "ui.marriage.cooldown.self";
     public static final String TARGET_OFFLINE = "ui.marriage.target_offline";
-    public static final String CANNOT_PROPOSE_SELF = "ui.marriage.cannot_propose_self";
-    public static final String TARGET_ALREADY_MARRIED = "ui.marriage.target_already_married";
-    public static final String COOLDOWN_TARGET = "ui.marriage.cooldown.target";
     public static final String PROPOSED_TO = "ui.marriage.proposed_to";
-    public static final String RECEIVED_PROPOSAL = "ui.marriage.received_proposal";
-
-    // Divorce
-    public static final String MIN_MARRIAGE_TIME = "ui.marriage.min_marriage_time";
-    public static final String DIVORCED_FROM = "ui.marriage.divorced_from";
-    public static final String SPOUSE_DIVORCED_YOU = "ui.marriage.spouse_divorced_you";
-    public static final String DIVORCE_PENDING = "ui.marriage.divorce_pending";
-    public static final String DIVORCE_MAGISTRATE_HINT = "ui.marriage.divorce_magistrate_hint";
-    public static final String SPOUSE_REQUESTED_DIVORCE = "ui.marriage.spouse_requested_divorce";
 
     // Officiate
     public static final String PRIEST_ONLY = "ui.marriage.priest_only";

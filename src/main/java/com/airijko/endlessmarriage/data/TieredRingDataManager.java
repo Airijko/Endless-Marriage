@@ -23,7 +23,11 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.logger.HytaleLogger;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.hypixel.hytale.server.core.universe.Universe;
+import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import javax.annotation.Nonnull;
@@ -169,6 +173,49 @@ public class TieredRingDataManager {
             return;
         }
         applyRingBonus(uuid, def);
+    }
+
+    /**
+     * Unequip on divorce: the tiered rings are a marriage perk, so the EL attribute
+     * bonus must not outlive the marriage (it is otherwise re-applied on every join /
+     * augment reconcile forever). Clears the persisted equip entry and zeroes the
+     * runtime bonus; if the player is online, the entity stat-map refresh
+     * (LIFE_FORCE / STAMINA / FLOW max) is hopped to THEIR world thread — divorce can
+     * be triggered from another world's thread and ECS access is world-thread-bound.
+     */
+    public void unequipOnDivorce(@Nonnull UUID uuid) {
+        if (equippedRings.remove(uuid) == null) {
+            return;
+        }
+        clearAllRingBonuses(uuid);
+        save();
+        // Stat-map refresh on the player's own world thread when online.
+        try {
+            PlayerRef playerRef = Universe.get().getPlayer(uuid);
+            if (playerRef == null || !playerRef.isValid()) {
+                return;
+            }
+            Ref<EntityStore> ref = playerRef.getReference();
+            if (ref == null || !ref.isValid()) {
+                return;
+            }
+            Store<EntityStore> store = ref.getStore();
+            if (store == null) {
+                return;
+            }
+            World world = store.getExternalData().getWorld();
+            if (world == null) {
+                return;
+            }
+            world.execute(() -> {
+                if (!ref.isValid()) {
+                    return;
+                }
+                refreshEntityStats(uuid, ref, store);
+            });
+        } catch (Exception ex) {
+            LOGGER.atWarning().withCause(ex).log("unequipOnDivorce: failed to refresh entity stats for %s", uuid);
+        }
     }
 
     // ---- Bonus plumbing ----

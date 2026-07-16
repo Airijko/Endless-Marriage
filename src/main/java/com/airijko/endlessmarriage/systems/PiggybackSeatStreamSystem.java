@@ -97,8 +97,8 @@ public final class PiggybackSeatStreamSystem extends EntityTickingSystem<EntityS
     /** Cached resolved block type id for the seat (resolved lazily on first tick). */
     private volatile int seatBlockTypeId = UNRESOLVED;
 
-    /** Set once we've logged a stream failure, so a per-tick fault can't spam the log. */
-    private volatile boolean loggedStreamFailure = false;
+    /** Wall-clock millis the last stream-failure log was emitted, so a per-tick fault can't spam the log. */
+    private volatile long lastStreamFailureLogMillis;
 
     public PiggybackSeatStreamSystem(@Nonnull PiggybackService piggybackService, @Nonnull MarriageConfig config) {
         this.piggybackService = piggybackService;
@@ -235,10 +235,11 @@ public final class PiggybackSeatStreamSystem extends EntityTickingSystem<EntityS
             seated.add(uuid);
         } catch (Exception ex) {
             // Defensive: a viewer/visibility race must never crash the world tick.
-            if (!loggedStreamFailure) {
-                loggedStreamFailure = true;
+            long now = System.currentTimeMillis();
+            if (now - lastStreamFailureLogMillis > 60_000L) {
+                lastStreamFailureLogMillis = now;
                 LOGGER.atWarning().withCause(ex)
-                        .log("Piggyback seat stream skipped a tick for %s (logged once).", uuid);
+                        .log("Piggyback seat stream skipped a tick for %s (rate-limited log).", uuid);
             }
         }
     }

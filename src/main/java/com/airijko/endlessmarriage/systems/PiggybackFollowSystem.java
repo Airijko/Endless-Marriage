@@ -14,6 +14,7 @@ import com.airijko.endlessmarriage.services.PiggybackService;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
+import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.math.util.TrigMathUtil;
 import com.hypixel.hytale.math.vector.Rotation3f;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
@@ -49,6 +50,8 @@ import java.util.UUID;
  * disappears underneath them.
  */
 public final class PiggybackFollowSystem extends TickingSystem<EntityStore> {
+
+    private static final HytaleLogger LOGGER = HytaleLogger.forEnclosingClassFull();
 
     /**
      * How far ahead, in seconds, to project the rider along the carrier's
@@ -87,6 +90,9 @@ public final class PiggybackFollowSystem extends TickingSystem<EntityStore> {
      * is concurrent. Pruned each tick against the live session set.
      */
     private final java.util.Map<UUID, Float> carrierAbsentSeconds = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** Wall-clock millis the last follow-tick failure log was emitted, so a per-tick race can't spam the log. */
+    private volatile long lastFollowFailureLogMillis;
 
     public PiggybackFollowSystem(@Nonnull PiggybackService piggybackService, @Nonnull MarriageConfig config) {
         this.piggybackService = piggybackService;
@@ -207,8 +213,15 @@ public final class PiggybackFollowSystem extends TickingSystem<EntityStore> {
                     riderVelocity.set(vx, vy, vz);
                     riderVelocity.setClient(vx, vy, vz);
                 }
-            } catch (Exception ignored) {
-                // Wrong-thread / race during a teleport — skip this tick.
+            } catch (Exception ex) {
+                // Wrong-thread / race during a teleport — skip this tick, but surface
+                // a recurring bug instead of swallowing it silently forever.
+                long now = System.currentTimeMillis();
+                if (now - lastFollowFailureLogMillis > 60_000L) {
+                    lastFollowFailureLogMillis = now;
+                    LOGGER.atWarning().withCause(ex)
+                            .log("Piggyback follow skipped a tick for %s (rate-limited log).", riderUuid);
+                }
             }
         }
     }

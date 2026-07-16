@@ -9,13 +9,15 @@
 
 package com.airijko.endlessmarriage.ui;
 
-import com.airijko.endlessleveling.api.EndlessLevelingAPI;
 import com.airijko.endlessmarriage.EndlessMarriage;
 import com.airijko.endlessmarriage.MarriageAnnouncer;
 import com.airijko.endlessmarriage.commands.subcommands.MarriageMessages;
+import com.airijko.endlessmarriage.commands.subcommands.MarriageUtil;
 import com.airijko.endlessmarriage.config.MarriageConfig;
 import com.airijko.endlessmarriage.data.MarriageDataManager;
 import com.airijko.endlessmarriage.services.WitnessCollector;
+import com.airijko.endlessmarriage.util.PlayerNameResolver;
+import com.airijko.endlessmarriage.util.PositionUtil;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.logger.HytaleLogger;
@@ -23,7 +25,6 @@ import org.joml.Vector3d;
 import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
 import com.hypixel.hytale.server.core.Message;
 import com.airijko.endlessleveling.ui.base.SafeInteractiveCustomUIPage;
-import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
@@ -31,7 +32,6 @@ import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -70,12 +70,8 @@ public class MarriageOfficiatePage extends SafeInteractiveCustomUIPage<MarriageP
         UUID senderUuid = playerRef.getUuid();
         MarriageConfig config = EndlessMarriage.getInstance().getMarriageConfig();
 
-        String primaryClass = EndlessLevelingAPI.get().getPrimaryClassId(senderUuid);
-        String secondaryClass = EndlessLevelingAPI.get().getSecondaryClassId(senderUuid);
-        boolean isPriest = config.getPriestClassId().equalsIgnoreCase(primaryClass)
-                || config.getPriestClassId().equalsIgnoreCase(secondaryClass);
-        boolean isMagistrate = config.getMagistrateClassId().equalsIgnoreCase(primaryClass)
-                || config.getMagistrateClassId().equalsIgnoreCase(secondaryClass);
+        boolean isPriest = MarriageUtil.isPriest(senderUuid);
+        boolean isMagistrate = MarriageUtil.isMagistrate(senderUuid);
 
         if (!isPriest && !isMagistrate) {
             ui.set("#NoRoleLabel.Visible", true);
@@ -104,8 +100,8 @@ public class MarriageOfficiatePage extends SafeInteractiveCustomUIPage<MarriageP
             ui.append("#MarriageRows", PLAYER_ROW_TEMPLATE);
             String base = "#MarriageRows[" + i + "]";
 
-            String name1 = resolvePlayerName(pair[0]);
-            String name2 = resolvePlayerName(pair[1]);
+            String name1 = PlayerNameResolver.resolve(pair[0]);
+            String name2 = PlayerNameResolver.resolve(pair[1]);
             ui.set(base + " #PlayerName.Text", name1 + " & " + name2);
             ui.set(base + " #ActionButton.Text", "OFFICIATE");
 
@@ -141,8 +137,8 @@ public class MarriageOfficiatePage extends SafeInteractiveCustomUIPage<MarriageP
             ui.append("#DivorceRows", PLAYER_ROW_TEMPLATE);
             String base = "#DivorceRows[" + i + "]";
 
-            String name = resolvePlayerName(requester);
-            String spouseName = spouse != null ? resolvePlayerName(spouse) : "?";
+            String name = PlayerNameResolver.resolve(requester);
+            String spouseName = spouse != null ? PlayerNameResolver.resolve(spouse) : "?";
             ui.set(base + " #PlayerName.Text", name + " & " + spouseName);
             ui.set(base + " #ActionButton.Text", "GRANT");
             ui.set(base + " #ActionButton.Disabled", !isMagistrate);
@@ -182,8 +178,26 @@ public class MarriageOfficiatePage extends SafeInteractiveCustomUIPage<MarriageP
             MarriageDataManager data = EndlessMarriage.getInstance().getMarriageDataManager();
             MarriageConfig config = EndlessMarriage.getInstance().getMarriageConfig();
 
+            // UI action strings are client-supplied, so the priest role must be
+            // re-checked server-side here, not only when the page was built.
+            if (config.isRequirePriestForMarriage()
+                    && !com.airijko.endlessleveling.util.OperatorHelper.isOperator(playerRef)
+                    && !MarriageUtil.isPriest(priestUuid)) {
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.PRIEST_ONLY, "#ff6666"));
+                return;
+            }
+
             if (!data.hasPendingMarriage(p1) || !data.hasPendingMarriage(p2)) {
                 playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.MARRIAGE_NOT_PENDING, "#ff6666"));
+                return;
+            }
+
+            // Verify p1/p2 are pending WITH EACH OTHER, not just each pending with someone.
+            UUID[] pendingPair = data.getPendingMarriage(p1);
+            if (pendingPair == null
+                    || !((pendingPair[0].equals(p1) && pendingPair[1].equals(p2))
+                            || (pendingPair[0].equals(p2) && pendingPair[1].equals(p1)))) {
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.PAIR_MISMATCH, "#ff6666"));
                 return;
             }
 
@@ -191,7 +205,7 @@ public class MarriageOfficiatePage extends SafeInteractiveCustomUIPage<MarriageP
             double range = config.getOfficiateRange();
             double rangeSq = range * range;
 
-            Vector3d priestPos = resolvePosition(priestRef, priestStore);
+            Vector3d priestPos = PositionUtil.resolvePosition(priestRef, priestStore);
             if (priestPos == null) {
                 playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.CANNOT_DETERMINE_POSITION, "#ff6666"));
                 return;
@@ -219,14 +233,14 @@ public class MarriageOfficiatePage extends SafeInteractiveCustomUIPage<MarriageP
                 return;
             }
 
-            Vector3d pos1 = resolvePosition(ent1, store1);
-            Vector3d pos2 = resolvePosition(ent2, store2);
+            Vector3d pos1 = PositionUtil.resolvePosition(ent1, store1);
+            Vector3d pos2 = PositionUtil.resolvePosition(ent2, store2);
             if (pos1 == null || pos2 == null) {
                 playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.CANNOT_LOCATE_BOTH, "#ff6666"));
                 return;
             }
 
-            if (distanceSq(priestPos, pos1) > rangeSq || distanceSq(priestPos, pos2) > rangeSq) {
+            if (PositionUtil.distanceSq(priestPos, pos1) > rangeSq || PositionUtil.distanceSq(priestPos, pos2) > rangeSq) {
                 playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.OFFICIATE_TOO_FAR, "#ff6666",
                         (int) range));
                 return;
@@ -245,9 +259,9 @@ public class MarriageOfficiatePage extends SafeInteractiveCustomUIPage<MarriageP
             data.marry(p1, p2, priestUuid, witnesses);
             // marry() already calls clearPriestRequestsForCouple
 
-            String name1 = resolvePlayerName(p1);
-            String name2 = resolvePlayerName(p2);
-            String priestName = resolvePlayerName(priestUuid);
+            String name1 = PlayerNameResolver.resolve(p1);
+            String name2 = PlayerNameResolver.resolve(p2);
+            String priestName = PlayerNameResolver.resolve(priestUuid);
 
             playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.OFFICIATED_OF, "#66ff66", name1, name2));
 
@@ -271,6 +285,16 @@ public class MarriageOfficiatePage extends SafeInteractiveCustomUIPage<MarriageP
             UUID senderUuid = playerRef.getUuid();
             MarriageDataManager data = EndlessMarriage.getInstance().getMarriageDataManager();
 
+            // UI action strings are client-supplied, so the magistrate role must be
+            // re-checked server-side here, not only when the page was built.
+            var config = EndlessMarriage.getInstance().getMarriageConfig();
+            if (config.isRequireMagistrateForDivorce()
+                    && !com.airijko.endlessleveling.util.OperatorHelper.isOperator(playerRef)
+                    && !MarriageUtil.isMagistrate(senderUuid)) {
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.GRANT_MAGISTRATE_ONLY, "#ff6666"));
+                return;
+            }
+
             if (!data.hasPendingDivorce(requester)) {
                 playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.DIVORCE_NOT_PENDING, "#ff6666"));
                 return;
@@ -286,7 +310,7 @@ public class MarriageOfficiatePage extends SafeInteractiveCustomUIPage<MarriageP
             data.divorce(requester, spouse, senderUuid);
 
             playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.DIVORCE_GRANTED_FOR_BOTH, "#66ff66",
-                    resolvePlayerName(requester), resolvePlayerName(spouse)));
+                    PlayerNameResolver.resolve(requester), PlayerNameResolver.resolve(spouse)));
 
             PlayerRef reqRef = Universe.get().getPlayer(requester);
             PlayerRef spRef = Universe.get().getPlayer(spouse);
@@ -301,41 +325,4 @@ public class MarriageOfficiatePage extends SafeInteractiveCustomUIPage<MarriageP
         }
     }
 
-    private double distanceSq(@Nonnull Vector3d a, @Nonnull Vector3d b) {
-        double dx = a.x() - b.x();
-        double dy = a.y() - b.y();
-        double dz = a.z() - b.z();
-        return dx * dx + dy * dy + dz * dz;
-    }
-
-    @Nullable
-    private Vector3d resolvePosition(Ref<EntityStore> ref, Store<EntityStore> store) {
-        if (ref == null || store == null) return null;
-        try {
-            TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
-            return transform != null ? transform.getPosition() : null;
-        } catch (Exception ex) {
-            return null;
-        }
-    }
-
-    @Nonnull
-    private String resolvePlayerName(@Nonnull UUID uuid) {
-        PlayerRef ref = Universe.get().getPlayer(uuid);
-        if (ref != null) {
-            String username = ref.getUsername();
-            if (username != null) {
-                return username;
-            }
-        }
-        var snapshot = EndlessLevelingAPI.get().getPlayerSnapshot(uuid);
-        if (snapshot != null) {
-            String snapshotName = snapshot.playerName();
-            if (snapshotName != null) {
-                return snapshotName;
-            }
-        }
-        String fallback = uuid.toString().substring(0, 8);
-        return fallback != null ? fallback : "";
-    }
 }

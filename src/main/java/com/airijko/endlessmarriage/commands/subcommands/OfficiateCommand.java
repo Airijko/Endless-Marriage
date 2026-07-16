@@ -10,11 +10,11 @@
 
 package com.airijko.endlessmarriage.commands.subcommands;
 
-import com.airijko.endlessleveling.api.EndlessLevelingAPI;
 import com.airijko.endlessmarriage.MarriageAnnouncer;
 import com.airijko.endlessmarriage.config.MarriageConfig;
 import com.airijko.endlessmarriage.data.MarriageDataManager;
 import com.airijko.endlessmarriage.services.WitnessCollector;
+import com.airijko.endlessmarriage.util.PositionUtil;
 import com.airijko.endlessleveling.util.OperatorHelper;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
@@ -23,13 +23,11 @@ import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.arguments.system.RequiredArg;
 import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractPlayerCommand;
-import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -70,13 +68,7 @@ public class OfficiateCommand extends AbstractPlayerCommand {
         if (config.isRequirePriestForMarriage()
                 && !OperatorHelper.isOperator(senderRef)
                 && !senderHasPermission(context, PERM_OFFICIATE)) {
-            String priestClassId = config.getPriestClassId();
-            String primaryClass = EndlessLevelingAPI.get().getPrimaryClassId(senderUuid);
-            String secondaryClass = EndlessLevelingAPI.get().getSecondaryClassId(senderUuid);
-            boolean isPriest = priestClassId.equalsIgnoreCase(primaryClass)
-                    || priestClassId.equalsIgnoreCase(secondaryClass);
-
-            if (!isPriest) {
+            if (!MarriageUtil.isPriest(senderUuid)) {
                 senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.PRIEST_ONLY, COLOR_ERROR));
                 return;
             }
@@ -113,7 +105,7 @@ public class OfficiateCommand extends AbstractPlayerCommand {
         // Proximity check: priest must be near both players
         double range = config.getProximityRange();
         double rangeSq = range * range;
-        Vector3d priestPos = resolvePosition(ref, store);
+        Vector3d priestPos = PositionUtil.resolvePosition(ref, store);
 
         if (priestPos == null) {
             senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.PRIEST_POSITION_UNKNOWN, COLOR_ERROR));
@@ -127,8 +119,8 @@ public class OfficiateCommand extends AbstractPlayerCommand {
                     resolvePlayerName(p1)));
             return;
         }
-        Vector3d pos1 = resolvePosition(entity1, entity1.getStore());
-        if (pos1 == null || distanceSq(priestPos, pos1) > rangeSq) {
+        Vector3d pos1 = PositionUtil.resolvePosition(entity1, entity1.getStore());
+        if (pos1 == null || PositionUtil.distanceSq(priestPos, pos1) > rangeSq) {
             senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.PRIEST_TOO_FAR, COLOR_ERROR,
                     resolvePlayerName(p1), (int) range));
             return;
@@ -141,8 +133,8 @@ public class OfficiateCommand extends AbstractPlayerCommand {
                     resolvePlayerName(p2)));
             return;
         }
-        Vector3d pos2 = resolvePosition(entity2, entity2.getStore());
-        if (pos2 == null || distanceSq(priestPos, pos2) > rangeSq) {
+        Vector3d pos2 = PositionUtil.resolvePosition(entity2, entity2.getStore());
+        if (pos2 == null || PositionUtil.distanceSq(priestPos, pos2) > rangeSq) {
             senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.PRIEST_TOO_FAR, COLOR_ERROR,
                     resolvePlayerName(p2), (int) range));
             return;
@@ -176,23 +168,4 @@ public class OfficiateCommand extends AbstractPlayerCommand {
         MarriageAnnouncer.announceMarriage(name1Resolved, name2Resolved, priestName);
     }
 
-    @Nullable
-    private Vector3d resolvePosition(Ref<EntityStore> entityRef, Store<EntityStore> entityStore) {
-        if (entityRef == null || entityStore == null) {
-            return null;
-        }
-        try {
-            TransformComponent transform = entityStore.getComponent(entityRef, TransformComponent.getComponentType());
-            return transform != null ? transform.getPosition() : null;
-        } catch (Exception ex) {
-            return null;
-        }
-    }
-
-    private double distanceSq(Vector3d a, Vector3d b) {
-        double dx = a.x() - b.x();
-        double dy = a.y() - b.y();
-        double dz = a.z() - b.z();
-        return dx * dx + dy * dy + dz * dz;
-    }
 }

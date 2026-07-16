@@ -25,7 +25,7 @@ import java.util.UUID;
 /**
  * Shared helpers for marriage subcommands.
  */
-final class MarriageUtil {
+public final class MarriageUtil {
 
     static final String COLOR_SUCCESS = MarriageMessages.Color.SUCCESS;
     static final String COLOR_ERROR = MarriageMessages.Color.ERROR;
@@ -100,5 +100,23 @@ final class MarriageUtil {
         long hours = ms / 3_600_000L;
         long minutes = (ms % 3_600_000L) / 60_000L;
         return hours + "h " + minutes + "m";
+    }
+
+    /** True when the player's primary or secondary EL class matches the configured priest class. */
+    public static boolean isPriest(@Nonnull UUID uuid) {
+        var config = config();
+        String primary = EndlessLevelingAPI.get().getPrimaryClassId(uuid);
+        String secondary = EndlessLevelingAPI.get().getSecondaryClassId(uuid);
+        return config.getPriestClassId().equalsIgnoreCase(primary)
+                || config.getPriestClassId().equalsIgnoreCase(secondary);
+    }
+
+    /** True when the player's primary or secondary EL class matches the configured magistrate class. */
+    public static boolean isMagistrate(@Nonnull UUID uuid) {
+        var config = config();
+        String primary = EndlessLevelingAPI.get().getPrimaryClassId(uuid);
+        String secondary = EndlessLevelingAPI.get().getSecondaryClassId(uuid);
+        return config.getMagistrateClassId().equalsIgnoreCase(primary)
+                || config.getMagistrateClassId().equalsIgnoreCase(secondary);
     }
 }

@@ -1,5 +1,55 @@
 # Endless Marriage - Update Log
 
+## 2026-07-16 — 3.4.0 (compared to 3.3.0)
+
+Security/consistency/cleanup pass. Officiate-UI actions now re-check the priest/magistrate role and the pending-marriage pair match **server-side** (client-supplied action strings could no longer bypass the gate the button visibility implied). Divorce now unequips both partners' **tiered rings**, clearing the EL attribute bonus instead of leaving it to re-apply on every join/augment reconcile forever. The marriage discipline/kiss XP bonus is credited via `adjustRawXp` instead of `grantXp`, so it is no longer double-bonused against the even-split strip's own math. The backup snapshot now flushes pending `AsyncFileWriter` writes before copying, so a snapshot can't capture stale bytes. The Rings-unlock hint on the main page now reads account-scoped `getHighestPrestigeLevel` for both partners (an offline spouse no longer reads as Prestige 0). `MarriageDataManager` saves are now async + per-section instead of rewriting every JSON file on every mutation. The legacy cosmetic wedding-ring system (`WeddingRingTier`) is fully removed — tiered rings are the only ring system. Two piggyback systems' silent/log-once failure handling is now a 60s rate-limited warning so recurring bugs surface instead of going dark forever.
+
+### Officiate-UI server-side role/pair gates (`security fix`)
+
+- `MarriageOfficiatePage.handleOfficiate` now re-checks `config.isRequirePriestForMarriage()` + `OperatorHelper.isOperator` + `MarriageUtil.isPriest` before officiating, and verifies the two UUIDs are pending **with each other** (mirrors `OfficiateCommand`'s pair-match check) — not just each independently pending with someone.
+- `MarriageOfficiatePage.handleGrantDivorce` now re-checks `config.isRequireMagistrateForDivorce()` + `OperatorHelper.isOperator` + `MarriageUtil.isMagistrate` before granting. UI action strings are client-supplied, so the role must be re-verified server-side, not only at page-build time.
+- New shared `MarriageUtil.isPriest(UUID)` / `isMagistrate(UUID)` helpers, deduplicating the inline primary/secondary-class checks previously copy-pasted across `MarriageOfficiatePage`, `MarriageMainPage`, `OfficiateCommand`, and `GrantDivorceCommand`.
+
+### Divorce clears tiered-ring EL bonuses (`bug fix`)
+
+- New `TieredRingDataManager.unequipOnDivorce(UUID)`: clears the persisted equip entry, zeroes the runtime attribute bonus, and — if the player is online — hops the entity stat-map refresh to their own world thread (divorce can be triggered from another world's thread; ECS access is world-thread-bound).
+- `MarriageDataManager.divorce()` now calls it for both partners instead of only clearing the (now-removed) legacy `weddingRings` map.
+
+### XP math correction (`bug fix`)
+
+- `EndlessMarriage.createXpGrantListener`'s step-1 discipline/kiss bonus grant now uses `EndlessLevelingAPI.adjustRawXp` instead of `grantXp`. `grantXp` re-applies the player's own discipline/luck/passive bonuses and clips at the per-kill gain cap, so the credited amount no longer matched the exact `adjustedXp * pct` the even-split strip's `killerDiscMult` math assumes.
+
+### Backup / persistence hardening (`bug fix`)
+
+- `MarriageBackupParticipant.exportTo` now calls `AsyncFileWriter.INSTANCE.flushAllNow()` after the manager saves and before copying the data folder, so the snapshot can't race a still-pending debounced write.
+- `MarriageDataManager` saves are now per-section (`saveMarriages`/`saveRecords`/`saveHomes`/`savePriestInbox`/`saveDivorceCooldowns`) via a shared `writeJson` helper backed by `AsyncFileWriter`, instead of every mutation rewriting all five JSON files synchronously. `marry()`/`divorce()`/etc. now only save the sections they actually touched.
+
+### UI correctness (`bug fix`)
+
+- `MarriageMainPage`'s ring-unlock hint now reads `EndlessLevelingAPI.getHighestPrestigeLevel` (account-scoped) for both the player and their spouse, instead of the active-profile getter which reads an offline spouse as Prestige 0 and could falsely lock an already-unlocked tier.
+
+### Legacy ring system removed (`cleanup`)
+
+- Deleted `data/WeddingRingTier.java`, `MarriageDataManager.getRing/setRing/loadRings/saveRings`, and `MarriageMainPage.handleRingUpgrade` + its `marry:ring_upgrade` action. Tiered rings (the attribute-typed ring system) are the only ring system now; `rings.json` is orphaned on disk with no migration needed.
+- Deleted 17 confirmed-dead `MarriageMessages` constants left over from the legacy ring/proposal/divorce flows.
+
+### Piggyback diagnosability (`bug fix`)
+
+- `PiggybackSeatStreamSystem` and `PiggybackFollowSystem` both replace their log-once-forever / silent-catch failure handling with a 60-second rate-limited warning (with cause), so a recurring bug in either tick loop surfaces in the logs instead of going dark after the first occurrence.
+
+### Shared utilities (`cleanup`)
+
+- New `util/PositionUtil` (`resolvePosition` + `distanceSq`) replacing identical private duplicates in `MarriageOfficiatePage`, `OfficiateCommand`, `MarriageProximitySystem`, `PiggybackService`, and `KissService`.
+- New `util/PlayerNameResolver` replacing the identical `resolvePlayerName` duplicates in `MarriageOfficiatePage` and `MarriagePriestPage`. `MarriageMainPage`, `MarriageOverflowLogPage`, and `MarriageAdminListPage` keep their own copies — they carry an extra offline-DAO-name fallback the shared version doesn't have.
+
+### Config & version
+
+- `manifest.json`: `3.3.0` → `3.4.0`. No new EL Core APIs consumed (`adjustRawXp`, `getHighestPrestigeLevel`, `OperatorHelper.isOperator` all pre-date this release); dependency floor unchanged.
+
+Build target jar: `EndlessMarriage-3.4.0.jar`.
+
+---
+
 ## 2026-07-13 — 3.2.4 (compared to 3.2.2)
 
 Collapses the whole unlogged 3.2.3 → 3.2.4 window (`8dde4d7` → `57a55d2` → `19baeb6` → `7d62a1b` → `c4d70f3` → `89474be` → `5f01862`) into one release. Two headlines: a **new admin command — `/marry admin reset-cooldown <player>`** to clear a player's post-divorce remarriage lock, and a correction to the **+25% "near spouse" proximity Discipline XP bonus** so it now rides *each partner's own half* of the even split (both spouses near each other each get their own +25%, instead of only the killer keeping it on the whole kill). Alongside those: the even split now pays a spouse who is in a **party with outsiders** (50/50 on the killer's full kill, without double-paying via the party loop), two new **overflow-effectiveness knobs** (raid `0.35`, combat `0.25`), and a **crash-durability fix** for raid overflow. It raises the core floor to **EndlessLeveling Core ≥ 10.0.4** (was `≥ 9.36.0`) — the spouse-in-outsider-party split consumes new core seams (`getCurrentGrantSourceName`, `isInPartyWith`, `markCoupleEvenSplitSpouse`). **Requires an EL Core ≥ 10.0.4 redeploy alongside this jar.**
