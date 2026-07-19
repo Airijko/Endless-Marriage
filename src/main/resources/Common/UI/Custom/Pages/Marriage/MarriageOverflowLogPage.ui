@@ -1,173 +1,228 @@
 $C = "../../Common.ui";
 
+// Native Hytale container + decorations (client-shipped, merged asset tree).
+@CardPatchRing    = "../../Tiles/CardPatchRing.png";
+@ContainerPatch   = "../../Common/ContainerPatch.png";
+@DecorationTop    = "../../Common/ContainerDecorationTop.png";
+@DecorationBottom = "../../Common/ContainerDecorationBottom.png";
+@PanelRunes       = "../Memories/MemoriesRunes.png";
+@HeaderTabBg      = "../../Common/HeaderTabBackground.png";
+
 $C.@PageOverlay {
     Group {
         LayoutMode: Middle;
 
         Group {
             Anchor: (Width: 720, Height: 620);
-            Background: (TexturePath: "Images/ObjectivePanelContainer.png", Border: 15);
             LayoutMode: Top;
-            Padding: (Full: 16);
+            Background: (TexturePath: @CardPatchRing, Border: 16, Color: #8b95a8(0.7));
+            Padding: (Full: 2);
 
-            // ---- Title ----
-            Label {
-                Text: "BOND STATUS";
-                Anchor: (Height: 26);
-                Style: (FontSize: 16, TextColor: #f2a2e8, RenderBold: true, RenderUppercase: true, LetterSpacing: 2, HorizontalAlignment: Center, VerticalAlignment: Center);
-            }
-
-            Group { Anchor: (Height: 1); Background: #7a3a5a; }
-            Group { Anchor: (Height: 4); }
-
-            Label {
-                Text: "Your kiss buff and the XP funneled between you and your partner.";
-                Anchor: (Height: 16);
-                Style: (FontSize: 11, TextColor: #e8b0d8, HorizontalAlignment: Center, VerticalAlignment: Center);
-            }
-
-            Group { Anchor: (Height: 8); }
-
-            // ---- Kiss buff status + lifecycle ----
             Group {
+                FlexWeight: 1;
                 LayoutMode: Top;
-                Background: #0b141f(0.88);
-                Padding: (Full: 14);
+                Background: (TexturePath: @ContainerPatch, Border: 23);
+                Padding: (Horizontal: 16, Vertical: 14);
 
+                // Custom navy header plate — rune inset + steel frame + gold title.
                 Group {
-                    Anchor: (Width: 3, Top: 0, Left: 0, Bottom: 0);
-                    Background: #ff6e9c;
-                }
+                    Anchor: (Height: 40);
+                    Background: #0d1a29;
 
-                Group {
-                    LayoutMode: Top;
-                    Padding: (Left: 12);
+                    Group {
+                        Anchor: (Top: 2, Bottom: 2, Left: 2, Right: 2);
+                        Background: (TexturePath: @PanelRunes, Border: 15);
+                    }
+                    Group {
+                        Anchor: (Top: 0, Bottom: 0, Left: 0, Right: 0);
+                        Background: (TexturePath: @HeaderTabBg, Border: 2);
+                    }
 
-                    // Header row: label + live status chip
                     Group {
                         LayoutMode: Left;
-                        Anchor: (Height: 16);
+                        Anchor: (Top: 0, Bottom: 0, Left: 0, Right: 0);
+                        Padding: (Horizontal: 8);
+
+                        Group { FlexWeight: 1; Anchor: (Top: 19, Bottom: 19); Background: #ffe2a6; }
+                        Group { Anchor: (Width: 10); }
 
                         Label {
-                            Text: "KISS BUFF";
-                            Style: (FontSize: 10, TextColor: #ff6e9c, RenderBold: true, LetterSpacing: 2, VerticalAlignment: Center);
+                            Anchor: (Width: 224, Height: 24);
+                            Text: "OVERFLOW LEDGER";
+                            Style: (FontSize: 17, TextColor: #ffe2a6, RenderBold: true, LetterSpacing: 3, HorizontalAlignment: Center, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: 12);
+                        }
+
+                        Group { Anchor: (Width: 10); }
+                        Group { FlexWeight: 1; Anchor: (Top: 19, Bottom: 19); Background: #ffe2a6; }
+                    }
+                }
+
+                Group { Anchor: (Height: 8); }
+                $C.@PanelSeparatorFancy {}
+                Group { Anchor: (Height: 6); }
+                Group {
+                    LayoutMode: Middle;
+                    Anchor: (Height: 11);
+                    Group { Anchor: (Width: 236, Height: 11); Background: (TexturePath: @DecorationTop); }
+                }
+                Group { Anchor: (Height: 8); }
+
+                Label {
+                    Text: "Your kiss buff and the XP funneled between you and your partner.";
+                    Anchor: (Height: 16);
+                    Style: (FontSize: 11, TextColor: #e8b0d8, HorizontalAlignment: Center, VerticalAlignment: Center);
+                }
+
+                Group { Anchor: (Height: 8); }
+
+                // ---- Kiss buff status + lifecycle ----
+                Group {
+                    LayoutMode: Top;
+                    Background: #0b141f(0.88);
+                    Padding: (Full: 14);
+
+                    Group {
+                        Anchor: (Width: 3, Top: 0, Left: 0, Bottom: 0);
+                        Background: #ff6e9c;
+                    }
+
+                    Group {
+                        LayoutMode: Top;
+                        Padding: (Left: 12);
+
+                        // Header row: label + live status chip
+                        Group {
+                            LayoutMode: Left;
+                            Anchor: (Height: 16);
+
+                            Label {
+                                Text: "KISS BUFF";
+                                Style: (FontSize: 10, TextColor: #ff6e9c, RenderBold: true, LetterSpacing: 2, VerticalAlignment: Center);
+                            }
+
+                            Group { FlexWeight: 1; }
+
+                            Label #KissBuffStatusLabel {
+                                Text: "";
+                                Style: (FontSize: 12, TextColor: #9fe0ff, RenderBold: true, VerticalAlignment: Center);
+                            }
+                        }
+
+                        Group { Anchor: (Height: 8); }
+
+                        // Activated
+                        Group {
+                            LayoutMode: Left;
+                            Anchor: (Height: 15);
+                            Label {
+                                Text: "Activated";
+                                Anchor: (Width: 120);
+                                Style: (FontSize: 11, TextColor: #7a9abf, VerticalAlignment: Center);
+                            }
+                            Label #KissActivatedLabel {
+                                Text: "—";
+                                FlexWeight: 1;
+                                Style: (FontSize: 11, TextColor: #dfe8f5, VerticalAlignment: Center);
+                            }
+                        }
+
+                        Group { Anchor: (Height: 3); }
+
+                        // Expires
+                        Group {
+                            LayoutMode: Left;
+                            Anchor: (Height: 15);
+                            Label {
+                                Text: "Expires";
+                                Anchor: (Width: 120);
+                                Style: (FontSize: 11, TextColor: #7a9abf, VerticalAlignment: Center);
+                            }
+                            Label #KissExpiresLabel {
+                                Text: "—";
+                                FlexWeight: 1;
+                                Style: (FontSize: 11, TextColor: #dfe8f5, VerticalAlignment: Center);
+                            }
+                        }
+
+                        Group { Anchor: (Height: 3); }
+
+                        // Off cooldown
+                        Group {
+                            LayoutMode: Left;
+                            Anchor: (Height: 15);
+                            Label {
+                                Text: "Off cooldown";
+                                Anchor: (Width: 120);
+                                Style: (FontSize: 11, TextColor: #7a9abf, VerticalAlignment: Center);
+                            }
+                            Label #KissReadyLabel {
+                                Text: "Ready now";
+                                FlexWeight: 1;
+                                Style: (FontSize: 11, TextColor: #dfe8f5, VerticalAlignment: Center);
+                            }
+                        }
+                    }
+                }
+
+                Group { Anchor: (Height: 6); }
+
+                // ---- Lifetime total header ----
+                Group {
+                    LayoutMode: Top;
+                    Background: #0b141f(0.88);
+                    Padding: (Full: 14);
+
+                    Group {
+                        Anchor: (Width: 3, Top: 0, Left: 0, Bottom: 0);
+                        Background: #f2a2e8;
+                    }
+
+                    Group {
+                        LayoutMode: Left;
+                        Padding: (Left: 12);
+
+                        Label {
+                            Text: "LIFETIME FUNNELED";
+                            Style: (FontSize: 10, TextColor: #f2a2e8, RenderBold: true, LetterSpacing: 2, VerticalAlignment: Center);
                         }
 
                         Group { FlexWeight: 1; }
 
-                        Label #KissBuffStatusLabel {
-                            Text: "";
-                            Style: (FontSize: 12, TextColor: #9fe0ff, RenderBold: true, VerticalAlignment: Center);
-                        }
-                    }
-
-                    Group { Anchor: (Height: 8); }
-
-                    // Activated
-                    Group {
-                        LayoutMode: Left;
-                        Anchor: (Height: 15);
-                        Label {
-                            Text: "Activated";
-                            Anchor: (Width: 120);
-                            Style: (FontSize: 11, TextColor: #7a9abf, VerticalAlignment: Center);
-                        }
-                        Label #KissActivatedLabel {
-                            Text: "—";
-                            FlexWeight: 1;
-                            Style: (FontSize: 11, TextColor: #dfe8f5, VerticalAlignment: Center);
-                        }
-                    }
-
-                    Group { Anchor: (Height: 3); }
-
-                    // Expires
-                    Group {
-                        LayoutMode: Left;
-                        Anchor: (Height: 15);
-                        Label {
-                            Text: "Expires";
-                            Anchor: (Width: 120);
-                            Style: (FontSize: 11, TextColor: #7a9abf, VerticalAlignment: Center);
-                        }
-                        Label #KissExpiresLabel {
-                            Text: "—";
-                            FlexWeight: 1;
-                            Style: (FontSize: 11, TextColor: #dfe8f5, VerticalAlignment: Center);
-                        }
-                    }
-
-                    Group { Anchor: (Height: 3); }
-
-                    // Off cooldown
-                    Group {
-                        LayoutMode: Left;
-                        Anchor: (Height: 15);
-                        Label {
-                            Text: "Off cooldown";
-                            Anchor: (Width: 120);
-                            Style: (FontSize: 11, TextColor: #7a9abf, VerticalAlignment: Center);
-                        }
-                        Label #KissReadyLabel {
-                            Text: "Ready now";
-                            FlexWeight: 1;
-                            Style: (FontSize: 11, TextColor: #dfe8f5, VerticalAlignment: Center);
+                        Label #OverflowTotalLabel {
+                            Text: "0 XP";
+                            Style: (FontSize: 12, TextColor: #ffffff, RenderBold: true, VerticalAlignment: Center);
                         }
                     }
                 }
-            }
 
-            Group { Anchor: (Height: 6); }
+                Group { Anchor: (Height: 6); }
 
-            // ---- Lifetime total header ----
-            Group {
-                LayoutMode: Top;
-                Background: #0b141f(0.88);
-                Padding: (Full: 14);
+                // ---- Empty state ----
+                Label #EmptyLabel {
+                    Text: "No XP has overflowed yet. Once one of you hits the level cap, shared XP appears here.";
+                    Anchor: (Height: 40);
+                    Style: (FontSize: 12, TextColor: #7a9abf, HorizontalAlignment: Center, VerticalAlignment: Center);
+                    Visible: false;
+                }
 
+                // ---- Scrollable list ----
                 Group {
-                    Anchor: (Width: 3, Top: 0, Left: 0, Bottom: 0);
-                    Background: #f2a2e8;
+                    FlexWeight: 1;
+                    LayoutMode: TopScrolling;
+                    ScrollbarStyle: $C.@DefaultScrollbarStyle;
+                    Background: (TexturePath: @PanelRunes, Border: 15);
+                    Padding: (Full: 6);
+
+                    Group #OverflowRows {
+                        LayoutMode: Top;
+                    }
                 }
 
+                Group { Anchor: (Height: 8); }
                 Group {
-                    LayoutMode: Left;
-                    Padding: (Left: 12);
-
-                    Label {
-                        Text: "LIFETIME FUNNELED";
-                        Style: (FontSize: 10, TextColor: #f2a2e8, RenderBold: true, LetterSpacing: 2, VerticalAlignment: Center);
-                    }
-
-                    Group { FlexWeight: 1; }
-
-                    Label #OverflowTotalLabel {
-                        Text: "0 XP";
-                        Style: (FontSize: 12, TextColor: #ffffff, RenderBold: true, VerticalAlignment: Center);
-                    }
-                }
-            }
-
-            Group { Anchor: (Height: 6); }
-
-            // ---- Empty state ----
-            Label #EmptyLabel {
-                Text: "No XP has overflowed yet. Once one of you hits the level cap, shared XP appears here.";
-                Anchor: (Height: 40);
-                Style: (FontSize: 12, TextColor: #7a9abf, HorizontalAlignment: Center, VerticalAlignment: Center);
-                Visible: false;
-            }
-
-            // ---- Scrollable list ----
-            Group {
-                FlexWeight: 1;
-                LayoutMode: TopScrolling;
-                ScrollbarStyle: $C.@DefaultScrollbarStyle;
-                Background: #040c17(0.90);
-                Padding: (Full: 6);
-
-                Group #OverflowRows {
-                    LayoutMode: Top;
+                    LayoutMode: Middle;
+                    Anchor: (Height: 11);
+                    Group { Anchor: (Width: 236, Height: 11); Background: (TexturePath: @DecorationBottom); }
                 }
             }
         }

@@ -8,92 +8,147 @@ $C = "../../Common.ui";
     Sounds: $C.@ButtonSounds,
 );
 
+// Native Hytale container + decorations (client-shipped, merged asset tree).
+@CardPatchRing    = "../../Tiles/CardPatchRing.png";
+@ContainerPatch   = "../../Common/ContainerPatch.png";
+@DecorationTop    = "../../Common/ContainerDecorationTop.png";
+@DecorationBottom = "../../Common/ContainerDecorationBottom.png";
+@PanelRunes       = "../Memories/MemoriesRunes.png";
+@HeaderTabBg      = "../../Common/HeaderTabBackground.png";
+
 $C.@PageOverlay {
     Group {
         LayoutMode: Middle;
 
         Group {
             Anchor: (Width: 720, Height: 560);
-            Background: (TexturePath: "Images/ObjectivePanelContainer.png", Border: 15);
             LayoutMode: Top;
-            Padding: (Full: 16);
+            Background: (TexturePath: @CardPatchRing, Border: 16, Color: #8b95a8(0.7));
+            Padding: (Full: 2);
 
-            // ---- Title ----
-            Label {
-                Text: "WEDDING RINGS";
-                Anchor: (Height: 26);
-                Style: (FontSize: 16, TextColor: #f0c040, RenderBold: true, RenderUppercase: true, LetterSpacing: 2, HorizontalAlignment: Center, VerticalAlignment: Center);
-            }
-
-            Group { Anchor: (Height: 1); Background: #7a5a10; }
-            Group { Anchor: (Height: 4); }
-
-            Label #VariationTierLabel {
-                Text: "TIER RINGS";
-                Anchor: (Height: 18);
-                Style: (FontSize: 13, TextColor: #e8e8b0, RenderBold: true, RenderUppercase: true, LetterSpacing: 1, HorizontalAlignment: Center, VerticalAlignment: Center);
-            }
-
-            Group { Anchor: (Height: 8); }
-
-            // ---- Status Card ----
             Group {
-                LayoutMode: Top;
-                Background: #0b141f(0.88);
-                Padding: (Full: 14);
-
-                Group {
-                    Anchor: (Width: 3, Top: 0, Left: 0, Bottom: 0);
-                    Background: #f2a2e8;
-                }
-
-                Group {
-                    LayoutMode: Top;
-                    Padding: (Left: 12);
-
-                    Label #VariationCurrentRingLabel {
-                        Text: "No ring equipped";
-                        Style: (FontSize: 16, TextColor: #c0cee5, RenderBold: true);
-                        Anchor: (Height: 22);
-                    }
-
-                    Group { Anchor: (Height: 4); }
-
-                    Label #VariationInfoLabel {
-                        Text: "Each ring grants an attribute bonus while equipped.";
-                        Style: (FontSize: 12, TextColor: #7a9abf);
-                        Anchor: (Height: 16);
-                    }
-                }
-            }
-
-            Group { Anchor: (Height: 6); }
-
-            // ---- Variation List ----
-            Group #VariationRingListScroll {
                 FlexWeight: 1;
-                LayoutMode: TopScrolling;
-                ScrollbarStyle: $C.@DefaultScrollbarStyle;
-                Background: #040c17(0.90);
-                Padding: (Full: 6);
+                LayoutMode: Top;
+                Background: (TexturePath: @ContainerPatch, Border: 23);
+                Padding: (Horizontal: 16, Vertical: 14);
 
-                Group #VariationRingRows {
-                    LayoutMode: Top;
+                // Custom navy header plate — rune inset + steel frame + gold title.
+                Group {
+                    Anchor: (Height: 40);
+                    Background: #0d1a29;
+
+                    Group {
+                        Anchor: (Top: 2, Bottom: 2, Left: 2, Right: 2);
+                        Background: (TexturePath: @PanelRunes, Border: 15);
+                    }
+                    Group {
+                        Anchor: (Top: 0, Bottom: 0, Left: 0, Right: 0);
+                        Background: (TexturePath: @HeaderTabBg, Border: 2);
+                    }
+
+                    Group {
+                        LayoutMode: Left;
+                        Anchor: (Top: 0, Bottom: 0, Left: 0, Right: 0);
+                        Padding: (Horizontal: 8);
+
+                        Group { FlexWeight: 1; Anchor: (Top: 19, Bottom: 19); Background: #ffe2a6; }
+                        Group { Anchor: (Width: 10); }
+
+                        Label {
+                            Anchor: (Width: 224, Height: 24);
+                            Text: "RING STYLES";
+                            Style: (FontSize: 17, TextColor: #ffe2a6, RenderBold: true, LetterSpacing: 3, HorizontalAlignment: Center, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: 12);
+                        }
+
+                        Group { Anchor: (Width: 10); }
+                        Group { FlexWeight: 1; Anchor: (Top: 19, Bottom: 19); Background: #ffe2a6; }
+                    }
                 }
-            }
 
-            Group { Anchor: (Height: 8); }
+                Group { Anchor: (Height: 8); }
+                $C.@PanelSeparatorFancy {}
+                Group { Anchor: (Height: 6); }
+                Group {
+                    LayoutMode: Middle;
+                    Anchor: (Height: 11);
+                    Group { Anchor: (Width: 236, Height: 11); Background: (TexturePath: @DecorationTop); }
+                }
+                Group { Anchor: (Height: 8); }
 
-            // ---- Back ----
-            Group {
-                LayoutMode: Middle;
-                Anchor: (Height: 32);
+                Label #VariationTierLabel {
+                    Text: "TIER RINGS";
+                    Anchor: (Height: 18);
+                    Style: (FontSize: 13, TextColor: #e8e8b0, RenderBold: true, RenderUppercase: true, LetterSpacing: 1, HorizontalAlignment: Center, VerticalAlignment: Center);
+                }
 
-                $C.@TextButton #VariationBackButton {
-                    Text: "BACK TO TIERS";
-                    Anchor: (Width: 180, Height: 30);
-                    Padding: (Horizontal: 8);
-                    Style: @CustomStyle;
+                Group { Anchor: (Height: 8); }
+
+                // ---- Status Card ----
+                Group {
+                    LayoutMode: Top;
+                    Background: #0b141f(0.88);
+                    Padding: (Full: 14);
+
+                    Group {
+                        Anchor: (Width: 3, Top: 0, Left: 0, Bottom: 0);
+                        Background: #f2a2e8;
+                    }
+
+                    Group {
+                        LayoutMode: Top;
+                        Padding: (Left: 12);
+
+                        Label #VariationCurrentRingLabel {
+                            Text: "No ring equipped";
+                            Style: (FontSize: 16, TextColor: #c0cee5, RenderBold: true);
+                            Anchor: (Height: 22);
+                        }
+
+                        Group { Anchor: (Height: 4); }
+
+                        Label #VariationInfoLabel {
+                            Text: "Each ring grants an attribute bonus while equipped.";
+                            Style: (FontSize: 12, TextColor: #7a9abf);
+                            Anchor: (Height: 16);
+                        }
+                    }
+                }
+
+                Group { Anchor: (Height: 6); }
+
+                // ---- Variation List ----
+                Group #VariationRingListScroll {
+                    FlexWeight: 1;
+                    LayoutMode: TopScrolling;
+                    ScrollbarStyle: $C.@DefaultScrollbarStyle;
+                    Background: (TexturePath: @PanelRunes, Border: 15);
+                    Padding: (Full: 6);
+
+                    Group #VariationRingRows {
+                        LayoutMode: Top;
+                    }
+                }
+
+                Group { Anchor: (Height: 8); }
+
+                // ---- Back ----
+                Group {
+                    LayoutMode: Middle;
+                    Anchor: (Height: 32);
+
+                    $C.@TextButton #VariationBackButton {
+                        Text: "BACK TO TIERS";
+                        Anchor: (Width: 180, Height: 30);
+                        Padding: (Horizontal: 8);
+                        Style: @CustomStyle;
+                    }
+                }
+
+                Group { Anchor: (Height: 8); }
+                Group {
+                    LayoutMode: Middle;
+                    Anchor: (Height: 11);
+                    Group { Anchor: (Width: 236, Height: 11); Background: (TexturePath: @DecorationBottom); }
                 }
             }
         }
