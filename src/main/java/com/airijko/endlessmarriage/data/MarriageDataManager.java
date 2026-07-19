@@ -107,6 +107,32 @@ public class MarriageDataManager {
     }
 
     /**
+     * Tier of the player's currently equipped tiered ring, or {@code null} when
+     * none is equipped. Ring state belongs to {@link TieredRingDataManager}, but
+     * the website profile publisher (Z-Endless-Partner's
+     * {@code ProfileEnrichers.addMarriage}) resolves the spouse badge by
+     * reflecting {@code getRing(UUID)} on THIS manager ({@code Enum.name()} →
+     * ringTier, {@code getDisplayName()} → ringLabel) — keep the name and
+     * signature stable. Safe for background-thread reads: the equip map is a
+     * ConcurrentHashMap and the catalog lookup is static.
+     */
+    @Nullable
+    public com.airijko.endlessmarriage.data.tiered.TieredRingTier getRing(@Nonnull UUID uuid) {
+        com.airijko.endlessmarriage.EndlessMarriage plugin =
+                com.airijko.endlessmarriage.EndlessMarriage.getInstance();
+        if (plugin == null) {
+            return null;
+        }
+        TieredRingDataManager rings = plugin.getTieredRingDataManager();
+        if (rings == null) {
+            return null;
+        }
+        com.airijko.endlessmarriage.data.tiered.TieredRingDefinition ring =
+                rings.getEquippedRing(uuid);
+        return ring != null ? ring.tier() : null;
+    }
+
+    /**
      * Delegates to the proximity system so the EndlessLeveling API can query
      * spouse proximity via reflection on the registered "marriage" manager
      * without needing a separate handle to the proximity system.

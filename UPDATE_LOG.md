@@ -1,5 +1,14 @@
 # Endless Marriage - Update Log
 
+## 2026-07-19 — 3.4.1 (compared to 3.4.0)
+
+Website integration fix. The Endless Leveling website's profile publisher (Z-Endless-Partner) resolves the spouse badge by reflecting `getRing(UUID)` on the marriage manager — a method that never existed. The reflection miss aborted the whole enrichment block, so the `spouse` object was silently dropped from every profile push and no player ever showed a marriage partner badge on the site.
+
+### `MarriageDataManager.getRing(UUID)` (`integration fix`)
+
+- New `@Nullable TieredRingTier getRing(UUID)`: resolves the player's equipped tiered ring through the plugin singleton's `TieredRingDataManager` and returns its `TieredRingTier`, or `null` when no ring is equipped. Satisfies the publisher's existing reflection contract (`Enum.name()` → `ringTier`, `getDisplayName()` → `ringLabel`) — the already-deployed Z-Endless-Partner jar starts publishing `spouse {uuid, ringTier, ringLabel}` as soon as this build is live, no partner rebuild needed. A married player with no ring equipped still publishes the bare `spouse {uuid}` badge.
+- Background-thread safe (the publisher enriches off-thread): the equip map is a `ConcurrentHashMap` and the catalog lookup is static; both plugin-singleton hops are null-guarded for shutdown windows.
+
 ## 2026-07-16 — 3.4.0 (compared to 3.3.0)
 
 Security/consistency/cleanup pass. Officiate-UI actions now re-check the priest/magistrate role and the pending-marriage pair match **server-side** (client-supplied action strings could no longer bypass the gate the button visibility implied). Divorce now unequips both partners' **tiered rings**, clearing the EL attribute bonus instead of leaving it to re-apply on every join/augment reconcile forever. The marriage discipline/kiss XP bonus is credited via `adjustRawXp` instead of `grantXp`, so it is no longer double-bonused against the even-split strip's own math. The backup snapshot now flushes pending `AsyncFileWriter` writes before copying, so a snapshot can't capture stale bytes. The Rings-unlock hint on the main page now reads account-scoped `getHighestPrestigeLevel` for both partners (an offline spouse no longer reads as Prestige 0). `MarriageDataManager` saves are now async + per-section instead of rewriting every JSON file on every mutation. The legacy cosmetic wedding-ring system (`WeddingRingTier`) is fully removed — tiered rings are the only ring system. Two piggyback systems' silent/log-once failure handling is now a 60s rate-limited warning so recurring bugs surface instead of going dark forever.
