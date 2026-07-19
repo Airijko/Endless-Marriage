@@ -22,7 +22,7 @@ $C.@PageOverlay {
                 FlexWeight: 1;
                 LayoutMode: Top;
                 Background: (TexturePath: @ContainerPatch, Border: 23);
-                Padding: (Horizontal: 16, Vertical: 14);
+                Padding: (Full: 0);
 
                 // Custom navy header plate — rune inset + steel frame + gold title.
                 Group {
@@ -41,21 +41,26 @@ $C.@PageOverlay {
                     Group {
                         LayoutMode: Left;
                         Anchor: (Top: 0, Bottom: 0, Left: 0, Right: 0);
-                        Padding: (Horizontal: 8);
+                        Padding: (Horizontal: 12);
 
                         Group { FlexWeight: 1; Anchor: (Top: 19, Bottom: 19); Background: #ffe2a6; }
-                        Group { Anchor: (Width: 10); }
+                        Group { Anchor: (Width: 14); }
 
                         Label {
-                            Anchor: (Width: 224, Height: 24);
+                            Anchor: (MaxWidth: 248, Height: 24);
                             Text: "CEREMONY";
                             Style: (FontSize: 17, TextColor: #ffe2a6, RenderBold: true, LetterSpacing: 3, HorizontalAlignment: Center, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: 12);
                         }
 
-                        Group { Anchor: (Width: 10); }
+                        Group { Anchor: (Width: 14); }
                         Group { FlexWeight: 1; Anchor: (Top: 19, Bottom: 19); Background: #ffe2a6; }
                     }
                 }
+
+                Group {
+                    LayoutMode: Top;
+                    FlexWeight: 1;
+                    Padding: (Horizontal: 16, Vertical: 14);
 
                 Group { Anchor: (Height: 8); }
                 $C.@PanelSeparatorFancy {}
@@ -175,6 +180,7 @@ $C.@PageOverlay {
                     LayoutMode: Middle;
                     Anchor: (Height: 11);
                     Group { Anchor: (Width: 236, Height: 11); Background: (TexturePath: @DecorationBottom); }
+                }
                 }
             }
         }
