@@ -64,9 +64,9 @@ $C.@PageOverlay {
                         Group { Anchor: (Width: 14); }
 
                         Label {
-                            Anchor: (MaxWidth: 248, Height: 24);
+                            Anchor: (Height: 24);
                             Text: "WITNESSES";
-                            Style: (FontSize: 17, TextColor: #ffe2a6, RenderBold: true, LetterSpacing: 3, HorizontalAlignment: Center, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: 12);
+                            Style: (FontSize: 17, TextColor: #ffe2a6, RenderBold: true, LetterSpacing: 3, HorizontalAlignment: Center, VerticalAlignment: Center);
                         }
 
                         Group { Anchor: (Width: 14); }
@@ -164,9 +164,9 @@ $C.@PageOverlay {
                         Group { Anchor: (Width: 14); }
 
                         Label {
-                            Anchor: (MaxWidth: 248, Height: 24);
+                            Anchor: (Height: 24);
                             Text: "MARRIAGE";
-                            Style: (FontSize: 17, TextColor: #ffe2a6, RenderBold: true, LetterSpacing: 3, HorizontalAlignment: Center, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: 12);
+                            Style: (FontSize: 17, TextColor: #ffe2a6, RenderBold: true, LetterSpacing: 3, HorizontalAlignment: Center, VerticalAlignment: Center);
                         }
 
                         Group { Anchor: (Width: 14); }
@@ -856,9 +856,9 @@ $C.@PageOverlay {
                         Group { Anchor: (Width: 14); }
 
                         Label {
-                            Anchor: (MaxWidth: 248, Height: 24);
+                            Anchor: (Height: 24);
                             Text: "AFFECTION";
-                            Style: (FontSize: 17, TextColor: #ffe2a6, RenderBold: true, LetterSpacing: 3, HorizontalAlignment: Center, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: 12);
+                            Style: (FontSize: 17, TextColor: #ffe2a6, RenderBold: true, LetterSpacing: 3, HorizontalAlignment: Center, VerticalAlignment: Center);
                         }
 
                         Group { Anchor: (Width: 14); }
