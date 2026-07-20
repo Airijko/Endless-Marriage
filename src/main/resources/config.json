@@ -1,5 +1,5 @@
 {
-  "config_version": 9,
+  "config_version": 10,
 
   "require_priest_for_marriage": true,
   "require_magistrate_for_divorce": true,
@@ -17,6 +17,7 @@
   "priest_class_id": "priest",
   "magistrate_class_id": "magistrate",
   "piggyback_enabled": true,
+  "piggyback_block_abilities": true,
   "piggyback_damage_reduction_percent": 25.0,
   "piggyback_max_range": 5.0,
   "marriage_shared_dungeons": true,

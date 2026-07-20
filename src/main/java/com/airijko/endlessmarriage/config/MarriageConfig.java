@@ -69,6 +69,10 @@ public class MarriageConfig {
     // session can be started (the per-tick follow/seat/detach systems then stay
     // idle because nobody is ever registered as a rider).
     private boolean piggybackEnabled = true;
+    // When true (default), the RIDER in an active piggyback session cannot cast
+    // Endless-Skills abilities — being carried is a non-combat state. The carrier is
+    // unaffected. Endless-Skills reads this reflectively; no compile dependency either way.
+    private boolean piggybackBlockAbilities = true;
     private double piggybackDamageReductionPercent = 25.0;
     private double piggybackMaxRange = 5.0;
     // Stream a server-authoritative BlockMount "seat" to the rider's client each
@@ -166,6 +170,10 @@ public class MarriageConfig {
 
     public boolean isPiggybackEnabled() {
         return piggybackEnabled;
+    }
+
+    public boolean isPiggybackBlockAbilities() {
+        return piggybackBlockAbilities;
     }
 
     public double getPiggybackDamageReductionPercent() {
@@ -301,6 +309,9 @@ public class MarriageConfig {
             }
             if (root.has("piggyback_enabled")) {
                 piggybackEnabled = root.get("piggyback_enabled").getAsBoolean();
+            }
+            if (root.has("piggyback_block_abilities")) {
+                piggybackBlockAbilities = root.get("piggyback_block_abilities").getAsBoolean();
             }
             if (root.has("piggyback_damage_reduction_percent")) {
                 piggybackDamageReductionPercent = root.get("piggyback_damage_reduction_percent").getAsDouble();
