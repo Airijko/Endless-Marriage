@@ -30,6 +30,7 @@ import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerInteractEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 
 import javax.annotation.Nonnull;
@@ -437,19 +438,18 @@ public class EndlessMarriage extends JavaPlugin {
             if (tieredRingDataManager == null) {
                 return;
             }
-            var player = event.getPlayer();
-            if (player == null) {
-                return;
-            }
-            UUID uuid = player.getUuid();
+            var entityRef = event.getPlayerRef();
+            var store = entityRef != null ? entityRef.getStore() : null;
+            PlayerRef playerRef = store != null
+                    ? store.getComponent(entityRef, PlayerRef.getComponentType())
+                    : null;
+            UUID uuid = playerRef != null ? playerRef.getUuid() : null;
             if (uuid == null) {
                 return;
             }
             if (!tieredRingDataManager.hasRingEquipped(uuid)) {
                 return;
             }
-            var entityRef = event.getPlayerRef();
-            var store = entityRef != null ? entityRef.getStore() : null;
             tieredRingDataManager.reapplyOnJoin(uuid, entityRef, store);
         } catch (Exception ex) {
             LOGGER.atWarning().withCause(ex).log("Failed to re-apply tiered ring bonus on join.");

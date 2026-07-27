@@ -32,7 +32,7 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.airijko.endlessleveling.ui.base.SafeInteractiveCustomUIPage;
 import com.hypixel.hytale.protocol.packets.interface_.Page;
 import com.hypixel.hytale.server.core.inventory.container.CombinedItemContainer;
-import com.hypixel.hytale.server.core.inventory.Inventory;
+import com.hypixel.hytale.server.core.inventory.InventoryComponent;
 import com.hypixel.hytale.server.core.entity.entities.player.windows.ContainerWindow;
 import com.hypixel.hytale.server.core.modules.entity.component.HeadRotation;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
@@ -869,8 +869,8 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
                 return;
             }
 
-            Inventory spouseInventory = spousePlayer.getInventory();
-            CombinedItemContainer spouseContainer = spouseInventory.getCombinedHotbarFirst();
+            CombinedItemContainer spouseContainer = InventoryComponent.getCombined(
+                    spouseStore, spouseEntity, InventoryComponent.HOTBAR_FIRST);
 
             World senderWorld = store.getExternalData().getWorld();
             senderWorld.execute(() -> {

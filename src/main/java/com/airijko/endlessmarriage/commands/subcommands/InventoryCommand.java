@@ -18,7 +18,7 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractPlayer
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.protocol.packets.interface_.Page;
 import com.hypixel.hytale.server.core.inventory.container.CombinedItemContainer;
-import com.hypixel.hytale.server.core.inventory.Inventory;
+import com.hypixel.hytale.server.core.inventory.InventoryComponent;
 import com.hypixel.hytale.server.core.entity.entities.player.windows.ContainerWindow;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
@@ -94,8 +94,8 @@ public class InventoryCommand extends AbstractPlayerCommand {
                 return;
             }
 
-            Inventory spouseInventory = spousePlayer.getInventory();
-            CombinedItemContainer spouseContainer = spouseInventory.getCombinedHotbarFirst();
+            CombinedItemContainer spouseContainer = InventoryComponent.getCombined(
+                    spouseStore, spouseEntity, InventoryComponent.HOTBAR_FIRST);
 
             // Open the spouse's inventory for the sender (full access - married couples can use each other's items)
             world.execute(() -> {
