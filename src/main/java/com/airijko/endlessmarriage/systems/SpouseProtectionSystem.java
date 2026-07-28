@@ -12,6 +12,7 @@ package com.airijko.endlessmarriage.systems;
 import com.airijko.endlessmarriage.config.MarriageConfig;
 import com.airijko.endlessmarriage.data.MarriageDataManager;
 import com.airijko.endlessmarriage.services.PiggybackService;
+import com.airijko.endlessmarriage.util.FfaWorldBridge;
 import com.hypixel.hytale.component.ArchetypeChunk;
 import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.Ref;
@@ -24,6 +25,7 @@ import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageEventSystem;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageSystems;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import javax.annotation.Nonnull;
@@ -79,6 +81,14 @@ public class SpouseProtectionSystem extends DamageEventSystem {
             return;
         }
         UUID defenderUuid = defenderPlayer.getUuid();
+
+        // FFA event arena: spouse protection (friendly-fire cancel + piggyback damage
+        // reduction) is suspended, damage applies normally.
+        World world = store.getExternalData().getWorld();
+        String worldName = world == null ? null : world.getName();
+        if (FfaWorldBridge.isFreeForAll(worldName)) {
+            return;
+        }
 
         // 1. Cancel any damage between marriage partners (melee + projectile,
         //    since ProjectileSource extends EntitySource).
