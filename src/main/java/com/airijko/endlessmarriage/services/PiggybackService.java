@@ -11,6 +11,7 @@ package com.airijko.endlessmarriage.services;
 
 import com.airijko.endlessmarriage.config.MarriageConfig;
 import com.airijko.endlessmarriage.data.MarriageDataManager;
+import com.airijko.endlessmarriage.util.EventWorldBridge;
 import com.airijko.endlessmarriage.util.PositionUtil;
 import com.hypixel.hytale.builtin.mounts.MountedComponent;
 import com.hypixel.hytale.component.Ref;
@@ -19,6 +20,7 @@ import com.hypixel.hytale.logger.HytaleLogger;
 import org.joml.Vector3d;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
+import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import javax.annotation.Nonnull;
@@ -164,6 +166,12 @@ public final class PiggybackService {
         if (!config.isPiggybackEnabled()) {
             return MountResult.DISABLED;
         }
+        // Events world with marriage switched off: same DISABLED result as the config
+        // kill-switch, so the player sees the ordinary "piggyback is off" refusal.
+        World riderWorld = riderStore.getExternalData().getWorld();
+        if (EventWorldBridge.isMarriageDisabled(riderWorld)) {
+            return MountResult.DISABLED;
+        }
         if (!dataManager.isMarried(riderUuid)) {
             return MountResult.NOT_MARRIED;
         }
@@ -263,6 +271,12 @@ public final class PiggybackService {
             @Nonnull Store<EntityStore> carrierStore) {
 
         if (!config.isPiggybackEnabled()) {
+            return MountResult.DISABLED;
+        }
+        // Events world with marriage switched off: same DISABLED result as the config
+        // kill-switch, so the player sees the ordinary "piggyback is off" refusal.
+        World carrierWorld = carrierStore.getExternalData().getWorld();
+        if (EventWorldBridge.isMarriageDisabled(carrierWorld)) {
             return MountResult.DISABLED;
         }
         if (!dataManager.isMarried(carrierUuid)) {

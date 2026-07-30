@@ -11,6 +11,7 @@ package com.airijko.endlessmarriage.systems;
 
 import com.airijko.endlessmarriage.config.MarriageConfig;
 import com.airijko.endlessmarriage.services.PiggybackService;
+import com.airijko.endlessmarriage.util.EventWorldBridge;
 import com.hypixel.hytale.component.ArchetypeChunk;
 import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.ComponentType;
@@ -137,6 +138,9 @@ public final class PiggybackSeatStreamSystem extends EntityTickingSystem<EntityS
             @Nonnull CommandBuffer<EntityStore> commandBuffer) {
 
         if (!config.isPiggybackSeatStreamEnabled()) {
+            return;
+        }
+        if (EventWorldBridge.isMarriageDisabled(store.getExternalData().getWorld())) {
             return;
         }
 

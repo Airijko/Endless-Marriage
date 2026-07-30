@@ -11,6 +11,7 @@ package com.airijko.endlessmarriage.systems;
 
 import com.airijko.endlessmarriage.config.MarriageConfig;
 import com.airijko.endlessmarriage.services.PiggybackService;
+import com.airijko.endlessmarriage.util.EventWorldBridge;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
@@ -19,6 +20,7 @@ import com.hypixel.hytale.math.util.TrigMathUtil;
 import com.hypixel.hytale.math.vector.Rotation3f;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.modules.physics.component.Velocity;
+import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import org.joml.Vector3d;
 
@@ -120,6 +122,29 @@ public final class PiggybackFollowSystem extends TickingSystem<EntityStore> {
         }
 
         EntityStore entityStore = store.getExternalData();
+
+        // Events world with marriage switched off: a rider stuck on a carrier's back
+        // through a PvP round is worse than a no-op, so force-detach every session in
+        // this store rather than merely skipping the follow. dismountAny() mutates
+        // the sessions map, so the rider UUIDs are collected into a local list FIRST
+        // and the dismounts run in a second pass, after the iteration below is done.
+        World world = entityStore.getWorld();
+        if (EventWorldBridge.isMarriageDisabled(world)) {
+            java.util.List<UUID> ridersToDetach = new java.util.ArrayList<>(sessions.keySet());
+            for (UUID riderUuid : ridersToDetach) {
+                try {
+                    piggybackService.dismountAny(riderUuid);
+                } catch (Throwable ex) {
+                    // Throwable, not Exception: this is a TickingSystem, and anything escaping
+                    // tick() kills the world thread outright. An Error from one bad session must
+                    // not take the arena down with it.
+                    LOGGER.atWarning().withCause(ex)
+                            .log("Failed to force-detach piggyback session for %s in a marriage-disabled world.",
+                                    riderUuid);
+                }
+            }
+            return;
+        }
 
         for (Map.Entry<UUID, UUID> entry : sessions.entrySet()) {
             UUID riderUuid = entry.getKey();

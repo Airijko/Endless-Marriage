@@ -25,6 +25,8 @@ import com.airijko.endlessmarriage.services.PiggybackService;
 import com.airijko.endlessmarriage.systems.MarriageProximitySystem;
 import com.airijko.endlessmarriage.systems.PiggybackFollowSystem;
 import com.airijko.endlessmarriage.systems.SpouseProtectionSystem;
+import com.airijko.endlessmarriage.util.EventWorldBridge;
+import com.airijko.endlessmarriage.util.PlayerWorldResolver;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerInteractEvent;
@@ -34,6 +36,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -564,6 +567,14 @@ public class EndlessMarriage extends JavaPlugin {
                 return;
             }
 
+            // Events world with marriage switched off: the earner's own Discipline
+            // bonus / even-split never applies here. Resolved purely off the
+            // Universe/PlayerRef accessors since this listener may fire off the
+            // world thread; unresolvable fails open (not disabled).
+            if (EventWorldBridge.isMarriageDisabled(worldNameOf(uuid))) {
+                return;
+            }
+
             boolean nearSpouse = proximitySystem.isNearSpouse(uuid);
 
             // Pre-bonus base of THIS grant, captured before any re-entrant grant below
@@ -632,7 +643,7 @@ public class EndlessMarriage extends JavaPlugin {
                 if (nearSpouse && (!inParty || coupleOnlyParty
                         || (spouseInOutsiderParty && fullKillGrant))) {
                     UUID spouseUuid = spouseForGate;
-                    if (spouseUuid != null) {
+                    if (spouseUuid != null && !EventWorldBridge.isMarriageDisabled(worldNameOf(spouseUuid))) {
                         // EVEN SPLIT, then EACH partner's own bonuses apply (mirrors party-share).
                         // The kill is valued at the BEST level-range multiplier among the two
                         // spouses, split once (XP-conserving — total never exceeds the best value),
@@ -736,5 +747,17 @@ public class EndlessMarriage extends JavaPlugin {
                 inMarriageXpShare.set(false);
             }
         };
+    }
+
+    /**
+     * Resolves the world name a player is currently in. Thin wrapper around
+     * {@link PlayerWorldResolver#worldNameOf}, which both this listener and
+     * {@code MarriageOverflowService} share so the Universe/PlayerRef/Store chain
+     * isn't duplicated — safe to call off the world thread and fails open (returns
+     * {@code null}) whenever any hop is unresolvable.
+     */
+    @Nullable
+    private static String worldNameOf(@Nonnull UUID uuid) {
+        return PlayerWorldResolver.worldNameOf(uuid);
     }
 }

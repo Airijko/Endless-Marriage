@@ -11,6 +11,7 @@
 package com.airijko.endlessmarriage.commands.subcommands;
 
 import com.airijko.endlessmarriage.data.MarriageDataManager;
+import com.airijko.endlessmarriage.util.EventWorldBridge;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
@@ -60,6 +61,11 @@ public class InventoryCommand extends AbstractPlayerCommand {
             return;
         }
 
+        if (EventWorldBridge.isMarriageDisabled(world)) {
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.MARRIAGE_DISABLED_WORLD, COLOR_ERROR));
+            return;
+        }
+
         UUID spouseUuid = data.getSpouse(senderUuid);
         if (spouseUuid == null) {
             senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.CANNOT_FIND_SPOUSE, COLOR_ERROR));
@@ -80,6 +86,10 @@ public class InventoryCommand extends AbstractPlayerCommand {
 
         Store<EntityStore> spouseStore = spouseEntity.getStore();
         World spouseWorld = spouseStore.getExternalData().getWorld();
+        if (EventWorldBridge.isMarriageDisabled(spouseWorld)) {
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.MARRIAGE_DISABLED_WORLD, COLOR_ERROR));
+            return;
+        }
 
         Player senderPlayer = store.getComponent(ref, Player.getComponentType());
         if (senderPlayer == null) {

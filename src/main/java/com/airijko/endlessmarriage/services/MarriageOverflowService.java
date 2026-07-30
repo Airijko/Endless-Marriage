@@ -16,6 +16,8 @@ import com.airijko.endlessmarriage.data.MarriageOverflowLog;
 import com.airijko.endlessmarriage.data.MarriageDataManager;
 import com.airijko.endlessmarriage.data.OverflowEvent;
 import com.airijko.endlessmarriage.systems.MarriageProximitySystem;
+import com.airijko.endlessmarriage.util.EventWorldBridge;
+import com.airijko.endlessmarriage.util.PlayerWorldResolver;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
@@ -146,6 +148,13 @@ public class MarriageOverflowService {
         }
         UUID spouse = dataManager.getSpouse(uuid);
         if (spouse == null || spouse.equals(uuid)) {
+            return;
+        }
+
+        // Events world with marriage switched off: no funnel in either direction —
+        // check both the earner's and the spouse's current world.
+        if (EventWorldBridge.isMarriageDisabled(PlayerWorldResolver.worldNameOf(uuid))
+                || EventWorldBridge.isMarriageDisabled(PlayerWorldResolver.worldNameOf(spouse))) {
             return;
         }
 

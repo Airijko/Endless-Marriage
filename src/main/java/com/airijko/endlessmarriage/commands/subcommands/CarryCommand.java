@@ -12,6 +12,7 @@ package com.airijko.endlessmarriage.commands.subcommands;
 
 import com.airijko.endlessmarriage.EndlessMarriage;
 import com.airijko.endlessmarriage.services.PiggybackService;
+import com.airijko.endlessmarriage.util.EventWorldBridge;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
@@ -53,6 +54,14 @@ public class CarryCommand extends AbstractPlayerCommand {
 
         UUID senderUuid = senderRef.getUuid();
         PiggybackService piggyback = EndlessMarriage.getInstance().getPiggybackService();
+
+        // Events world with marriage switched off: refuse with the accurate reason
+        // up front rather than falling through to the service's generic DISABLED
+        // (which reads the same as the config kill-switch).
+        if (EventWorldBridge.isMarriageDisabled(world)) {
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.MARRIAGE_DISABLED_WORLD, COLOR_ERROR));
+            return;
+        }
 
         // Toggle off: already carrying our spouse -> set them down.
         if (piggyback.isCarrying(senderUuid)) {

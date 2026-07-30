@@ -12,6 +12,7 @@ package com.airijko.endlessmarriage.systems;
 import com.airijko.endlessmarriage.config.MarriageConfig;
 import com.airijko.endlessmarriage.data.MarriageDataManager;
 import com.airijko.endlessmarriage.services.PiggybackService;
+import com.airijko.endlessmarriage.util.EventWorldBridge;
 import com.airijko.endlessmarriage.util.FfaWorldBridge;
 import com.hypixel.hytale.component.ArchetypeChunk;
 import com.hypixel.hytale.component.CommandBuffer;
@@ -82,11 +83,12 @@ public class SpouseProtectionSystem extends DamageEventSystem {
         }
         UUID defenderUuid = defenderPlayer.getUuid();
 
-        // FFA event arena: spouse protection (friendly-fire cancel + piggyback damage
-        // reduction) is suspended, damage applies normally.
+        // FFA event arena, or an Events world with marriage switched off: spouse
+        // protection (friendly-fire cancel + piggyback damage reduction) is suspended,
+        // damage applies normally.
         World world = store.getExternalData().getWorld();
         String worldName = world == null ? null : world.getName();
-        if (FfaWorldBridge.isFreeForAll(worldName)) {
+        if (FfaWorldBridge.isFreeForAll(worldName) || EventWorldBridge.isMarriageDisabled(worldName)) {
             return;
         }
 

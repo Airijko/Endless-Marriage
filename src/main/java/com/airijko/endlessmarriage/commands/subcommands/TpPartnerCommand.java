@@ -11,6 +11,7 @@
 package com.airijko.endlessmarriage.commands.subcommands;
 
 import com.airijko.endlessmarriage.data.MarriageDataManager;
+import com.airijko.endlessmarriage.util.EventWorldBridge;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import org.joml.Vector3d;
@@ -58,6 +59,11 @@ public class TpPartnerCommand extends AbstractPlayerCommand {
             return;
         }
 
+        if (EventWorldBridge.isMarriageDisabled(world)) {
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.MARRIAGE_DISABLED_WORLD, COLOR_ERROR));
+            return;
+        }
+
         UUID spouseUuid = data.getSpouse(senderUuid);
         if (spouseUuid == null) {
             senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.CANNOT_FIND_SPOUSE, COLOR_ERROR));
@@ -85,6 +91,10 @@ public class TpPartnerCommand extends AbstractPlayerCommand {
 
         // Resolve the spouse's world
         World spouseWorld = spouseStore.getExternalData().getWorld();
+        if (EventWorldBridge.isMarriageDisabled(spouseWorld)) {
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.MARRIAGE_DISABLED_WORLD, COLOR_ERROR));
+            return;
+        }
         Teleport teleport = Teleport.createForPlayer(spouseWorld, new Vector3d(spousePos), new com.hypixel.hytale.math.vector.Rotation3f(0f, 0f, 0f));
         store.addComponent(ref, Teleport.getComponentType(), teleport);
 

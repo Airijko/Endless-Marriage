@@ -12,11 +12,13 @@ package com.airijko.endlessmarriage.systems;
 import com.airijko.endlessmarriage.config.MarriageConfig;
 import com.airijko.endlessmarriage.data.MarriageDataManager;
 import com.airijko.endlessmarriage.data.MarriagePair;
+import com.airijko.endlessmarriage.util.EventWorldBridge;
 import com.airijko.endlessmarriage.util.PositionUtil;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import org.joml.Vector3d;
+import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import javax.annotation.Nonnull;
@@ -90,6 +92,15 @@ public class MarriageProximitySystem extends TickingSystem<EntityStore> {
         timeSinceLastCheck.put(store, 0f);
 
         EntityStore entityStore = store.getExternalData();
+
+        // Events world with marriage switched off: don't refresh the near-spouse /
+        // discipline-bonus flag while here. We don't force it false — the existing
+        // flag (if any) just lingers and ages out via removeIf below, same as when
+        // only one spouse is present.
+        World world = entityStore.getWorld();
+        if (EventWorldBridge.isMarriageDisabled(world)) {
+            return;
+        }
 
         double range = config.getProximityRange();
         double rangeSq = range * range;

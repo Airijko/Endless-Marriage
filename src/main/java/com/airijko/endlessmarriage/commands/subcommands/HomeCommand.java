@@ -12,6 +12,7 @@ package com.airijko.endlessmarriage.commands.subcommands;
 
 import com.airijko.endlessmarriage.data.MarriageDataManager;
 import com.airijko.endlessmarriage.data.MarriageHome;
+import com.airijko.endlessmarriage.util.EventWorldBridge;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.math.vector.Rotation3f;
@@ -58,9 +59,19 @@ public class HomeCommand extends AbstractPlayerCommand {
             return;
         }
 
+        if (EventWorldBridge.isMarriageDisabled(world)) {
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.MARRIAGE_DISABLED_WORLD, COLOR_ERROR));
+            return;
+        }
+
         MarriageHome home = data.getHome(senderUuid);
         if (home == null) {
             senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.HOME_NO_HOME, COLOR_ERROR));
+            return;
+        }
+
+        if (EventWorldBridge.isMarriageDisabled(home.worldName())) {
+            senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.MARRIAGE_DISABLED_WORLD, COLOR_ERROR));
             return;
         }
 

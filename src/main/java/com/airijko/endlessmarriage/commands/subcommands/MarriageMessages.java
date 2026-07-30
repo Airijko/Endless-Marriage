@@ -83,6 +83,7 @@ public final class MarriageMessages {
     public static final String SPOUSE_NOT_IN_WORLD = "ui.marriage.spouse_not_in_world";
     public static final String SPOUSE_DIFFERENT_WORLD = "ui.marriage.spouse_different_world";
     public static final String CANNOT_FIND_SPOUSE = "ui.marriage.cannot_find_spouse";
+    public static final String MARRIAGE_DISABLED_WORLD = "ui.marriage.disabled_world";
 
     // Accept
     public static final String NO_PENDING_PROPOSALS = "ui.marriage.no_pending_proposals";

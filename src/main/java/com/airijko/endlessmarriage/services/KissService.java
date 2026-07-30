@@ -11,6 +11,7 @@ package com.airijko.endlessmarriage.services;
 
 import com.airijko.endlessmarriage.config.MarriageConfig;
 import com.airijko.endlessmarriage.data.MarriageDataManager;
+import com.airijko.endlessmarriage.util.EventWorldBridge;
 import com.airijko.endlessmarriage.util.PositionUtil;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
@@ -21,6 +22,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.ParticleUtil;
 import com.hypixel.hytale.server.core.universe.world.SoundUtil;
+import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import javax.annotation.Nonnull;
@@ -71,6 +73,14 @@ public final class KissService {
     public KissResult tryKiss(@Nonnull UUID initiatorUuid,
             @Nonnull Ref<EntityStore> initiatorRef,
             @Nonnull Store<EntityStore> initiatorStore) {
+
+        // Events world with marriage switched off: no existing KissResult constant
+        // fits precisely, so reuse ERROR — it's the closest to "can't do this here"
+        // without implying the couple is offline/apart/unmarried.
+        World world = initiatorStore.getExternalData().getWorld();
+        if (EventWorldBridge.isMarriageDisabled(world)) {
+            return KissResult.ERROR;
+        }
 
         if (!dataManager.isMarried(initiatorUuid)) {
             return KissResult.NOT_MARRIED;
