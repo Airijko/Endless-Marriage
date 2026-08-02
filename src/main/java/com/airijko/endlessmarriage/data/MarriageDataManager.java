@@ -352,10 +352,10 @@ public class MarriageDataManager {
         if (officiant != null) {
             officiantRecords.add(new OfficiantRecord(officiant, OfficiantRecord.OfficiantType.MARRIAGE,
                     player1, player2, System.currentTimeMillis()));
+            saveRecords();
         }
 
         saveMarriages();
-        saveRecords();
         savePriestInbox();
         LOGGER.atInfo().log("Marriage created: %s + %s (officiant: %s)", player1, player2, officiant);
         return true;
@@ -415,6 +415,7 @@ public class MarriageDataManager {
         if (officiant != null) {
             officiantRecords.add(new OfficiantRecord(officiant, OfficiantRecord.OfficiantType.DIVORCE,
                     player1, player2, System.currentTimeMillis()));
+            saveRecords();
         }
 
         // Record divorce time so both ex-spouses must wait before remarrying
@@ -422,8 +423,9 @@ public class MarriageDataManager {
         recentDivorces.put(player1, divorceTime);
         recentDivorces.put(player2, divorceTime);
 
-        saveMarriages();
-        saveRecords();
+        if (pair != null) {
+            saveMarriages();
+        }
         saveHomes();
         saveDivorceCooldowns();
         LOGGER.atInfo().log("Divorce finalized: %s + %s (officiant: %s)", player1, player2, officiant);
