@@ -919,10 +919,19 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
             }
         }
 
-        data.removeProposal(proposer);
-
         if (!config.isRequirePriestForMarriage()) {
-            data.marry(proposer, senderUuid, null);
+            if (!data.marry(proposer, senderUuid, null)) {
+                // Shared-backend race guard: one of you got married on another
+                // server between the proposal and this accept. Leave the proposal
+                // in place (do NOT remove it here) so the couple can simply retry.
+                playerRef.sendMessage(MarriageMessages.prefixedLine(
+                        "That marriage could not be completed — one of you is already married.", "#ff6666"));
+                return;
+            }
+            // marry() already removes the proposal on its success path; this is
+            // just the explicit, obviously-correct place to do it from the caller's
+            // perspective (idempotent if marry() already did it).
+            data.removeProposal(proposer);
             String senderName = resolvePlayerName(senderUuid);
             String proposerName = resolvePlayerName(proposer);
             playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.NOW_MARRIED_TO, "#66ff66", proposerName));
@@ -933,6 +942,10 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
             // Global wedding announcement: title, chat broadcast, wedding march SFX
             MarriageAnnouncer.announceMarriage(proposerName, senderName, null);
         } else {
+            // No backend race applies here — marry() itself isn't called until the
+            // priest officiates (see MarriageOfficiatePage). Safe to remove the
+            // proposal immediately once staged as a pending marriage.
+            data.removeProposal(proposer);
             data.addPendingMarriage(proposer, senderUuid);
             playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.ACCEPTED_PRIEST_NEEDED_SIMPLE, "#66ff66"));
             PlayerRef proposerRef = Universe.get().getPlayer(proposer);

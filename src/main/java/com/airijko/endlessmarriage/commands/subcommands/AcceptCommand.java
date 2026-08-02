@@ -77,13 +77,22 @@ public class AcceptCommand extends AbstractPlayerCommand {
             }
         }
 
-        data.removeProposal(proposer);
-
         boolean adminBypass = OperatorHelper.isOperator(senderRef);
 
         if (!config.isRequirePriestForMarriage() || adminBypass) {
             // Marry directly (no priest needed, or admin bypass)
-            data.marry(proposer, senderUuid, null);
+            if (!data.marry(proposer, senderUuid, null)) {
+                // Shared-backend race guard: one of you got married on another
+                // server between the proposal and this accept. Leave the proposal
+                // in place (do NOT remove it here) so the couple can simply retry.
+                senderRef.sendMessage(msg("That marriage could not be completed"
+                        + " — one of you is already married.", COLOR_ERROR));
+                return;
+            }
+            // marry() already removes the proposal on its success path; this is
+            // just the explicit, obviously-correct place to do it from the caller's
+            // perspective (idempotent if marry() already did it).
+            data.removeProposal(proposer);
             String senderName = resolvePlayerName(senderUuid);
             String proposerName = resolvePlayerName(proposer);
             senderRef.sendMessage(msg("You are now married to "
@@ -96,6 +105,10 @@ public class AcceptCommand extends AbstractPlayerCommand {
             // Global wedding announcement: title, chat broadcast, wedding march SFX
             MarriageAnnouncer.announceMarriage(proposerName, senderName, null);
         } else {
+            // No backend race applies here — marry() itself isn't called until the
+            // priest officiates (see OfficiateCommand). Safe to remove the proposal
+            // immediately once staged as a pending marriage.
+            data.removeProposal(proposer);
             // Stage pending marriage awaiting priest
             data.addPendingMarriage(proposer, senderUuid);
             senderRef.sendMessage(msg("Proposal accepted! A Priest must now officiate your marriage.", COLOR_SUCCESS));

@@ -150,7 +150,13 @@ public class OfficiateCommand extends AbstractPlayerCommand {
                 config.getWitnessMaxRange(), excluded);
 
         // Officiate the marriage
-        data.marry(p1, p2, senderUuid, witnesses);
+        if (!data.marry(p1, p2, senderUuid, witnesses)) {
+            // Shared-backend race guard: one of the two got married on another
+            // server between the pending-marriage stage and this officiation.
+            senderRef.sendMessage(MarriageMessages.prefixedLine(
+                    "That marriage could not be completed — one of them is already married.", COLOR_ERROR));
+            return;
+        }
 
         String name1Resolved = resolvePlayerName(p1);
         String name2Resolved = resolvePlayerName(p2);

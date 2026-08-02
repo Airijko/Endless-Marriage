@@ -256,7 +256,13 @@ public class MarriageOfficiatePage extends SafeInteractiveCustomUIPage<MarriageP
                     config.getWitnessMaxRange(), excluded);
 
             // --- All checks passed, marry them ---
-            data.marry(p1, p2, priestUuid, witnesses);
+            if (!data.marry(p1, p2, priestUuid, witnesses)) {
+                // Shared-backend race guard: one of the two got married on another
+                // server between the pending-marriage stage and this officiation.
+                playerRef.sendMessage(MarriageMessages.prefixedLine(
+                        "That marriage could not be completed — one of them is already married.", "#ff6666"));
+                return;
+            }
             // marry() already calls clearPriestRequestsForCouple
 
             String name1 = PlayerNameResolver.resolve(p1);

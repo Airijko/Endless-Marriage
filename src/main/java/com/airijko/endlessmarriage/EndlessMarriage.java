@@ -437,17 +437,29 @@ public class EndlessMarriage extends JavaPlugin {
     }
 
     private void onPlayerReady(@Nonnull PlayerReadyEvent event) {
+        var entityRef = event.getPlayerRef();
+        var store = entityRef != null ? entityRef.getStore() : null;
+        PlayerRef playerRef = store != null
+                ? store.getComponent(entityRef, PlayerRef.getComponentType())
+                : null;
+        UUID uuid = playerRef != null ? playerRef.getUuid() : null;
+        if (uuid == null) {
+            return;
+        }
+
+        // Shared-backend marriage cache refresh: no-op when no backend is active.
+        // See MarriageDataManager#refreshFromBackendOnJoin for why this is the
+        // only place marriage state is read from the network.
+        try {
+            if (marriageDataManager != null) {
+                marriageDataManager.refreshFromBackendOnJoin(uuid);
+            }
+        } catch (Exception ex) {
+            LOGGER.atWarning().withCause(ex).log("Failed to refresh marriage state from shared backend on join.");
+        }
+
         try {
             if (tieredRingDataManager == null) {
-                return;
-            }
-            var entityRef = event.getPlayerRef();
-            var store = entityRef != null ? entityRef.getStore() : null;
-            PlayerRef playerRef = store != null
-                    ? store.getComponent(entityRef, PlayerRef.getComponentType())
-                    : null;
-            UUID uuid = playerRef != null ? playerRef.getUuid() : null;
-            if (uuid == null) {
                 return;
             }
             if (!tieredRingDataManager.hasRingEquipped(uuid)) {

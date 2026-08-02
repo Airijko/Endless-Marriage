@@ -20,6 +20,9 @@ import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Manages all marriage data: active marriages, pending proposals, pending officiant requests,
@@ -56,6 +59,15 @@ public class MarriageDataManager {
 
     // Divorce cooldown: UUID -> timestamp of most recent divorce (both ex-spouses are recorded)
     private final Map<UUID, Long> recentDivorces = new ConcurrentHashMap<>();
+
+    /**
+     * Non-null when a licensed shared backend is driving cross-server marriage
+     * pairing (see {@link MarriageSyncStore}); null = local-JSON-only, today's
+     * behavior. Resolved once in {@link #load()}; volatile because
+     * {@link #refreshFromBackendOnJoin} can run on a different thread (the join
+     * event) than the plugin-setup thread that called {@link #load()}.
+     */
+    private volatile MarriageSyncStore syncStore;
 
     public MarriageDataManager(@Nonnull File dataFolder) {
         this.dataFolder = dataFolder;
@@ -258,13 +270,75 @@ public class MarriageDataManager {
 
     // ---- Marriage lifecycle ----
 
-    public void marry(@Nonnull UUID player1, @Nonnull UUID player2, @Nullable UUID officiant) {
-        marry(player1, player2, officiant, new ArrayList<>());
+    /** @return true if the marriage was created; false if a shared-backend race
+     *  guard aborted it (one of the two is already married elsewhere — see
+     *  {@link #marry(UUID, UUID, UUID, List)}). Always true when no backend is
+     *  active (today's behavior). */
+    public boolean marry(@Nonnull UUID player1, @Nonnull UUID player2, @Nullable UUID officiant) {
+        return marry(player1, player2, officiant, new ArrayList<>());
     }
 
-    public void marry(@Nonnull UUID player1, @Nonnull UUID player2, @Nullable UUID officiant,
+    /**
+     * Creates the marriage. When a shared backend is active ({@link #syncStore}
+     * non-null), the pairing is race-proofed via {@link MarriageSyncStore#tryCreatePair}
+     * FIRST — the local caches (and JSON persistence) below are only touched after
+     * that succeeds, so JSON stays a warm cache/fallback of the backend-authoritative
+     * state rather than a second source of truth. See {@link MarriageSyncStore}
+     * class javadoc for the ordered create-if-absent protocol.
+     *
+     * @return true if the marriage was created (or, on an idempotent double-accept
+     *         of the same couple, already exists); false if the backend detected
+     *         one of the two players is already married to someone else (a
+     *         cross-server race), the backend call itself failed, or it didn't
+     *         finish within the bounded wait below — either way the caller must
+     *         show an "already married" / "try again" style message and NOT
+     *         proceed with any local-only marriage.
+     *
+     * <p>The backend call runs on {@link MarriageSyncStore}'s own executor; this
+     * method still does a bounded {@code future.get(1500ms)} rather than being
+     * fully async itself, because the command/UI callers need a same-tick
+     * true/false to show the player. That's a deliberate, short, worst-case block
+     * of the calling thread — not the raw synchronous backend I/O this replaced —
+     * traded for keeping the accept flow's control flow simple. A timeout is
+     * treated as failure (fail closed): we never risk a split-brain marriage that
+     * only exists on this server just because we gave up waiting.
+     */
+    public boolean marry(@Nonnull UUID player1, @Nonnull UUID player2, @Nullable UUID officiant,
             @Nonnull List<UUID> witnesses) {
-        MarriagePair pair = new MarriagePair(player1, player2, officiant, System.currentTimeMillis(), witnesses);
+        long marriedAt = System.currentTimeMillis();
+        MarriagePair pair;
+        MarriageSyncStore sync = syncStore;
+        if (sync != null) {
+            MarriageSyncStore.CreateResult result;
+            try {
+                result = sync.tryCreatePairAsync(player1, player2, officiant, marriedAt, witnesses)
+                        .get(1500, TimeUnit.MILLISECONDS);
+            } catch (TimeoutException | ExecutionException | InterruptedException e) {
+                if (e instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
+                LOGGER.atWarning().withCause(e).log(
+                        "Marriage: shared backend create-pair timed out/failed for %s + %s; aborting rather than"
+                                + " risk a split-brain marriage.", player1, player2);
+                return false;
+            }
+            if (result instanceof MarriageSyncStore.AlreadyMarried) {
+                LOGGER.atWarning().log(
+                        "Marriage: cross-server race guard aborted %s + %s (one is already married elsewhere).",
+                        player1, player2);
+                return false;
+            }
+            if (result instanceof MarriageSyncStore.BackendFailure) {
+                LOGGER.atSevere().log(
+                        "Marriage: shared backend write failed for %s + %s; aborting rather than risk a"
+                                + " split-brain marriage.", player1, player2);
+                return false;
+            }
+            pair = ((MarriageSyncStore.Created) result).pair();
+        } else {
+            pair = new MarriagePair(player1, player2, officiant, marriedAt, witnesses);
+        }
+
         marriages.add(pair);
         marriageIndex.put(player1, pair);
         marriageIndex.put(player2, pair);
@@ -284,9 +358,22 @@ public class MarriageDataManager {
         saveRecords();
         savePriestInbox();
         LOGGER.atInfo().log("Marriage created: %s + %s (officiant: %s)", player1, player2, officiant);
+        return true;
     }
 
     public void divorce(@Nonnull UUID player1, @Nonnull UUID player2, @Nullable UUID officiant) {
+        // Backend cleanup is fully async, fire-and-forget (see
+        // MarriageSyncStore#deletePairAsync — includes its own retry and failure
+        // logging): kicked off first, but the local divorce below proceeds
+        // immediately without waiting on it. Unlike marry(), a divorce is never
+        // aborted on a backend hiccup — the player still wants out, and a residual
+        // backend row just self-heals on the next divorce/marry touching either
+        // uuid.
+        MarriageSyncStore sync = syncStore;
+        if (sync != null) {
+            sync.deletePairAsync(player1, player2);
+        }
+
         MarriagePair pair = marriageIndex.get(player1);
         if (pair != null) {
             marriages.remove(pair);
@@ -404,6 +491,75 @@ public class MarriageDataManager {
         loadHomes();
         loadPriestInbox();
         loadDivorceCooldowns();
+
+        // Shared-backend cutover: no-op (syncStore stays null) when no licensed
+        // backend is active, which is the ONLY path today — zero behavior change
+        // for that case. When a backend IS active, this is the one-shot migration
+        // guard: only seeds the backend from local JSON when the backend's
+        // "marriages" namespace is still completely empty, so a secondary server
+        // with stale local JSON can never clobber fresher backend data on a later
+        // boot. Mirrors FateDataStore#migrateLocalToBackendIfEmpty.
+        syncStore = MarriageSyncStore.openIfAvailable().orElse(null);
+        if (syncStore != null) {
+            int migrated = syncStore.migrateLocalToBackendIfEmpty(marriages);
+            if (migrated > 0) {
+                LOGGER.atInfo().log("Marriage: migrated %d local marriage(s) into the shared backend.", migrated);
+            }
+        }
+    }
+
+    /**
+     * Join-time cache refresh from the shared backend (see design note on
+     * {@link MarriageSyncStore}): picks up a marriage created — or a divorce
+     * granted — on ANOTHER server since this server's boot-time JSON load, before
+     * this player's first {@code isMarried}/{@code getSpouse} lookup this session.
+     * No-op when no backend is active. Deliberately the ONLY place marriage state
+     * is read from the network: {@code isMarried}/{@code getSpouse} themselves stay
+     * cache-only (some call sites run per XP-grant / per-hit), so nothing here adds
+     * a per-lookup network read to a hot path. Call once per player, from the join
+     * hook (mirrors {@code PlayerReadyEvent} usage elsewhere in this plugin).
+     *
+     * <p>The backend read itself runs async on {@link MarriageSyncStore}'s
+     * executor (see {@link MarriageSyncStore#loadPairForPlayerAsync}) — the
+     * join/ready path must not do synchronous backend I/O. Results are applied to
+     * the caches (both concurrent-safe: {@link #marriages} is a
+     * {@code CopyOnWriteArrayList}, {@link #marriageIndex} a
+     * {@code ConcurrentHashMap}) on completion, on whatever thread that
+     * completion runs on. Fail-soft behavior is unchanged.
+     */
+    public void refreshFromBackendOnJoin(@Nonnull UUID uuid) {
+        MarriageSyncStore sync = syncStore;
+        if (sync == null) {
+            return;
+        }
+        sync.loadPairForPlayerAsync(uuid).thenAccept(backendPair -> applyBackendPair(uuid, backendPair));
+    }
+
+    private void applyBackendPair(@Nonnull UUID uuid, @Nullable MarriagePair backendPair) {
+        MarriagePair cached = marriageIndex.get(uuid);
+        if (backendPair == null) {
+            // Unmarried per the backend (e.g. divorced on another server since our
+            // last local write) — drop a stale local entry, if any.
+            if (cached != null) {
+                marriages.remove(cached);
+                marriageIndex.remove(cached.player1());
+                marriageIndex.remove(cached.player2());
+            }
+            return;
+        }
+        if (cached != null && cached.player1().equals(backendPair.player1())
+                && cached.player2().equals(backendPair.player2())
+                && cached.timestamp() == backendPair.timestamp()) {
+            return; // already in sync
+        }
+        if (cached != null) {
+            marriages.remove(cached);
+            marriageIndex.remove(cached.player1());
+            marriageIndex.remove(cached.player2());
+        }
+        marriages.add(backendPair);
+        marriageIndex.put(backendPair.player1(), backendPair);
+        marriageIndex.put(backendPair.player2(), backendPair);
     }
 
     /**
