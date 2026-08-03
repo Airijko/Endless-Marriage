@@ -25,6 +25,7 @@ import com.airijko.endlessmarriage.services.PiggybackService;
 import com.airijko.endlessmarriage.systems.MarriageProximitySystem;
 import com.airijko.endlessmarriage.systems.PiggybackFollowSystem;
 import com.airijko.endlessmarriage.systems.SpouseProtectionSystem;
+import com.airijko.endlessmarriage.util.AssetPackStubWriter;
 import com.airijko.endlessmarriage.util.EventWorldBridge;
 import com.airijko.endlessmarriage.util.PlayerWorldResolver;
 import com.hypixel.hytale.logger.HytaleLogger;
@@ -148,6 +149,8 @@ public class EndlessMarriage extends JavaPlugin {
 
     @Override
     protected void setup() {
+        // Sentinel manifest so AssetModule's mods/ pack scan stops WARNing about this data folder.
+        AssetPackStubWriter.writeStubIfMissing(getDataDirectory(), "EndlessMarriageData");
         LOGGER.atInfo().log("EndlessMarriage initializing...");
 
         // Register the addon's ECS component types BEFORE any system registration so
