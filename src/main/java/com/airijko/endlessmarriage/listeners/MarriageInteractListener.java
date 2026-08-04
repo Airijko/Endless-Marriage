@@ -99,8 +99,10 @@ public final class MarriageInteractListener {
             case ALREADY_MOUNTED, SPOUSE_ALREADY_CARRYING, SPOUSE_IS_RIDING ->
                 sendMessage(senderPlayerRef, "Cannot piggyback right now.", "#ff9900");
             default -> {
-                // TOO_FAR / NOT_MARRIED / SPOUSE_OFFLINE / ERROR — swallow,
+                // TOO_FAR / NOT_MARRIED / SPOUSE_OFFLINE / IN_COMBAT / ERROR — swallow,
                 // interact event fires often enough that spamming chat is bad.
+                // IN_COMBAT especially: right-clicking a spouse mid-fight is common,
+                // and /marry piggyback still explains the refusal for anyone who asks.
             }
         }
     }

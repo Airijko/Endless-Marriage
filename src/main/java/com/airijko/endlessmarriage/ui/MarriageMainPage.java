@@ -529,6 +529,8 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
                 playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.PIGGYBACK_TOO_FAR, "#ff9900"));
             case ALREADY_MOUNTED ->
                 playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.PIGGYBACK_ALREADY_MOUNTED, "#ff9900"));
+            case IN_COMBAT ->
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.PIGGYBACK_IN_COMBAT, "#ff9900"));
             case SPOUSE_ALREADY_CARRYING, SPOUSE_IS_RIDING ->
                 playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.PIGGYBACK_SPOUSE_BUSY, "#ff9900"));
             default ->
@@ -579,6 +581,8 @@ public class MarriageMainPage extends SafeInteractiveCustomUIPage<MarriagePageDa
                 playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.CARRY_TOO_FAR, "#ff9900"));
             case ALREADY_CARRYING ->
                 playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.CARRY_ALREADY_CARRYING, "#ff9900"));
+            case IN_COMBAT ->
+                playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.PIGGYBACK_IN_COMBAT, "#ff9900"));
             case SELF_IS_RIDING ->
                 playerRef.sendMessage(MarriageMessages.shortChat(MarriageMessages.CARRY_SELF_RIDING, "#ff9900"));
             case SPOUSE_ALREADY_CARRYING, SPOUSE_IS_RIDING ->

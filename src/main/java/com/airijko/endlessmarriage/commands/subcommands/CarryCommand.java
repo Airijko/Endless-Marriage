@@ -106,6 +106,8 @@ public class CarryCommand extends AbstractPlayerCommand {
                 senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.CARRY_ALREADY_CARRYING, COLOR_WARN));
             case SELF_IS_RIDING ->
                 senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.CARRY_SELF_RIDING, COLOR_WARN));
+            case IN_COMBAT ->
+                senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.PIGGYBACK_IN_COMBAT, COLOR_WARN));
             case SPOUSE_ALREADY_CARRYING, SPOUSE_IS_RIDING ->
                 senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.PIGGYBACK_SPOUSE_BUSY, COLOR_WARN));
             default ->

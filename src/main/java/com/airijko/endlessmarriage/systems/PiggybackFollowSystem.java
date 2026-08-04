@@ -9,6 +9,7 @@
 
 package com.airijko.endlessmarriage.systems;
 
+import com.airijko.endlessmarriage.commands.subcommands.MarriageMessages;
 import com.airijko.endlessmarriage.config.MarriageConfig;
 import com.airijko.endlessmarriage.services.PiggybackService;
 import com.airijko.endlessmarriage.util.EventWorldBridge;
@@ -20,11 +21,14 @@ import com.hypixel.hytale.math.util.TrigMathUtil;
 import com.hypixel.hytale.math.vector.Rotation3f;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.modules.physics.component.Velocity;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import org.joml.Vector3d;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.Map;
 import java.util.UUID;
 
@@ -146,12 +150,30 @@ public final class PiggybackFollowSystem extends TickingSystem<EntityStore> {
             return;
         }
 
+        // Sessions to tear down for combat, collected during the walk below and
+        // processed after it: dismountAny() mutates the map being iterated, which is
+        // exactly why the marriage-disabled branch above also defers its detaches.
+        // Entries are {riderUuid, carrierUuid}; null until something actually trips.
+        java.util.List<UUID[]> combatDetach = null;
+
         for (Map.Entry<UUID, UUID> entry : sessions.entrySet()) {
             UUID riderUuid = entry.getKey();
             UUID carrierUuid = entry.getValue();
 
             Ref<EntityStore> riderRef = entityStore.getRefFromUUID(riderUuid);
             if (riderRef == null || !riderRef.isValid()) {
+                continue;
+            }
+
+            // Placed after the rider-ref lookup on purpose: tick() runs once per world
+            // store but walks the GLOBAL session map, so gating on "the rider lives in
+            // this store" means only one world thread ever evaluates a given session and
+            // the detach can't be raced by every other world.
+            if (piggybackService.isCombatBlocked(riderUuid, carrierUuid)) {
+                if (combatDetach == null) {
+                    combatDetach = new java.util.ArrayList<>(2);
+                }
+                combatDetach.add(new UUID[] { riderUuid, carrierUuid });
                 continue;
             }
             Ref<EntityStore> carrierRef = entityStore.getRefFromUUID(carrierUuid);
@@ -248,6 +270,40 @@ public final class PiggybackFollowSystem extends TickingSystem<EntityStore> {
                             .log("Piggyback follow skipped a tick for %s (rate-limited log).", riderUuid);
                 }
             }
+        }
+
+        if (combatDetach != null) {
+            for (UUID[] pair : combatDetach) {
+                try {
+                    // Only announce if this call is the one that actually ended the session
+                    // — dismountAny() returns false when a manual dismount, death-detach or
+                    // disconnect already tore it down, so the notice can't double-fire.
+                    if (piggybackService.dismountAny(pair[0])) {
+                        notifyCombatDismount(pair[0]);
+                        notifyCombatDismount(pair[1]);
+                    }
+                } catch (Throwable ex) {
+                    // Throwable, not Exception: this is a TickingSystem, and anything escaping
+                    // tick() kills the world thread outright.
+                    LOGGER.atWarning().withCause(ex)
+                            .log("Failed to combat-detach piggyback session for %s.", pair[0]);
+                }
+            }
+        }
+    }
+
+    /**
+     * Best-effort chat notice that the piggyback ended because someone entered combat.
+     * Silent if the player is offline or already gone from the universe.
+     */
+    private void notifyCombatDismount(@Nullable UUID uuid) {
+        if (uuid == null) {
+            return;
+        }
+        PlayerRef player = Universe.get().getPlayer(uuid);
+        if (player != null && player.isValid()) {
+            player.sendMessage(MarriageMessages.chat(MarriageMessages.PIGGYBACK_COMBAT_DISMOUNT,
+                    MarriageMessages.Color.WARN));
         }
     }
 }

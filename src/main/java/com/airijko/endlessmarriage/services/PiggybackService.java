@@ -9,6 +9,7 @@
 
 package com.airijko.endlessmarriage.services;
 
+import com.airijko.endlessleveling.api.EndlessLevelingAPI;
 import com.airijko.endlessmarriage.config.MarriageConfig;
 import com.airijko.endlessmarriage.data.MarriageDataManager;
 import com.airijko.endlessmarriage.util.EventWorldBridge;
@@ -67,6 +68,33 @@ public final class PiggybackService {
     /** Returns true if the player is participating in a piggyback session. */
     public boolean isInActivePiggyback(@Nonnull UUID uuid) {
         return riders.containsKey(uuid) || carriers.containsKey(uuid);
+    }
+
+    /**
+     * True if the combat gate should block or end a piggyback session between these
+     * two players — i.e. {@code piggyback_combat_dismount} is on and either party is
+     * combat-tagged in EndlessLeveling (damage dealt or taken, PvP or PvE, 5s window).
+     *
+     * <p>Fails OPEN: if EL-Core is unavailable or the lookup throws, this returns
+     * {@code false} so a broken dependency degrades to "combat gate off" instead of
+     * permanently disabling piggyback. Called from a world tick, so it must never throw.
+     */
+    public boolean isCombatBlocked(@Nullable UUID first, @Nullable UUID second) {
+        if (!config.isPiggybackCombatDismount()) {
+            return false;
+        }
+        try {
+            EndlessLevelingAPI api = EndlessLevelingAPI.get();
+            if (api == null) {
+                return false;
+            }
+            return (first != null && api.isInCombat(first))
+                    || (second != null && api.isInCombat(second));
+        } catch (Throwable ex) {
+            // Throwable, not Exception: this runs inside a TickingSystem, where anything
+            // escaping kills the world thread. A missing/old EL-Core must not do that.
+            return false;
+        }
     }
 
     /** Cheap hot-path gate for the Refixes un-targeting bridge: any sessions at all? */
@@ -152,6 +180,8 @@ public final class PiggybackService {
         SELF_IS_RIDING,
         SPOUSE_ALREADY_CARRYING,
         SPOUSE_IS_RIDING,
+        /** One or both parties are combat-tagged and piggyback_combat_dismount is on. */
+        IN_COMBAT,
         ERROR
     }
 
@@ -236,6 +266,10 @@ public final class PiggybackService {
         double maxRange = config.getPiggybackMaxRange();
         if (distSq > maxRange * maxRange) {
             return MountResult.TOO_FAR;
+        }
+
+        if (isCombatBlocked(riderUuid, spouseUuid)) {
+            return MountResult.IN_COMBAT;
         }
 
         // No engine MountedComponent is attached. The only entity-mount controller
@@ -334,6 +368,10 @@ public final class PiggybackService {
         double maxRange = config.getPiggybackMaxRange();
         if (distSq > maxRange * maxRange) {
             return MountResult.TOO_FAR;
+        }
+
+        if (isCombatBlocked(carrierUuid, spouseUuid)) {
+            return MountResult.IN_COMBAT;
         }
 
         // Spouse is the rider seated on the sender (carrier). See tryMount for why

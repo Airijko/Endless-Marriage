@@ -75,6 +75,13 @@ public class MarriageConfig {
     private boolean piggybackBlockAbilities = true;
     private double piggybackDamageReductionPercent = 25.0;
     private double piggybackMaxRange = 5.0;
+    // When true (default), an active piggyback/carry session is torn down as soon as
+    // either the rider or the carrier enters combat, and a new session cannot be
+    // started while either party is combat-tagged. "In combat" is EL-Core's tag
+    // (EndlessLevelingAPI.isInCombat) — set on damage dealt or taken, PvP and PvE,
+    // with a 5s window. Being carried is a non-combat state; this stops a couple
+    // from fighting as one hard-to-hit stack.
+    private boolean piggybackCombatDismount = true;
     // Stream a server-authoritative BlockMount "seat" to the rider's client each
     // tick so the rider's camera follows the carrier (the carrier drives via
     // normal movement). Kill-switch: false falls back to body-only carry (rider
@@ -182,6 +189,10 @@ public class MarriageConfig {
 
     public double getPiggybackMaxRange() {
         return piggybackMaxRange;
+    }
+
+    public boolean isPiggybackCombatDismount() {
+        return piggybackCombatDismount;
     }
 
     public boolean isPiggybackSeatStreamEnabled() {
@@ -318,6 +329,9 @@ public class MarriageConfig {
             }
             if (root.has("piggyback_max_range")) {
                 piggybackMaxRange = root.get("piggyback_max_range").getAsDouble();
+            }
+            if (root.has("piggyback_combat_dismount")) {
+                piggybackCombatDismount = root.get("piggyback_combat_dismount").getAsBoolean();
             }
             if (root.has("piggyback_back_offset")) {
                 piggybackBackOffset = root.get("piggyback_back_offset").getAsDouble();

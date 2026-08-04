@@ -101,6 +101,8 @@ public class PiggybackCommand extends AbstractPlayerCommand {
                 senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.PIGGYBACK_TOO_FAR, COLOR_WARN));
             case ALREADY_MOUNTED ->
                 senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.PIGGYBACK_ALREADY_MOUNTED, COLOR_WARN));
+            case IN_COMBAT ->
+                senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.PIGGYBACK_IN_COMBAT, COLOR_WARN));
             case SPOUSE_ALREADY_CARRYING, SPOUSE_IS_RIDING ->
                 senderRef.sendMessage(MarriageMessages.chat(MarriageMessages.PIGGYBACK_SPOUSE_BUSY, COLOR_WARN));
             case ERROR ->
