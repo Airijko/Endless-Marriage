@@ -369,6 +369,16 @@ public class EndlessMarriage extends JavaPlugin {
         // Register commands
         MarriageCommandRegistrar.registerCommands(this.getCommandRegistry());
 
+        com.airijko.endlessleveling.ui.menu.MenuRegistry.registerPage("marriage", (ref, store, playerRef) -> {
+            com.hypixel.hytale.server.core.entity.entities.Player player =
+                    store.getComponent(ref, com.hypixel.hytale.server.core.entity.entities.Player.getComponentType());
+            if (player != null) {
+                player.getPageManager().openCustomPage(ref, store,
+                        new com.airijko.endlessmarriage.ui.MarriageMainPage(playerRef,
+                                com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime.CanDismiss, ref, store));
+            }
+        });
+
         LOGGER.atInfo().log("EndlessMarriage has been enabled! Loaded %d marriages.",
                 marriageDataManager.getAllMarriages().size());
     }
